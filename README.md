@@ -39,9 +39,14 @@ Chairman summarizes, and the Investment Secretary records the discussion.
 Milestone 6 adds an append-only knowledge base and thesis tracker. The committee
 can now recall thesis history and prior discussions before member reviews.
 
+Epic 3.5 documents the Context Layer pipeline that assembles provider data and
+memory into committee prompt context before any LLM reasoning.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
+- `src/parakeetnest/context`: context provider registry, provider contracts,
+  context assembly, and prompt rendering for committee meetings.
 - `src/parakeetnest/services`: data collection and validation boundaries.
 - `src/parakeetnest/domain.py`: normalized snapshot models shared across
   services, persistence, and future analyzers.
@@ -157,6 +162,11 @@ metadata rows.
 
 Future provider integrations should implement the explicit service protocols
 from `src/parakeetnest/services/base.py` and return typed domain snapshots.
+
+The Context Layer is documented in
+[`docs/architecture/context-layer.md`](docs/architecture/context-layer.md). It
+defines how providers are registered, configured, merged, and rendered into
+committee prompts.
 
 ## Committee Flow
 

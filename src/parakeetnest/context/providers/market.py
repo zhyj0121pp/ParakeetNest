@@ -1,8 +1,6 @@
-"""Deterministic mock market context provider."""
+"""Market context provider backed by the Market Data Layer."""
 
 from __future__ import annotations
-
-from datetime import UTC, datetime
 
 from parakeetnest.context.models import (
     ContextMetadata,
@@ -15,42 +13,17 @@ from parakeetnest.context.provider import (
     ContextProviderResult,
     UnsupportedContextRequestError,
 )
+from parakeetnest.market_data.models import MarketDataSnapshot, Symbol
+from parakeetnest.market_data.service import MarketDataService
 
 
 class MarketContextProvider:
-    """Build fixed market snapshots for requested symbols."""
+    """Build market context from provider-backed market data service snapshots."""
 
-    provider_name = "mock_market"
-    _fetched_at = datetime(2026, 6, 29, 13, 0, tzinfo=UTC)
-    _fixtures = {
-        "AMD": {
-            "price": 175.25,
-            "daily_change": 2.15,
-            "daily_change_percent": 1.24,
-            "volume": 48200000.0,
-            "market_cap": 284000000000.0,
-            "pe_ratio": 41.8,
-            "eps": 4.19,
-        },
-        "NVDA": {
-            "price": 128.40,
-            "daily_change": -0.75,
-            "daily_change_percent": -0.58,
-            "volume": 205000000.0,
-            "market_cap": 3160000000000.0,
-            "pe_ratio": 36.4,
-            "eps": 3.53,
-        },
-    }
-    _fallback = {
-        "price": 100.0,
-        "daily_change": 0.0,
-        "daily_change_percent": 0.0,
-        "volume": 1000000.0,
-        "market_cap": 10000000000.0,
-        "pe_ratio": 20.0,
-        "eps": 5.0,
-    }
+    provider_name = "market_data"
+
+    def __init__(self, market_data_service: MarketDataService) -> None:
+        self._market_data_service = market_data_service
 
     def supports(self, request: ContextRequest) -> bool:
         return bool(request.symbols)
@@ -59,30 +32,52 @@ class MarketContextProvider:
         if not self.supports(request):
             raise UnsupportedContextRequestError(self.provider_name, request)
 
-        points = tuple(self._point_for(symbol) for symbol in request.symbols)
+        snapshots = tuple(
+            self._market_data_service.get_snapshot(Symbol(symbol))
+            for symbol in request.symbols
+        )
+        fetched_at = max((snapshot.timestamp for snapshot in snapshots), default=None)
         partial_context = MeetingContext(
             request=request,
             metadata=ContextMetadata(
-                generated_at=self._fetched_at,
+                generated_at=fetched_at,
                 sources=(self.provider_name,),
             ),
             market=MarketSnapshot(
                 source=self.provider_name,
-                fetched_at=self._fetched_at,
-                points=points,
+                fetched_at=fetched_at,
+                points=tuple(self._point_for(snapshot) for snapshot in snapshots),
             ),
         )
         return ContextProviderResult(
             provider_name=self.provider_name,
             partial_context=partial_context,
-            metadata={"fixture": "market"},
+            metadata={"source": "market_data_service"},
         )
 
-    def _point_for(self, symbol: str) -> MarketDataPoint:
-        values = self._fixtures.get(symbol, self._fallback)
+    def _point_for(self, snapshot: MarketDataSnapshot) -> MarketDataPoint:
+        daily_change = self._daily_change(snapshot)
         return MarketDataPoint(
-            symbol=symbol,
+            symbol=snapshot.symbol.ticker,
             source=self.provider_name,
-            observed_at=self._fetched_at,
-            **values,
+            observed_at=snapshot.timestamp,
+            price=snapshot.price,
+            daily_change=daily_change,
+            daily_change_percent=self._daily_change_percent(snapshot, daily_change),
+            volume=snapshot.volume,
         )
+
+    @staticmethod
+    def _daily_change(snapshot: MarketDataSnapshot) -> float | None:
+        if snapshot.previous_close is None:
+            return None
+        return snapshot.price - snapshot.previous_close
+
+    @staticmethod
+    def _daily_change_percent(
+        snapshot: MarketDataSnapshot,
+        daily_change: float | None,
+    ) -> float | None:
+        if daily_change is None or snapshot.previous_close in (None, 0):
+            return None
+        return (daily_change / snapshot.previous_close) * 100

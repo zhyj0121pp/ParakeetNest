@@ -58,6 +58,6 @@ def test_create_app_can_disable_context_provider_before_service_creation(
         app.close()
 
     assert registrations["mock_news"] is False
-    assert registrations["mock_market"] is True
+    assert registrations["market_data"] is True
     assert context.news is None
     assert context.market is not None

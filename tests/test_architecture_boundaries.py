@@ -40,3 +40,32 @@ def test_bootstrap_dependency_direction_stays_out_of_services_agents_and_runtime
                     imported_modules.extend(alias.name for alias in node.names)
 
     assert "parakeetnest.app" not in imported_modules
+
+
+def test_meeting_service_has_no_market_data_dependency() -> None:
+    """MeetingService must receive market data only through ContextService."""
+    source_path = Path("src/parakeetnest/services/meeting.py")
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+
+    imported_modules = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module is not None:
+            imported_modules.append(node.module)
+        elif isinstance(node, ast.Import):
+            imported_modules.extend(alias.name for alias in node.names)
+
+    assert all(
+        not module.startswith("parakeetnest.market_data")
+        for module in imported_modules
+    )
+    assert all("MarketData" not in ast.unparse(node) for node in ast.walk(tree))
+
+
+def test_source_tree_does_not_introduce_yahoo_finance_code() -> None:
+    """Market data extensions should not add Yahoo Finance dependencies."""
+    source_paths = Path("src/parakeetnest").rglob("*.py")
+
+    for source_path in source_paths:
+        source = source_path.read_text(encoding="utf-8").lower()
+        assert "yfinance" not in source
+        assert "yahoo finance" not in source

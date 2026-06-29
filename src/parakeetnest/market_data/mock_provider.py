@@ -18,6 +18,18 @@ class MockMarketDataProvider:
     """Market data provider backed by embedded deterministic fixtures."""
 
     _SNAPSHOTS = {
+        "AMD": MarketDataSnapshot(
+            symbol=Symbol("AMD"),
+            asset_type=AssetType.STOCK,
+            price=175.25,
+            currency="USD",
+            timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            previous_close=173.10,
+            open=173.9,
+            high=176.4,
+            low=172.8,
+            volume=48_200_000.0,
+        ),
         "AAPL": MarketDataSnapshot(
             symbol=Symbol("AAPL"),
             asset_type=AssetType.STOCK,
@@ -66,9 +78,59 @@ class MockMarketDataProvider:
             low=619.25,
             volume=78_000_000.0,
         ),
+        "POET": MarketDataSnapshot(
+            symbol=Symbol("POET"),
+            asset_type=AssetType.STOCK,
+            price=2.85,
+            currency="USD",
+            timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            previous_close=2.80,
+            open=2.82,
+            high=2.92,
+            low=2.76,
+            volume=1_200_000.0,
+        ),
     }
 
     _HISTORY = {
+        "AMD": (
+            PriceBar(
+                symbol=Symbol("AMD"),
+                start_time=datetime(2026, 6, 23, 13, 30, tzinfo=UTC),
+                open=168.5,
+                high=171.2,
+                low=167.8,
+                close=170.4,
+                volume=43_600_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("AMD"),
+                start_time=datetime(2026, 6, 24, 13, 30, tzinfo=UTC),
+                open=170.7,
+                high=173.1,
+                low=169.9,
+                close=172.2,
+                volume=45_100_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("AMD"),
+                start_time=datetime(2026, 6, 25, 13, 30, tzinfo=UTC),
+                open=172.4,
+                high=174.0,
+                low=171.6,
+                close=173.1,
+                volume=46_700_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("AMD"),
+                start_time=datetime(2026, 6, 26, 13, 30, tzinfo=UTC),
+                open=173.9,
+                high=176.4,
+                low=172.8,
+                close=175.25,
+                volume=48_200_000.0,
+            ),
+        ),
         "AAPL": (
             PriceBar(
                 symbol=Symbol("AAPL"),
@@ -219,6 +281,44 @@ class MockMarketDataProvider:
                 low=619.25,
                 close=622.75,
                 volume=78_000_000.0,
+            ),
+        ),
+        "POET": (
+            PriceBar(
+                symbol=Symbol("POET"),
+                start_time=datetime(2026, 6, 23, 13, 30, tzinfo=UTC),
+                open=2.62,
+                high=2.70,
+                low=2.58,
+                close=2.66,
+                volume=980_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("POET"),
+                start_time=datetime(2026, 6, 24, 13, 30, tzinfo=UTC),
+                open=2.67,
+                high=2.75,
+                low=2.64,
+                close=2.71,
+                volume=1_050_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("POET"),
+                start_time=datetime(2026, 6, 25, 13, 30, tzinfo=UTC),
+                open=2.72,
+                high=2.84,
+                low=2.70,
+                close=2.80,
+                volume=1_140_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("POET"),
+                start_time=datetime(2026, 6, 26, 13, 30, tzinfo=UTC),
+                open=2.82,
+                high=2.92,
+                low=2.76,
+                close=2.85,
+                volume=1_200_000.0,
             ),
         ),
     }

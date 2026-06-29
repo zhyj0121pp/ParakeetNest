@@ -26,6 +26,8 @@ class AppConfig:
     llm_provider: str = "mock"
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
+    enabled_context_provider_ids: tuple[str, ...] | None = None
+    disabled_context_provider_ids: tuple[str, ...] = field(default_factory=tuple)
 
     def resolved_database_url(self) -> str:
         """Return the configured SQLAlchemy database URL."""

@@ -72,7 +72,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
 
     meeting_repository = CommitteeMeetingRepository(session)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
-    context_provider_registry = _create_context_provider_registry()
+    context_provider_registry = _create_context_provider_registry(resolved_config)
     context_service = ContextService(
         providers=context_provider_registry.resolve_enabled_providers()
     )
@@ -129,11 +129,50 @@ def _create_llm_provider(config: AppConfig) -> LLMProvider:
     raise ValueError(f"Unsupported LLM provider: {config.llm_provider}")
 
 
-def _create_context_provider_registry() -> ContextProviderRegistry:
+def _create_context_provider_registry(config: AppConfig) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
     registry.register("mock_market", MarketContextProvider())
     registry.register("mock_news", NewsContextProvider())
     registry.register("mock_portfolio", PortfolioContextProvider())
     registry.register("mock_macro", MacroContextProvider())
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())
+    _apply_context_provider_config(registry, config)
     return registry
+
+
+def _apply_context_provider_config(
+    registry: ContextProviderRegistry,
+    config: AppConfig,
+) -> None:
+    provider_ids = {
+        registration.provider_id for registration in registry.list_registrations()
+    }
+
+    if config.enabled_context_provider_ids is not None:
+        _raise_for_unknown_context_provider_ids(
+            provider_ids,
+            config.enabled_context_provider_ids,
+        )
+        enabled_provider_ids = set(config.enabled_context_provider_ids)
+        for registration in registry.list_registrations():
+            registry.set_enabled(
+                registration.provider_id,
+                registration.provider_id in enabled_provider_ids,
+            )
+
+    _raise_for_unknown_context_provider_ids(
+        provider_ids,
+        config.disabled_context_provider_ids,
+    )
+    for provider_id in config.disabled_context_provider_ids:
+        registry.disable(provider_id)
+
+
+def _raise_for_unknown_context_provider_ids(
+    provider_ids: set[str],
+    configured_provider_ids: tuple[str, ...],
+) -> None:
+    unknown_provider_ids = sorted(set(configured_provider_ids) - provider_ids)
+    if unknown_provider_ids:
+        joined_provider_ids = ", ".join(unknown_provider_ids)
+        raise KeyError(f"Unknown context provider(s): {joined_provider_ids}")

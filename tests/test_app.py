@@ -4,6 +4,7 @@ from pathlib import Path
 
 from parakeetnest.app import ParakeetNestApp, create_app, create_test_app
 from parakeetnest.config import AppConfig
+from parakeetnest.context import ContextRequest
 from parakeetnest.llm import MockLLMProvider
 
 
@@ -33,3 +34,30 @@ def test_create_test_app_uses_mock_llm_provider() -> None:
         assert isinstance(app.llm_provider, MockLLMProvider)
     finally:
         app.close()
+
+
+def test_create_app_can_disable_context_provider_before_service_creation(
+    tmp_path: Path,
+) -> None:
+    """Provider config should be applied before ContextService receives providers."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            disabled_context_provider_ids=("mock_news",),
+        )
+    )
+    try:
+        registrations = {
+            registration.provider_id: registration.enabled
+            for registration in app.context_provider_registry.list_registrations()
+        }
+        context = app.context_service.build_context(
+            ContextRequest(question="Review AMD.", symbols=("AMD",))
+        )
+    finally:
+        app.close()
+
+    assert registrations["mock_news"] is False
+    assert registrations["mock_market"] is True
+    assert context.news is None
+    assert context.market is not None

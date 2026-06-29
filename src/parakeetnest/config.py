@@ -26,6 +26,13 @@ class MarketDataConfig:
 
 
 @dataclass(frozen=True)
+class NewsConfig:
+    """News provider configuration."""
+
+    provider: str = "mock"
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Application container configuration."""
 
@@ -35,6 +42,7 @@ class AppConfig:
     market_data: MarketDataConfig | Mapping[str, str] = field(
         default_factory=MarketDataConfig
     )
+    news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
     enabled_context_provider_ids: tuple[str, ...] | None = None
@@ -47,6 +55,12 @@ class AppConfig:
                 self,
                 "market_data",
                 MarketDataConfig(**dict(self.market_data)),
+            )
+        if isinstance(self.news, Mapping):
+            object.__setattr__(
+                self,
+                "news",
+                NewsConfig(**dict(self.news)),
             )
 
     def resolved_database_url(self) -> str:

@@ -6,6 +6,7 @@ from parakeetnest.app import ParakeetNestApp, create_app, create_test_app
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
 from parakeetnest.llm import MockLLMProvider
+from parakeetnest.news import NewsQuery
 
 
 def test_create_app_returns_working_application(tmp_path: Path) -> None:
@@ -61,3 +62,21 @@ def test_create_app_can_disable_context_provider_before_service_creation(
     assert registrations["market_data"] is True
     assert context.news is None
     assert context.market is not None
+
+
+def test_create_app_wires_configured_news_service(tmp_path: Path) -> None:
+    """The app factory should resolve the configured News Layer provider."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            news={"provider": "mock"},
+        )
+    )
+    try:
+        articles = app.news_service.get_news(NewsQuery(symbols=["POET"]))
+    finally:
+        app.close()
+
+    assert len(articles) == 1
+    assert articles[0].provider == "mock"
+    assert articles[0].symbols == ["POET"]

@@ -168,6 +168,9 @@ The Context Layer is documented in
 defines how providers are registered, configured, merged, and rendered into
 committee prompts.
 
+Epic 003 summarizes the Context Pipeline Refinement work in
+[`docs/epics/epic-003-context-pipeline-refinement.md`](docs/epics/epic-003-context-pipeline-refinement.md).
+
 ## Committee Flow
 
 The committee engine is deterministic for now and does not call OpenAI or any

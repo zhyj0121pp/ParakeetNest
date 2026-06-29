@@ -8,6 +8,7 @@ from parakeetnest.committee.models import (
     CommitteeOpinion,
     InvestmentContext,
 )
+from parakeetnest.memory.knowledge_base import KnowledgeBase
 from parakeetnest.models import CommitteeMemo, Recommendation
 
 
@@ -16,6 +17,7 @@ class InvestmentSecretary:
     """Maintain committee memory without offering investment opinions."""
 
     name = "Investment Secretary"
+    knowledge_base: KnowledgeBase = field(default_factory=KnowledgeBase)
     thesis_memory: dict[str, tuple[str, ...]] = field(default_factory=dict)
     discussion_memory: dict[str, tuple[str, ...]] = field(default_factory=dict)
     recorded_results: list[CommitteeMeetingResult] = field(default_factory=list)
@@ -27,10 +29,19 @@ class InvestmentSecretary:
         data_quality_notes: tuple[str, ...] = (),
     ) -> InvestmentContext:
         """Load historical thesis and discussion context before reasoning."""
+        latest_thesis = self.knowledge_base.get_latest_thesis(symbol)
+        thesis_history = tuple(
+            version.thesis for version in self.knowledge_base.get_thesis_history(symbol)
+        )
+        fallback_thesis = self.thesis_memory.get(symbol, ())
+        knowledge_discussions = self.knowledge_base.get_committee_discussions(symbol)
+        fallback_discussions = self.discussion_memory.get(symbol, ())
         return InvestmentContext(
             symbol=symbol,
-            historical_thesis=self.thesis_memory.get(symbol, ()),
-            historical_discussions=self.discussion_memory.get(symbol, ()),
+            historical_thesis=thesis_history
+            or ((latest_thesis.thesis,) if latest_thesis else ())
+            or fallback_thesis,
+            historical_discussions=knowledge_discussions or fallback_discussions,
             current_facts=current_facts,
             data_quality_notes=data_quality_notes,
         )
@@ -52,6 +63,10 @@ class InvestmentSecretary:
         prior_discussions = self.discussion_memory.get(context.symbol, ())
         self.discussion_memory[context.symbol] = (
             *prior_discussions,
+            chairman_summary.rationale,
+        )
+        self.knowledge_base.record_committee_discussion(
+            context.symbol,
             chairman_summary.rationale,
         )
         return result

@@ -36,6 +36,9 @@ Milestone 5 adds a deterministic committee engine without OpenAI. The committee
 loads memory first, then Xixi, Dongdong, and Yoyo produce typed opinions,
 Chairman summarizes, and the Investment Secretary records the discussion.
 
+Milestone 6 adds an append-only knowledge base and thesis tracker. The committee
+can now recall thesis history and prior discussions before member reviews.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -181,5 +184,28 @@ result = meeting.run(
 )
 print(result.chairman_summary.action)
 print(result.chairman_summary.rationale)
+PY
+```
+
+## Knowledge Base Workflow
+
+The knowledge base stores accumulated investment knowledge rather than raw
+market data. Thesis history is append-only:
+
+```bash
+.venv/bin/python - <<'PY'
+from parakeetnest.memory import KnowledgeBase, ThesisTracker
+from parakeetnest.committee.meeting import CommitteeMeeting
+
+knowledge_base = KnowledgeBase()
+tracker = ThesisTracker(knowledge_base)
+tracker.create_thesis("NVDA", "Own only if AI demand remains evidence-backed.")
+tracker.update_thesis("NVDA", "Watch valuation while AI demand evidence improves.")
+knowledge_base.add_research_note("AI demand", "Mock research note.", symbol="NVDA")
+knowledge_base.add_lesson_learned("Respect uncertainty.", symbol="NVDA")
+
+meeting = CommitteeMeeting.default(knowledge_base=knowledge_base)
+result = meeting.run("NVDA")
+print(result.context.historical_thesis)
 PY
 ```

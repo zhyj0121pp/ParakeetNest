@@ -7,6 +7,7 @@ from parakeetnest.committee.chairman import Chairman
 from parakeetnest.committee.dongdong import Dongdong
 from parakeetnest.committee.models import CommitteeMeetingResult
 from parakeetnest.committee.secretary import InvestmentSecretary
+from parakeetnest.memory.knowledge_base import KnowledgeBase
 from parakeetnest.committee.xixi import Xixi
 from parakeetnest.committee.yoyo import Yoyo
 
@@ -22,14 +23,16 @@ class CommitteeMeeting:
     secretary: InvestmentSecretary
 
     @classmethod
-    def default(cls) -> "CommitteeMeeting":
+    def default(cls, knowledge_base: KnowledgeBase | None = None) -> "CommitteeMeeting":
         """Create a deterministic mock committee meeting."""
         return cls(
             xixi=Xixi(),
             dongdong=Dongdong(),
             yoyo=Yoyo(),
             chairman=Chairman(),
-            secretary=InvestmentSecretary(),
+            secretary=InvestmentSecretary(
+                knowledge_base=knowledge_base or KnowledgeBase(),
+            ),
         )
 
     def run(

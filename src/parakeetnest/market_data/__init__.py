@@ -15,6 +15,7 @@ from parakeetnest.market_data.provider import (
 )
 from parakeetnest.market_data.mock_provider import MockMarketDataProvider
 from parakeetnest.market_data.service import MarketDataService
+from parakeetnest.market_data.yahoo import YahooFinanceMarketDataProvider
 
 __all__ = [
     "AssetType",
@@ -28,4 +29,5 @@ __all__ = [
     "ProviderCapability",
     "ProviderError",
     "Symbol",
+    "YahooFinanceMarketDataProvider",
 ]

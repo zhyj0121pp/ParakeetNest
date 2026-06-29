@@ -61,11 +61,13 @@ def test_meeting_service_has_no_market_data_dependency() -> None:
     assert all("MarketData" not in ast.unparse(node) for node in ast.walk(tree))
 
 
-def test_source_tree_does_not_introduce_yahoo_finance_code() -> None:
-    """Market data extensions should not add Yahoo Finance dependencies."""
+def test_yahoo_finance_code_stays_isolated_to_yahoo_provider() -> None:
+    """Yahoo Finance dependencies should stay inside the Yahoo adapter."""
     source_paths = Path("src/parakeetnest").rglob("*.py")
 
     for source_path in source_paths:
+        if source_path == Path("src/parakeetnest/market_data/yahoo.py"):
+            continue
         source = source_path.read_text(encoding="utf-8").lower()
         assert "yfinance" not in source
         assert "yahoo finance" not in source

@@ -341,7 +341,7 @@ from sqlalchemy.orm import Session
 Committee fetching data directly:
 
 ```python
-from parakeetnest.services.market_data import YahooMarketDataService
+from parakeetnest.market_data.yahoo import YahooFinanceMarketDataProvider
 ```
 
 Committee importing persistence models:

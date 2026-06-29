@@ -43,3 +43,10 @@ class MarketDataProvider(Protocol):
     ) -> list[PriceBar]:
         """Return historical price bars for the symbol and requested range."""
         ...
+
+
+__all__ = [
+    "MarketDataProvider",
+    "ProviderCapability",
+    "ProviderError",
+]

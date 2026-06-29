@@ -20,12 +20,14 @@ from parakeetnest.context.provider import (
     ContextProviderResult,
     UnsupportedContextRequestError,
 )
+from parakeetnest.context.service import ContextService
 
 __all__ = [
     "ContextMetadata",
     "ContextProvider",
     "ContextProviderResult",
     "ContextRequest",
+    "ContextService",
     "FilingItem",
     "FilingSnapshot",
     "KnowledgeBaseSnapshot",

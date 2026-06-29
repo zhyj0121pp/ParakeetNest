@@ -15,9 +15,16 @@ from parakeetnest.context.models import (
     PortfolioPosition,
     PortfolioSnapshot,
 )
+from parakeetnest.context.provider import (
+    ContextProvider,
+    ContextProviderResult,
+    UnsupportedContextRequestError,
+)
 
 __all__ = [
     "ContextMetadata",
+    "ContextProvider",
+    "ContextProviderResult",
     "ContextRequest",
     "FilingItem",
     "FilingSnapshot",
@@ -30,4 +37,5 @@ __all__ = [
     "NewsSnapshot",
     "PortfolioPosition",
     "PortfolioSnapshot",
+    "UnsupportedContextRequestError",
 ]

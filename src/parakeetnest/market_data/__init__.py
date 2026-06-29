@@ -1,4 +1,4 @@
-"""Provider-agnostic Market Data Layer domain models."""
+"""Provider-agnostic Market Data Layer interfaces and domain models."""
 
 from parakeetnest.market_data.models import (
     AssetType,
@@ -8,12 +8,20 @@ from parakeetnest.market_data.models import (
     PriceBar,
     Symbol,
 )
+from parakeetnest.market_data.provider import (
+    MarketDataProvider,
+    ProviderCapability,
+    ProviderError,
+)
 
 __all__ = [
     "AssetType",
     "MarketDataError",
+    "MarketDataProvider",
     "MarketDataRange",
     "MarketDataSnapshot",
     "PriceBar",
+    "ProviderCapability",
+    "ProviderError",
     "Symbol",
 ]

@@ -8,6 +8,12 @@ from parakeetnest.sec.models import (
     SecFilingQuery,
 )
 from parakeetnest.sec.provider import ProviderError, SecFilingError, SecFilingProvider
+from parakeetnest.sec.registry import (
+    SecFilingProviderRegistration,
+    SecFilingProviderRegistry,
+    create_sec_filing_provider_registry,
+)
+from parakeetnest.sec.service import SecFilingService
 
 __all__ = [
     "FilingType",
@@ -16,6 +22,10 @@ __all__ = [
     "SecFiling",
     "SecFilingContent",
     "SecFilingError",
+    "SecFilingProviderRegistration",
+    "SecFilingProviderRegistry",
     "SecFilingProvider",
     "SecFilingQuery",
+    "SecFilingService",
+    "create_sec_filing_provider_registry",
 ]

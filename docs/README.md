@@ -6,8 +6,8 @@ and lower-level design notes.
 
 ## Overview
 
-- [Architecture](architecture/context-layer.md): system layers and boundaries
-  that guide implementation.
+- [Architecture](architecture/data-source-layer.md): system layers and
+  boundaries that guide implementation.
 - [Epics](epics/README.md): delivery history and planned work by epic.
 - [Roadmap](roadmap.md): milestone-level planning for upcoming platform work.
 - [ADRs](adr/README.md): architectural decision records and the template for
@@ -16,7 +16,9 @@ and lower-level design notes.
 ## Architecture Docs
 
 - [Context Layer](architecture/context-layer.md)
+- [Data Source Layer](architecture/data-source-layer.md)
 - [Market Data Layer](architecture/market-data-layer.md)
+- [Architecture Milestone Review v0.6](architecture/milestone-review-v0.6.md)
 - [Dependency Boundaries](dependency-boundaries.md)
 - [Initial Design](design.md)
 
@@ -29,6 +31,8 @@ epics have dedicated detail pages:
 - [Epic 002: Context Layer](epics/epic-002-context-layer.md)
 - [Epic 003: Context Pipeline Refinement](epics/epic-003-context-pipeline-refinement.md)
 - [Epic 004: Market Data Layer](epics/epic-004-market-data-layer.md)
+- [Epic 005: Yahoo Finance Provider](epics/epic-005-yahoo-finance-provider.md)
+- [Epic 006: News Layer](epics/epic-006-news-layer.md)
 
 ## How Docs Are Organized
 

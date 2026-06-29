@@ -11,6 +11,11 @@ contracts, security, data flow, or long-term project direction. Small local
 implementation details usually do not need ADRs unless they establish a pattern
 that future work should follow.
 
+## Records
+
+- [ADR 001: Market Data Provider Pattern](ADR-001-market-data-provider-pattern.md)
+- [ADR 002: Unified Data Source Architecture](ADR-002-unified-data-source-architecture.md)
+
 ## ADR Template
 
 ```markdown

@@ -26,10 +26,12 @@ systems.
   `NewsContextProvider`.
 - 6.5: Completed. Add Yahoo Finance News provider behind the existing
   `NewsService` and `NewsProvider` boundaries.
+- 6.6: Completed. Finalize News Layer documentation and establish the unified
+  Data Source Layer architecture for future Epics.
 
 ## Current Status
 
-6.5 completed.
+Epic 6 completed.
 
 ## NewsService Responsibilities
 

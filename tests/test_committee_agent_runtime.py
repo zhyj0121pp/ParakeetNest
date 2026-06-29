@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass
 
 from parakeetnest.committee import AgentResult, AgentRuntime, MeetingContext, PromptRenderer
+from parakeetnest.context import ContextRequest
+from parakeetnest.context import MeetingContext as ResearchMeetingContext
 from parakeetnest.llm import MockLLMProvider
 
 
@@ -21,6 +23,12 @@ def _context(*previous_agent_results: AgentResult) -> MeetingContext:
         meeting_id=1,
         question="Should we add to NVDA?",
         ticker="NVDA",
+        research_context=ResearchMeetingContext(
+            request=ContextRequest(
+                question="Should we add to NVDA?",
+                symbols=("NVDA",),
+            )
+        ),
         previous_agent_results=previous_agent_results,
     )
 
@@ -62,6 +70,14 @@ def test_prompt_renderer_includes_prior_agent_results() -> None:
     prompt = PromptRenderer().render(RuntimeAgentStub(), _context(previous))
 
     assert 'Dongdong (Chief Opportunity Hunter): {"viewpoint": "Margins may compress."}' in prompt
+
+
+def test_prompt_renderer_includes_rendered_meeting_context() -> None:
+    prompt = PromptRenderer().render(RuntimeAgentStub(), _context())
+
+    assert "Meeting context:" in prompt
+    assert "## Market" in prompt
+    assert "## Knowledge Base" in prompt
 
 
 def test_agent_runtime_calls_llm_provider_once() -> None:

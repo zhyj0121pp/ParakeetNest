@@ -6,12 +6,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from parakeetnest.committee.models import MeetingResult, MeetingStatus
+from parakeetnest.context.models import ContextRequest
 from parakeetnest.database.repository import CommitteeMeetingRepository
 from parakeetnest.logging import get_logger
 
 
 if TYPE_CHECKING:
     from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
+    from parakeetnest.context.service import ContextService
 
 
 logger = get_logger(__name__)
@@ -23,6 +25,7 @@ class MeetingService:
 
     repository: CommitteeMeetingRepository
     orchestrator: "CommitteeMeetingOrchestrator"
+    context_service: "ContextService"
 
     def run(self, question: str, ticker: str) -> MeetingResult:
         """Create, run, finalize, and return one committee meeting."""
@@ -35,10 +38,16 @@ class MeetingService:
         logger.info("Meeting started", extra=log_context)
 
         try:
+            context_request = ContextRequest(
+                question=question,
+                symbols=(ticker,),
+            )
+            meeting_context = self.context_service.build_context(context_request)
             result = self.orchestrator.run(
                 meeting_id=meeting.id,
                 question=question,
                 ticker=ticker,
+                research_context=meeting_context,
             )
             result_json = result.result_json or {}
             self.repository.update_meeting_completed(meeting.id, result_json)

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from parakeetnest.context.models import MeetingContext as ResearchMeetingContext
 from parakeetnest.models import (
     ConfidenceLevel,
     EvidenceItem,
@@ -47,6 +48,7 @@ class MeetingContext:
     meeting_id: int
     question: str
     ticker: str
+    research_context: ResearchMeetingContext
     previous_agent_results: tuple[AgentResult, ...] = field(default_factory=tuple)
 
 

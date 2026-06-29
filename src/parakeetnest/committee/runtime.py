@@ -8,6 +8,7 @@ from pathlib import Path
 
 from parakeetnest.committee.base import CommitteeAgent
 from parakeetnest.committee.models import AgentResult, MeetingContext
+from parakeetnest.context.rendering import MeetingContextPromptRenderer
 from parakeetnest.llm import (
     CHAIRMAN_SUMMARY_SCHEMA,
     COMMITTEE_OPINION_SCHEMA,
@@ -27,11 +28,15 @@ class PromptRenderer:
 
     prompt_dir: Path = PROMPT_DIR
     system_filename: str = "system.md"
+    context_renderer: MeetingContextPromptRenderer = field(
+        default_factory=MeetingContextPromptRenderer
+    )
 
     def render(self, agent: CommitteeAgent, context: MeetingContext) -> str:
         """Return the final prompt string for one agent turn."""
         system_prompt = self._load_markdown(self.system_filename)
         agent_prompt = self._load_markdown(agent.prompt_filename)
+        rendered_context = self.context_renderer.render(context.research_context)
         previous_results = self._format_previous_results(context)
         return "\n".join(
             (
@@ -44,6 +49,9 @@ class PromptRenderer:
                 f"Meeting ID: {context.meeting_id}",
                 f"Ticker: {context.ticker}",
                 f"Question: {context.question}",
+                "",
+                "Meeting context:",
+                rendered_context,
                 "",
                 "Previous agent results:",
                 previous_results,

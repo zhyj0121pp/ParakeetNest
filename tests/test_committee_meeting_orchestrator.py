@@ -11,6 +11,8 @@ import pytest
 from parakeetnest.app import create_test_app
 from parakeetnest.committee import AgentResult, MeetingContext, MeetingStatus
 from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
+from parakeetnest.context import ContextRequest
+from parakeetnest.context import MeetingContext as ResearchMeetingContext
 from parakeetnest.database import (
     CommitteeMeetingRepository,
     create_session_factory,
@@ -53,6 +55,15 @@ def _chair_result() -> str:
     )
 
 
+def _research_context() -> ResearchMeetingContext:
+    return ResearchMeetingContext(
+        request=ContextRequest(
+            question="Should we add to NVDA?",
+            symbols=("NVDA",),
+        )
+    )
+
+
 def test_orchestrator_runs_all_four_agents_in_order() -> None:
     """The fixed meeting flow should call Xixi, Dongdong, Yoyo, then Chairman."""
     provider = MockLLMProvider(
@@ -68,7 +79,12 @@ def test_orchestrator_runs_all_four_agents_in_order() -> None:
 
     try:
         meeting = app.meeting_repository.create_meeting("Should we add to NVDA?", "NVDA")
-        result = app.committee_orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA")
+        result = app.committee_orchestrator.run(
+            meeting.id,
+            "Should we add to NVDA?",
+            "NVDA",
+            _research_context(),
+        )
         app.commit()
     finally:
         app.close()
@@ -110,6 +126,7 @@ def test_orchestrator_persists_messages_and_final_result() -> None:
             meeting.id,
             "Should we add to NVDA?",
             "NVDA",
+            _research_context(),
         )
         messages = app.meeting_repository.list_meeting_messages(result.meeting_id)
         persisted_meeting = app.session.get(CommitteeMeeting, result.meeting_id)
@@ -165,7 +182,7 @@ def test_failed_agent_error_propagates_without_finalizing_meeting(tmp_path: Path
             agents=(FailingAgent(),),
         )
         with pytest.raises(RuntimeError, match="agent failed"):
-            orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA")
+            orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA", _research_context())
         messages = repository.list_meeting_messages(meeting.id)
         persisted_meeting = session.get(CommitteeMeeting, meeting.id)
 

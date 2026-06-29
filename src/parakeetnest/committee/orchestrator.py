@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from parakeetnest.committee.base import CommitteeAgent
 from parakeetnest.committee.models import AgentResult, MeetingContext, MeetingResult, MeetingStatus
 from parakeetnest.committee.runtime import AgentRuntime
+from parakeetnest.context.models import MeetingContext as ResearchMeetingContext
 from parakeetnest.database.repository import CommitteeMeetingRepository
 
 
@@ -19,7 +20,13 @@ class CommitteeMeetingOrchestrator:
     agents: tuple[CommitteeAgent, ...]
     agent_runtime: AgentRuntime | None = None
 
-    def run(self, meeting_id: int, question: str, ticker: str) -> MeetingResult:
+    def run(
+        self,
+        meeting_id: int,
+        question: str,
+        ticker: str,
+        research_context: ResearchMeetingContext,
+    ) -> MeetingResult:
         """Run agents for an existing meeting and persist their messages."""
         agent_results: list[AgentResult] = []
         for agent in self.agents:
@@ -27,6 +34,7 @@ class CommitteeMeetingOrchestrator:
                 meeting_id=meeting_id,
                 question=question,
                 ticker=ticker,
+                research_context=research_context,
                 previous_agent_results=tuple(agent_results),
             )
             result = self._run_agent(agent, context)

@@ -20,6 +20,7 @@ from parakeetnest.context.provider import (
     ContextProviderResult,
     UnsupportedContextRequestError,
 )
+from parakeetnest.context.rendering import MeetingContextPromptRenderer
 from parakeetnest.context.service import ContextService
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "MarketDataPoint",
     "MarketSnapshot",
     "MeetingContext",
+    "MeetingContextPromptRenderer",
     "NewsItem",
     "NewsSnapshot",
     "PortfolioPosition",

@@ -15,6 +15,14 @@ from parakeetnest.committee.agents import (
 from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
 from parakeetnest.config import AppConfig
+from parakeetnest.context.providers import (
+    KnowledgeBaseContextProvider,
+    MacroContextProvider,
+    MarketContextProvider,
+    NewsContextProvider,
+    PortfolioContextProvider,
+)
+from parakeetnest.context.service import ContextService
 from parakeetnest.database import (
     CommitteeMeetingRepository,
     create_database_engine,
@@ -32,6 +40,7 @@ class ParakeetNestApp:
     config: AppConfig
     meeting_repository: CommitteeMeetingRepository
     prompt_renderer: PromptRenderer
+    context_service: ContextService
     llm_provider: LLMProvider
     agent_runtime: AgentRuntime
     committee_orchestrator: CommitteeMeetingOrchestrator
@@ -61,6 +70,15 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
 
     meeting_repository = CommitteeMeetingRepository(session)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
+    context_service = ContextService(
+        providers=(
+            MarketContextProvider(),
+            NewsContextProvider(),
+            PortfolioContextProvider(),
+            MacroContextProvider(),
+            KnowledgeBaseContextProvider(),
+        )
+    )
     llm_provider = _create_llm_provider(resolved_config)
     agent_runtime = AgentRuntime(
         llm_provider=llm_provider,
@@ -80,12 +98,14 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     meeting_service = MeetingService(
         repository=meeting_repository,
         orchestrator=committee_orchestrator,
+        context_service=context_service,
     )
 
     return ParakeetNestApp(
         config=resolved_config,
         meeting_repository=meeting_repository,
         prompt_renderer=prompt_renderer,
+        context_service=context_service,
         llm_provider=llm_provider,
         agent_runtime=agent_runtime,
         committee_orchestrator=committee_orchestrator,

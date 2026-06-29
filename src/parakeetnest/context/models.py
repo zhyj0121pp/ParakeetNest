@@ -1,0 +1,156 @@
+"""Pure domain models for the Context Layer."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date, datetime
+
+
+@dataclass(frozen=True)
+class ContextRequest:
+    """Request to assemble research context before committee reasoning."""
+
+    question: str
+    symbols: tuple[str, ...]
+    as_of: datetime | None = None
+    include_portfolio: bool = True
+    include_macro: bool = True
+    include_knowledge_base: bool = True
+
+
+@dataclass(frozen=True)
+class MarketDataPoint:
+    """One market observation for a symbol."""
+
+    symbol: str
+    source: str
+    observed_at: datetime | None = None
+    price: float | None = None
+    daily_change: float | None = None
+    daily_change_percent: float | None = None
+    volume: float | None = None
+    market_cap: float | None = None
+    pe_ratio: float | None = None
+    eps: float | None = None
+
+
+@dataclass(frozen=True)
+class MarketSnapshot:
+    """Market data available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    points: tuple[MarketDataPoint, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class NewsItem:
+    """One news item relevant to the requested context."""
+
+    title: str
+    source: str
+    symbol: str | None = None
+    url: str | None = None
+    summary: str | None = None
+    published_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class NewsSnapshot:
+    """News available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    items: tuple[NewsItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class FilingItem:
+    """One regulatory filing relevant to the requested context."""
+
+    symbol: str
+    filing_type: str
+    source: str
+    filed_at: datetime | None = None
+    accession_number: str | None = None
+    url: str | None = None
+    summary: str | None = None
+
+
+@dataclass(frozen=True)
+class FilingSnapshot:
+    """Regulatory filings available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    items: tuple[FilingItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class PortfolioPosition:
+    """One portfolio position relevant to the requested context."""
+
+    symbol: str
+    quantity: float
+    market_value: float | None = None
+    cost_basis: float | None = None
+    unrealized_pl: float | None = None
+    weight: float | None = None
+
+
+@dataclass(frozen=True)
+class PortfolioSnapshot:
+    """Portfolio state available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    positions: tuple[PortfolioPosition, ...] = field(default_factory=tuple)
+    cash_balance: float | None = None
+    total_value: float | None = None
+
+
+@dataclass(frozen=True)
+class MacroSnapshot:
+    """Macro context available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    indicators: tuple[str, ...] = field(default_factory=tuple)
+    observed_on: date | None = None
+    summary: str | None = None
+
+
+@dataclass(frozen=True)
+class KnowledgeBaseSnapshot:
+    """Remembered research context loaded before committee reasoning."""
+
+    source: str = "knowledge_base"
+    fetched_at: datetime | None = None
+    thesis: tuple[str, ...] = field(default_factory=tuple)
+    discussions: tuple[str, ...] = field(default_factory=tuple)
+    research_notes: tuple[str, ...] = field(default_factory=tuple)
+    lessons_learned: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class ContextMetadata:
+    """Metadata describing how context was assembled."""
+
+    generated_at: datetime | None = None
+    sources: tuple[str, ...] = field(default_factory=tuple)
+    data_quality_notes: tuple[str, ...] = field(default_factory=tuple)
+    warnings: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class MeetingContext:
+    """Complete context provided to the committee before reasoning."""
+
+    request: ContextRequest
+    metadata: ContextMetadata = field(default_factory=ContextMetadata)
+    market: MarketSnapshot | None = None
+    news: NewsSnapshot | None = None
+    filings: FilingSnapshot | None = None
+    portfolio: PortfolioSnapshot | None = None
+    macro: MacroSnapshot | None = None
+    knowledge_base: KnowledgeBaseSnapshot | None = None

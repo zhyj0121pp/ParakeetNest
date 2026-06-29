@@ -13,6 +13,7 @@ from parakeetnest.market_data.provider import (
     ProviderCapability,
     ProviderError,
 )
+from parakeetnest.market_data.mock_provider import MockMarketDataProvider
 
 __all__ = [
     "AssetType",
@@ -20,6 +21,7 @@ __all__ = [
     "MarketDataProvider",
     "MarketDataRange",
     "MarketDataSnapshot",
+    "MockMarketDataProvider",
     "PriceBar",
     "ProviderCapability",
     "ProviderError",

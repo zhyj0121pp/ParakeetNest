@@ -1,0 +1,249 @@
+"""Deterministic in-memory market data provider."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+from parakeetnest.market_data.models import (
+    AssetType,
+    MarketDataRange,
+    MarketDataSnapshot,
+    PriceBar,
+    Symbol,
+)
+from parakeetnest.market_data.provider import ProviderError
+
+
+class MockMarketDataProvider:
+    """Market data provider backed by embedded deterministic fixtures."""
+
+    _SNAPSHOTS = {
+        "AAPL": MarketDataSnapshot(
+            symbol=Symbol("AAPL"),
+            asset_type=AssetType.STOCK,
+            price=210.25,
+            currency="USD",
+            timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            previous_close=208.0,
+            open=209.5,
+            high=211.0,
+            low=207.9,
+            volume=45_000_000.0,
+        ),
+        "MSFT": MarketDataSnapshot(
+            symbol=Symbol("MSFT"),
+            asset_type=AssetType.STOCK,
+            price=493.10,
+            currency="USD",
+            timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            previous_close=489.75,
+            open=490.2,
+            high=495.0,
+            low=488.8,
+            volume=21_500_000.0,
+        ),
+        "NVDA": MarketDataSnapshot(
+            symbol=Symbol("NVDA"),
+            asset_type=AssetType.STOCK,
+            price=157.80,
+            currency="USD",
+            timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            previous_close=155.6,
+            open=156.1,
+            high=159.4,
+            low=154.9,
+            volume=180_000_000.0,
+        ),
+        "SPY": MarketDataSnapshot(
+            symbol=Symbol("SPY"),
+            asset_type=AssetType.ETF,
+            price=622.75,
+            currency="USD",
+            timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            previous_close=620.5,
+            open=621.0,
+            high=623.5,
+            low=619.25,
+            volume=78_000_000.0,
+        ),
+    }
+
+    _HISTORY = {
+        "AAPL": (
+            PriceBar(
+                symbol=Symbol("AAPL"),
+                start_time=datetime(2026, 6, 23, 13, 30, tzinfo=UTC),
+                open=203.5,
+                high=206.25,
+                low=202.8,
+                close=205.9,
+                volume=42_200_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("AAPL"),
+                start_time=datetime(2026, 6, 24, 13, 30, tzinfo=UTC),
+                open=206.0,
+                high=208.4,
+                low=205.6,
+                close=207.35,
+                volume=40_800_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("AAPL"),
+                start_time=datetime(2026, 6, 25, 13, 30, tzinfo=UTC),
+                open=207.6,
+                high=209.2,
+                low=206.1,
+                close=208.0,
+                volume=43_100_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("AAPL"),
+                start_time=datetime(2026, 6, 26, 13, 30, tzinfo=UTC),
+                open=208.1,
+                high=211.0,
+                low=207.4,
+                close=210.25,
+                volume=45_000_000.0,
+            ),
+        ),
+        "MSFT": (
+            PriceBar(
+                symbol=Symbol("MSFT"),
+                start_time=datetime(2026, 6, 23, 13, 30, tzinfo=UTC),
+                open=481.0,
+                high=485.7,
+                low=479.8,
+                close=484.2,
+                volume=19_900_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("MSFT"),
+                start_time=datetime(2026, 6, 24, 13, 30, tzinfo=UTC),
+                open=484.6,
+                high=488.9,
+                low=483.4,
+                close=487.5,
+                volume=20_400_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("MSFT"),
+                start_time=datetime(2026, 6, 25, 13, 30, tzinfo=UTC),
+                open=487.8,
+                high=491.1,
+                low=486.3,
+                close=489.75,
+                volume=20_700_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("MSFT"),
+                start_time=datetime(2026, 6, 26, 13, 30, tzinfo=UTC),
+                open=490.2,
+                high=495.0,
+                low=488.8,
+                close=493.1,
+                volume=21_500_000.0,
+            ),
+        ),
+        "NVDA": (
+            PriceBar(
+                symbol=Symbol("NVDA"),
+                start_time=datetime(2026, 6, 23, 13, 30, tzinfo=UTC),
+                open=148.3,
+                high=151.2,
+                low=147.8,
+                close=150.65,
+                volume=162_000_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("NVDA"),
+                start_time=datetime(2026, 6, 24, 13, 30, tzinfo=UTC),
+                open=151.0,
+                high=154.5,
+                low=150.2,
+                close=153.4,
+                volume=170_500_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("NVDA"),
+                start_time=datetime(2026, 6, 25, 13, 30, tzinfo=UTC),
+                open=153.8,
+                high=156.2,
+                low=152.6,
+                close=155.6,
+                volume=176_000_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("NVDA"),
+                start_time=datetime(2026, 6, 26, 13, 30, tzinfo=UTC),
+                open=156.1,
+                high=159.4,
+                low=154.9,
+                close=157.8,
+                volume=180_000_000.0,
+            ),
+        ),
+        "SPY": (
+            PriceBar(
+                symbol=Symbol("SPY"),
+                start_time=datetime(2026, 6, 23, 13, 30, tzinfo=UTC),
+                open=612.0,
+                high=616.4,
+                low=611.2,
+                close=615.8,
+                volume=71_000_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("SPY"),
+                start_time=datetime(2026, 6, 24, 13, 30, tzinfo=UTC),
+                open=616.0,
+                high=619.9,
+                low=615.3,
+                close=618.6,
+                volume=73_500_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("SPY"),
+                start_time=datetime(2026, 6, 25, 13, 30, tzinfo=UTC),
+                open=618.9,
+                high=621.2,
+                low=617.4,
+                close=620.5,
+                volume=75_200_000.0,
+            ),
+            PriceBar(
+                symbol=Symbol("SPY"),
+                start_time=datetime(2026, 6, 26, 13, 30, tzinfo=UTC),
+                open=621.0,
+                high=623.5,
+                low=619.25,
+                close=622.75,
+                volume=78_000_000.0,
+            ),
+        ),
+    }
+
+    def supports(self, symbol: Symbol) -> bool:
+        """Return whether embedded data exists for the symbol."""
+        return symbol.ticker in self._SNAPSHOTS
+
+    def get_snapshot(self, symbol: Symbol) -> MarketDataSnapshot:
+        """Return a deterministic snapshot for the symbol."""
+        self._raise_if_unsupported(symbol)
+        return self._SNAPSHOTS[symbol.ticker]
+
+    def get_price_history(
+        self,
+        symbol: Symbol,
+        range: MarketDataRange,
+    ) -> list[PriceBar]:
+        """Return deterministic daily price bars for the symbol."""
+        self._raise_if_unsupported(symbol)
+        return list(self._HISTORY[symbol.ticker])
+
+    def _raise_if_unsupported(self, symbol: Symbol) -> None:
+        if not self.supports(symbol):
+            raise ProviderError(f"Unsupported symbol: {symbol.ticker}")
+
+
+__all__ = ["MockMarketDataProvider"]

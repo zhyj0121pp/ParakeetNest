@@ -16,6 +16,10 @@ automatic trading are not implemented.
 Milestone 1 adds the foundation layer: configuration loading, structured
 logging, common exceptions, and an application bootstrap.
 
+Milestone 2 adds the SQLite database foundation using SQLAlchemy 2.0, including
+ORM models, engine/session setup, repository helpers, and database
+initialization.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -56,3 +60,22 @@ Useful local settings:
   `CRITICAL`.
 - `PARAKEETNEST_LOG_JSON`: `true` for structured JSON logs.
 - `PARAKEETNEST_SQLITE_PATH`: future SQLite database path.
+
+## Database
+
+SQLite is the default v1 database. Initialize the configured database with:
+
+```bash
+.venv/bin/python - <<'PY'
+from parakeetnest.config import get_settings
+from parakeetnest.database import create_sqlite_engine, initialize_database
+
+settings = get_settings()
+engine = create_sqlite_engine(settings.sqlite_path)
+initialize_database(engine)
+print(f"Initialized {settings.sqlite_path}")
+PY
+```
+
+The schema is intentionally simple for v1 and does not fetch data from external
+providers.

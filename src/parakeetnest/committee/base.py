@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Protocol
 
 from parakeetnest.committee.models import (
-    AgentResult,
     CommitteeOpinion,
     InvestmentContext,
-    MeetingContext,
 )
 
 
@@ -23,10 +21,8 @@ class CommitteeMember(Protocol):
 
 
 class CommitteeAgent(Protocol):
-    """Protocol for LLM-backed committee meeting agents."""
+    """Protocol for prompt-backed committee meeting agent definitions."""
 
     name: str
     role: str
-
-    def run(self, context: MeetingContext) -> AgentResult:
-        """Return this agent's meeting result."""
+    prompt_filename: str

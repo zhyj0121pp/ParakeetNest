@@ -13,6 +13,7 @@ from parakeetnest.committee.agents import (
 )
 from parakeetnest.committee.base import CommitteeAgent
 from parakeetnest.committee.models import AgentResult, MeetingContext, MeetingResult, MeetingStatus
+from parakeetnest.committee.runtime import AgentRuntime
 from parakeetnest.database.repository import CommitteeMeetingRepository
 from parakeetnest.llm import LLMProvider
 
@@ -23,6 +24,7 @@ class CommitteeMeetingOrchestrator:
 
     repository: CommitteeMeetingRepository
     agents: tuple[CommitteeAgent, ...]
+    agent_runtime: AgentRuntime | None = None
 
     @classmethod
     def default(
@@ -35,11 +37,12 @@ class CommitteeMeetingOrchestrator:
         return cls(
             repository=repository,
             agents=(
-                BullAnalystAgent(llm_provider, model=model),
-                BearAnalystAgent(llm_provider, model=model),
-                RiskManagerAgent(llm_provider, model=model),
-                ChairpersonAgent(llm_provider, model=model),
+                BullAnalystAgent(),
+                BearAnalystAgent(),
+                RiskManagerAgent(),
+                ChairpersonAgent(),
             ),
+            agent_runtime=AgentRuntime(llm_provider=llm_provider, model=model),
         )
 
     def run(self, question: str, ticker: str) -> MeetingResult:
@@ -54,7 +57,7 @@ class CommitteeMeetingOrchestrator:
                     ticker=ticker,
                     previous_agent_results=tuple(agent_results),
                 )
-                result = agent.run(context)
+                result = self._run_agent(agent, context)
                 self.repository.insert_meeting_message(
                     meeting_id=meeting.id,
                     agent_name=result.agent_name,
@@ -84,3 +87,12 @@ class CommitteeMeetingOrchestrator:
                 agent_results=tuple(agent_results),
                 error_message=str(exc),
             )
+
+    def _run_agent(self, agent: CommitteeAgent, context: MeetingContext) -> AgentResult:
+        """Run a prompt-backed agent, allowing explicit test doubles to fail directly."""
+        if self.agent_runtime is not None:
+            return self.agent_runtime.run(agent, context)
+        legacy_run = getattr(agent, "run", None)
+        if callable(legacy_run):
+            return legacy_run(context)
+        raise TypeError("CommitteeMeetingOrchestrator requires an AgentRuntime")

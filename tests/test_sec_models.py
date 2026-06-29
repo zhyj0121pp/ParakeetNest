@@ -90,6 +90,30 @@ def test_sec_filing_query_rejects_non_positive_limit() -> None:
         SecFilingQuery(limit=0)
 
 
+def test_sec_filing_query_rejects_blank_symbol_filters() -> None:
+    """A provided symbol filter should not normalize into an unfiltered query."""
+    with pytest.raises(
+        ValueError,
+        match="symbols must include at least one non-blank symbol",
+    ):
+        SecFilingQuery(symbols=[" "])
+
+    with pytest.raises(
+        ValueError,
+        match="symbols must include at least one non-blank symbol",
+    ):
+        SecFilingQuery(symbols=[])
+
+
+def test_sec_filing_query_rejects_empty_filing_type_filter() -> None:
+    """A provided filing type filter should include at least one form type."""
+    with pytest.raises(
+        ValueError,
+        match="filing_types must include at least one filing type",
+    ):
+        SecFilingQuery(filing_types=[])
+
+
 def test_sec_filing_content_creation() -> None:
     """Filing content should pair normalized metadata with provider-neutral text."""
     filing = SecFiling(

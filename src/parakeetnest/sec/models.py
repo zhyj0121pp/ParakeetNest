@@ -72,9 +72,13 @@ class SecFilingQuery:
                 for symbol in self.symbols
                 if symbol.strip()
             ]
+            if not symbols:
+                raise ValueError("symbols must include at least one non-blank symbol")
             object.__setattr__(self, "symbols", symbols)
 
         if self.filing_types is not None:
+            if not self.filing_types:
+                raise ValueError("filing_types must include at least one filing type")
             filing_types = [
                 filing_type
                 if isinstance(filing_type, FilingType)

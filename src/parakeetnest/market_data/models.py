@@ -71,14 +71,3 @@ class MarketDataRange:
     interval: str | None = None
     start: datetime | None = None
     end: datetime | None = None
-
-
-@dataclass(frozen=True)
-class MarketDataError:
-    """Structured provider-independent market data failure."""
-
-    code: str
-    message: str
-    symbol: Symbol | None = None
-    retryable: bool = False
-    details: str | None = None

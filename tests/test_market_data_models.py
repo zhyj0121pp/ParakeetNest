@@ -7,7 +7,6 @@ import pytest
 
 from parakeetnest.market_data import (
     AssetType,
-    MarketDataError,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -104,23 +103,3 @@ def test_market_data_range_creation() -> None:
     assert historical_range.interval == "1d"
     assert historical_range.start == start
     assert historical_range.end == end
-
-
-def test_market_data_error_creation_and_immutability() -> None:
-    """A market data error should describe failures without provider clients."""
-    error = MarketDataError(
-        code="symbol_not_found",
-        message="Symbol was not found.",
-        symbol=Symbol("missing"),
-        retryable=False,
-        details="No matching instrument exists.",
-    )
-
-    assert error.code == "symbol_not_found"
-    assert error.message == "Symbol was not found."
-    assert error.symbol == Symbol("MISSING")
-    assert error.retryable is False
-    assert error.details == "No matching instrument exists."
-
-    with pytest.raises(FrozenInstanceError):
-        error.message = "mutated"

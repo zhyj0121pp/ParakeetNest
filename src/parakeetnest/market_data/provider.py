@@ -11,6 +11,7 @@ from parakeetnest.market_data.models import (
     PriceBar,
     Symbol,
 )
+from parakeetnest.market_data.errors import MarketDataError
 
 
 class ProviderCapability(str, Enum):
@@ -20,8 +21,7 @@ class ProviderCapability(str, Enum):
     PRICE_HISTORY = "price_history"
 
 
-class ProviderError(Exception):
-    """Raised when a market data provider cannot fulfill a request."""
+ProviderError = MarketDataError
 
 
 @runtime_checkable

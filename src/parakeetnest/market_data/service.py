@@ -8,7 +8,8 @@ from parakeetnest.market_data.models import (
     PriceBar,
     Symbol,
 )
-from parakeetnest.market_data.provider import MarketDataProvider, ProviderError
+from parakeetnest.market_data.errors import InvalidSymbolError
+from parakeetnest.market_data.provider import MarketDataProvider
 
 
 class MarketDataService:
@@ -34,7 +35,10 @@ class MarketDataService:
 
     def _raise_if_unsupported(self, symbol: Symbol) -> None:
         if not self._provider.supports(symbol):
-            raise ProviderError(f"Unsupported symbol: {symbol.ticker}")
+            raise InvalidSymbolError(
+                f"Unsupported symbol: {symbol.ticker}",
+                symbol=symbol,
+            )
 
 
 __all__ = ["MarketDataService"]

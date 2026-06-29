@@ -2,11 +2,17 @@
 
 from parakeetnest.market_data.models import (
     AssetType,
-    MarketDataError,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
     Symbol,
+)
+from parakeetnest.market_data.errors import (
+    InvalidSymbolError,
+    MalformedMarketDataError,
+    MarketDataError,
+    ProviderUnavailableError,
+    RateLimitError,
 )
 from parakeetnest.market_data.provider import (
     MarketDataProvider,
@@ -25,6 +31,8 @@ from parakeetnest.market_data.yahoo import YahooFinanceMarketDataProvider
 
 __all__ = [
     "AssetType",
+    "InvalidSymbolError",
+    "MalformedMarketDataError",
     "MarketDataError",
     "MarketDataProvider",
     "MarketDataRange",
@@ -37,6 +45,8 @@ __all__ = [
     "PriceBar",
     "ProviderCapability",
     "ProviderError",
+    "ProviderUnavailableError",
+    "RateLimitError",
     "Symbol",
     "YahooFinanceMarketDataProvider",
     "create_market_data_provider_registry",

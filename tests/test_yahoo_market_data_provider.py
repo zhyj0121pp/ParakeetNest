@@ -8,10 +8,12 @@ import pytest
 
 from parakeetnest.market_data import (
     AssetType,
+    InvalidSymbolError,
+    MalformedMarketDataError,
     MarketDataProvider,
     MarketDataRange,
     MarketDataSnapshot,
-    ProviderError,
+    ProviderUnavailableError,
     Symbol,
     YahooFinanceMarketDataProvider,
 )
@@ -139,7 +141,7 @@ def test_get_price_history_maps_dataframe_rows_to_price_bars() -> None:
     ]
 
 
-def test_get_quote_raises_provider_error_when_price_is_missing() -> None:
+def test_get_quote_raises_malformed_error_when_price_is_missing() -> None:
     """Malformed Yahoo data should fail as a provider-neutral error."""
 
     class MissingPriceTicker(FakeTicker):
@@ -156,5 +158,172 @@ def test_get_quote_raises_provider_error_when_price_is_missing() -> None:
 
     provider = YahooFinanceMarketDataProvider(MissingPriceYFinance())
 
-    with pytest.raises(ProviderError, match="no usable price for AAPL"):
+    with pytest.raises(MalformedMarketDataError, match="no usable price for AAPL"):
         provider.get_quote("aapl")
+
+
+def test_get_quote_raises_invalid_symbol_for_empty_symbol() -> None:
+    """Invalid symbols should fail without calling yfinance."""
+    fake_yfinance = FakeYFinance()
+    provider = YahooFinanceMarketDataProvider(fake_yfinance)
+
+    with pytest.raises(InvalidSymbolError, match="Symbol must not be empty"):
+        provider.get_quote(" ")
+
+    assert fake_yfinance.tickers == []
+
+
+def test_get_quote_raises_malformed_error_for_empty_response() -> None:
+    """Empty provider responses are not retried."""
+
+    class EmptyTicker(FakeTicker):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.fast_info = {}
+            self.info = {}
+
+    class EmptyYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> EmptyTicker:
+            ticker = EmptyTicker(symbol)
+            self.tickers.append(ticker)
+            return ticker
+
+    fake_yfinance = EmptyYFinance()
+    provider = YahooFinanceMarketDataProvider(fake_yfinance, retry_delay_seconds=0)
+
+    with pytest.raises(MalformedMarketDataError, match="empty response"):
+        provider.get_quote("aapl")
+
+    assert len(fake_yfinance.tickers) == 1
+
+
+def test_get_quote_raises_malformed_error_for_bad_quote_shape() -> None:
+    """Malformed quote payloads should not leak provider or pandas errors."""
+
+    class BadMapping:
+        def items(self) -> object:
+            raise ValueError("bad dataframe shape")
+
+    class BadQuoteTicker(FakeTicker):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.fast_info = BadMapping()
+
+    class BadQuoteYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> BadQuoteTicker:
+            ticker = BadQuoteTicker(symbol)
+            self.tickers.append(ticker)
+            return ticker
+
+    provider = YahooFinanceMarketDataProvider(BadQuoteYFinance(), retry_delay_seconds=0)
+
+    with pytest.raises(MalformedMarketDataError, match="non-mapping|malformed"):
+        provider.get_quote("aapl")
+
+
+def test_timeout_maps_to_provider_unavailable() -> None:
+    """Timeout exceptions should be converted to domain errors."""
+
+    class TimeoutYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> FakeTicker:
+            raise TimeoutError("read timed out")
+
+    provider = YahooFinanceMarketDataProvider(
+        TimeoutYFinance(),
+        max_attempts=1,
+        retry_delay_seconds=0,
+    )
+
+    with pytest.raises(ProviderUnavailableError, match="temporarily unavailable"):
+        provider.get_quote("aapl")
+
+
+def test_network_failure_maps_to_provider_unavailable() -> None:
+    """Network exceptions should be converted to domain errors."""
+
+    class NetworkYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> FakeTicker:
+            raise ConnectionError("connection reset")
+
+    provider = YahooFinanceMarketDataProvider(
+        NetworkYFinance(),
+        max_attempts=1,
+        retry_delay_seconds=0,
+    )
+
+    with pytest.raises(ProviderUnavailableError, match="temporarily unavailable"):
+        provider.get_quote("aapl")
+
+
+def test_retry_succeeds_after_transient_failure() -> None:
+    """Transient provider failures should be retried inside the Yahoo provider."""
+
+    class FlakyYFinance(FakeYFinance):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = 0
+
+        def Ticker(self, symbol: str) -> FakeTicker:
+            self.calls += 1
+            if self.calls == 1:
+                raise TimeoutError("read timed out")
+            return super().Ticker(symbol)
+
+    fake_yfinance = FlakyYFinance()
+    provider = YahooFinanceMarketDataProvider(
+        fake_yfinance,
+        max_attempts=2,
+        retry_delay_seconds=0,
+    )
+
+    snapshot = provider.get_quote("aapl")
+
+    assert snapshot.price == 210.25
+    assert fake_yfinance.calls == 2
+
+
+def test_retry_exhausted_raises_provider_unavailable() -> None:
+    """Retry exhaustion should return the domain error, not the root exception."""
+
+    class AlwaysTimeoutYFinance(FakeYFinance):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = 0
+
+        def Ticker(self, symbol: str) -> FakeTicker:
+            self.calls += 1
+            raise TimeoutError("read timed out")
+
+    fake_yfinance = AlwaysTimeoutYFinance()
+    provider = YahooFinanceMarketDataProvider(
+        fake_yfinance,
+        max_attempts=3,
+        retry_delay_seconds=0,
+    )
+
+    with pytest.raises(ProviderUnavailableError):
+        provider.get_quote("aapl")
+
+    assert fake_yfinance.calls == 3
+
+
+def test_yfinance_exception_does_not_escape() -> None:
+    """Provider-specific exceptions should not cross the provider boundary."""
+
+    class YFinanceBoom(Exception):
+        pass
+
+    class BrokenYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> FakeTicker:
+            raise YFinanceBoom("provider exploded")
+
+    provider = YahooFinanceMarketDataProvider(
+        BrokenYFinance(),
+        max_attempts=1,
+        retry_delay_seconds=0,
+    )
+
+    with pytest.raises(ProviderUnavailableError) as exc_info:
+        provider.get_quote("aapl")
+
+    assert not isinstance(exc_info.value, YFinanceBoom)

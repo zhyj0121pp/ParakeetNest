@@ -8,6 +8,8 @@ import pytest
 
 from parakeetnest.market_data import (
     AssetType,
+    InvalidSymbolError,
+    MarketDataError,
     MarketDataProvider,
     MarketDataRange,
     MarketDataService,
@@ -126,3 +128,15 @@ def test_service_works_with_mock_market_data_provider() -> None:
     assert snapshot.price == 210.25
     assert len(history) == 4
     assert history[-1].close == 210.25
+
+
+def test_service_raises_domain_error_without_yahoo_specific_dependency() -> None:
+    """The service should depend on domain errors, not Yahoo-specific failures."""
+    provider = SpyMarketDataProvider(supported=False)
+    service = MarketDataService(provider)
+
+    with pytest.raises(MarketDataError) as exc_info:
+        service.get_snapshot(Symbol("missing"))
+
+    assert isinstance(exc_info.value, InvalidSymbolError)
+    assert "Yahoo" not in type(exc_info.value).__name__

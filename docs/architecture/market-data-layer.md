@@ -119,9 +119,40 @@ system without leaking vendor response shapes.
 - `PriceBar`: OHLCV data for one historical interval.
 - `MarketDataRange`: provider-neutral history request, using either period and
   interval values, explicit start and end times, or both.
-- `MarketDataError`: structured provider-independent error details. The current
-  service raises `ProviderError`; `MarketDataError` is available for future
-  richer error reporting.
+
+## Error Handling & Resilience
+
+Market data failures use a provider-independent exception hierarchy from
+`src/parakeetnest/market_data/errors.py`:
+
+- `MarketDataError`: base class for all market data domain failures.
+- `ProviderUnavailableError`: transient or operational provider failure, such
+  as timeouts, temporary network failures, and provider outages.
+- `InvalidSymbolError`: invalid, unsupported, missing, or delisted symbol.
+- `RateLimitError`: provider rate limit or quota block.
+- `MalformedMarketDataError`: empty, missing, or malformed provider payloads.
+
+Providers are responsible for translating third-party exceptions before they
+cross the provider boundary. `yfinance`, pandas, requests, socket, HTTP, and
+other provider-specific exceptions must not reach `MarketDataService`, the
+Context Layer, or the AI Committee. Callers should catch `MarketDataError`
+subclasses rather than vendor SDK exceptions.
+
+The Yahoo provider owns its retry behavior. It retries only transient provider
+failures:
+
+- timeout;
+- temporary network failure;
+- retryable provider unavailable failure.
+
+It does not retry invalid symbols, empty responses, malformed responses, rate
+limits, or non-retryable unexpected provider failures. Empty and malformed data
+are data quality failures, not transport failures, so retrying the same request
+inside one provider call would hide the real issue.
+
+Provider failures are logged with the provider name, operation, symbol or
+symbols, and root cause. Expected user errors such as invalid symbols are logged
+without stack traces.
 
 ## Provider Abstraction
 
@@ -151,7 +182,6 @@ provider behavior grows.
 Future epics should place cross-provider operational behavior here:
 
 - caching of recent snapshots and historical bars;
-- retries for transient provider failures;
 - provider fallback when the primary source cannot serve a symbol or request;
 - metrics for latency, failures, freshness, and source coverage.
 

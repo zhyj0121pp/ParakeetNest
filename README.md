@@ -20,10 +20,16 @@ Milestone 2 adds the SQLite database foundation using SQLAlchemy 2.0, including
 ORM models, engine/session setup, repository helpers, and database
 initialization.
 
+Milestone 3 adds normalized domain snapshots and a data quality layer that
+checks source attribution, fetch time, required fields, freshness, empty values,
+and numeric sanity before data is saved or analyzed.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
 - `src/parakeetnest/services`: data collection and validation boundaries.
+- `src/parakeetnest/domain.py`: normalized snapshot models shared across
+  services, persistence, and future analyzers.
 - `src/parakeetnest/analyzers`: portfolio, stock, market, catalyst, risk,
   opportunity, and thesis analyzers.
 - `src/parakeetnest/decision`: recommendation and policy engine skeletons.
@@ -79,3 +85,19 @@ PY
 
 The schema is intentionally simple for v1 and does not fetch data from external
 providers.
+
+## Data Quality
+
+Every normalized snapshot carries source and fetch-time context. The data
+quality service returns:
+
+- `source`
+- `fetched_at`
+- `freshness_status`
+- `missing_fields`
+- `validation_status`
+- `confidence_score`
+
+Validation currently covers required fields, stale data, empty values, and
+invalid numeric values. External providers are still intentionally absent; tests
+use manually constructed snapshots.

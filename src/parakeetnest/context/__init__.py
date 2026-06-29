@@ -20,12 +20,18 @@ from parakeetnest.context.provider import (
     ContextProviderResult,
     UnsupportedContextRequestError,
 )
+from parakeetnest.context.registry import (
+    ContextProviderRegistration,
+    ContextProviderRegistry,
+)
 from parakeetnest.context.rendering import MeetingContextPromptRenderer
 from parakeetnest.context.service import ContextService
 
 __all__ = [
     "ContextMetadata",
     "ContextProvider",
+    "ContextProviderRegistration",
+    "ContextProviderRegistry",
     "ContextProviderResult",
     "ContextRequest",
     "ContextService",

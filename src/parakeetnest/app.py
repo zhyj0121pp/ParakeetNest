@@ -22,6 +22,7 @@ from parakeetnest.context.providers import (
     NewsContextProvider,
     PortfolioContextProvider,
 )
+from parakeetnest.context.registry import ContextProviderRegistry
 from parakeetnest.context.service import ContextService
 from parakeetnest.database import (
     CommitteeMeetingRepository,
@@ -40,6 +41,7 @@ class ParakeetNestApp:
     config: AppConfig
     meeting_repository: CommitteeMeetingRepository
     prompt_renderer: PromptRenderer
+    context_provider_registry: ContextProviderRegistry
     context_service: ContextService
     llm_provider: LLMProvider
     agent_runtime: AgentRuntime
@@ -70,14 +72,9 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
 
     meeting_repository = CommitteeMeetingRepository(session)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
+    context_provider_registry = _create_context_provider_registry()
     context_service = ContextService(
-        providers=(
-            MarketContextProvider(),
-            NewsContextProvider(),
-            PortfolioContextProvider(),
-            MacroContextProvider(),
-            KnowledgeBaseContextProvider(),
-        )
+        providers=context_provider_registry.resolve_enabled_providers()
     )
     llm_provider = _create_llm_provider(resolved_config)
     agent_runtime = AgentRuntime(
@@ -105,6 +102,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         config=resolved_config,
         meeting_repository=meeting_repository,
         prompt_renderer=prompt_renderer,
+        context_provider_registry=context_provider_registry,
         context_service=context_service,
         llm_provider=llm_provider,
         agent_runtime=agent_runtime,
@@ -129,3 +127,13 @@ def _create_llm_provider(config: AppConfig) -> LLMProvider:
     if config.llm_provider == "mock":
         return MockLLMProvider()
     raise ValueError(f"Unsupported LLM provider: {config.llm_provider}")
+
+
+def _create_context_provider_registry() -> ContextProviderRegistry:
+    registry = ContextProviderRegistry()
+    registry.register("mock_market", MarketContextProvider())
+    registry.register("mock_news", NewsContextProvider())
+    registry.register("mock_portfolio", PortfolioContextProvider())
+    registry.register("mock_macro", MacroContextProvider())
+    registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())
+    return registry

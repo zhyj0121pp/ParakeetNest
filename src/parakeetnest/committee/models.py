@@ -41,6 +41,16 @@ class AgentResult:
 
 
 @dataclass(frozen=True)
+class MeetingContext:
+    """Context passed through an AI committee meeting."""
+
+    meeting_id: int
+    question: str
+    ticker: str
+    previous_agent_results: tuple[AgentResult, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class MeetingResult:
     """Final persistable result for a committee meeting."""
 

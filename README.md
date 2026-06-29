@@ -68,6 +68,15 @@ python -m venv .venv
 .venv/bin/python -m pytest
 ```
 
+## Documentation
+
+- [Documentation Overview](docs/README.md)
+- [Context Layer Architecture](docs/architecture/context-layer.md)
+- [Market Data Layer Architecture](docs/architecture/market-data-layer.md)
+- [Epic Index](docs/epics/README.md)
+- [Roadmap](docs/roadmap.md)
+- [Architecture Decision Records](docs/adr/README.md)
+
 ## Local Configuration
 
 Create a local environment file from the example:

@@ -1,0 +1,15 @@
+# Epic Index
+
+| Epic | Title | Status |
+| --- | --- | --- |
+| [Epic 001](epic-001-first-committee.md) | First AI Committee Meeting | Completed |
+| [Epic 002](epic-002-context-layer.md) | Context Layer | Completed |
+| [Epic 003](epic-003-context-pipeline-refinement.md) | Context Pipeline Refinement | Completed |
+| [Epic 004](epic-004-market-data-layer.md) | Market Data Layer | Completed |
+| Epic 005 | Yahoo Finance Provider | Planned |
+| Epic 006 | News Layer | Planned |
+| Epic 007 | Portfolio Layer | Planned |
+| Epic 008 | Macro Layer | Planned |
+
+Completed epics link to their detailed documentation. Planned epics are listed
+here first and should receive dedicated pages when implementation begins.

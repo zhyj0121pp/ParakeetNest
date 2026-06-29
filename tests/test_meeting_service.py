@@ -35,7 +35,7 @@ class SuccessfulOrchestrator:
             ticker=ticker,
             agent_results=(
                 AgentResult(
-                    agent_name="Chairperson",
+                    agent_name="Chairman",
                     role="Final decision maker",
                     content='{"action": "watch"}',
                 ),

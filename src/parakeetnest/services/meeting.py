@@ -24,10 +24,6 @@ class MeetingService:
     repository: CommitteeMeetingRepository
     orchestrator: "CommitteeMeetingOrchestrator"
 
-    def run_meeting(self, question: str, ticker: str) -> MeetingResult:
-        """Create, run, finalize, and return one committee meeting."""
-        return self.run(question, ticker)
-
     def run(self, question: str, ticker: str) -> MeetingResult:
         """Create, run, finalize, and return one committee meeting."""
         meeting = self.repository.create_meeting(question=question, ticker=ticker)

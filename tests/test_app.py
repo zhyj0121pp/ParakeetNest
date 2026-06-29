@@ -11,7 +11,7 @@ def test_create_app_returns_working_application(tmp_path: Path) -> None:
     """The app factory should centralize wiring for a runnable meeting."""
     app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
     try:
-        result = app.meeting_service.run_meeting(
+        result = app.meeting_service.run(
             question="Should I watch POET?",
             ticker="POET",
         )

@@ -31,7 +31,7 @@ def test_cli_meeting_command_calls_meeting_service(
     configs: list[object] = []
 
     class RecordingMeetingService:
-        def run_meeting(self, question: str, ticker: str) -> MeetingResult:
+        def run(self, question: str, ticker: str) -> MeetingResult:
             calls.append((question, ticker))
             return MeetingResult(
                 meeting_id=42,

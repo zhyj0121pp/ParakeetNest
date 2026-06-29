@@ -59,7 +59,7 @@ def run_meeting(question: str, ticker: str, database_path: Path | None = None) -
     config = AppConfig(database_path=database_path) if database_path is not None else None
     app = create_app(config)
     try:
-        result = app.meeting_service.run_meeting(
+        result = app.meeting_service.run(
             question=question,
             ticker=normalized_ticker,
         )

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from parakeetnest.app import create_test_app
 from parakeetnest.committee import AgentResult, MeetingContext, MeetingStatus
 from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.database import (
@@ -52,86 +53,76 @@ def _chair_result() -> str:
     )
 
 
-def _orchestrator(tmp_path: Path, provider: MockLLMProvider) -> CommitteeMeetingOrchestrator:
-    engine = create_sqlite_engine(tmp_path / "orchestrator.sqlite3")
-    initialize_database(engine)
-    session_factory = create_session_factory(engine)
-    session = session_factory()
-    repository = CommitteeMeetingRepository(session)
-    orchestrator = CommitteeMeetingOrchestrator.default(repository, provider)
-    orchestrator._test_session = session
-    return orchestrator
-
-
-def test_orchestrator_runs_all_four_agents_in_order(tmp_path: Path) -> None:
-    """The fixed meeting flow should call Bull, Bear, Risk, then Chairperson."""
+def test_orchestrator_runs_all_four_agents_in_order() -> None:
+    """The fixed meeting flow should call Xixi, Dongdong, Yoyo, then Chairman."""
     provider = MockLLMProvider(
         responses=(
-            _opinion("Bull Analyst", "Bull Analyst"),
-            _opinion("Bear Analyst", "Bear Analyst"),
-            _opinion("Risk Manager", "Risk Manager"),
+            _opinion("Xixi", "Chief Fundamental Analyst"),
+            _opinion("Dongdong", "Chief Opportunity Hunter"),
+            _opinion("Yoyo", "Chief Risk Officer"),
             _chair_result(),
         )
     )
-    orchestrator = _orchestrator(tmp_path, provider)
+    app = create_test_app()
+    app.agent_runtime.llm_provider = provider
 
     try:
-        meeting = orchestrator.repository.create_meeting("Should we add to NVDA?", "NVDA")
-        result = orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA")
-        orchestrator.repository.session.commit()
+        meeting = app.meeting_repository.create_meeting("Should we add to NVDA?", "NVDA")
+        result = app.committee_orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA")
+        app.commit()
     finally:
-        orchestrator._test_session.close()
+        app.close()
 
     assert result.status is MeetingStatus.COMPLETED
     assert [agent.agent_name for agent in result.agent_results] == [
-        "Bull Analyst",
-        "Bear Analyst",
-        "Risk Manager",
-        "Chairperson",
+        "Xixi",
+        "Dongdong",
+        "Yoyo",
+        "Chairman",
     ]
     assert [request.metadata["agent_name"] for request in provider.requests] == [
-        "Bull Analyst",
-        "Bear Analyst",
-        "Risk Manager",
-        "Chairperson",
+        "Xixi",
+        "Dongdong",
+        "Yoyo",
+        "Chairman",
     ]
 
 
-def test_orchestrator_persists_messages_and_final_result(tmp_path: Path) -> None:
-    """A successful meeting should persist four messages and chairperson JSON."""
-    engine = create_sqlite_engine(tmp_path / "persisted.sqlite3")
-    initialize_database(engine)
-    session_factory = create_session_factory(engine)
+def test_orchestrator_persists_messages_and_final_result() -> None:
+    """A successful meeting should persist four messages and Chairman JSON."""
     provider = MockLLMProvider(
         responses=(
-            _opinion("Bull Analyst", "Bull Analyst"),
-            _opinion("Bear Analyst", "Bear Analyst"),
-            _opinion("Risk Manager", "Risk Manager"),
+            _opinion("Xixi", "Chief Fundamental Analyst"),
+            _opinion("Dongdong", "Chief Opportunity Hunter"),
+            _opinion("Yoyo", "Chief Risk Officer"),
             _chair_result(),
         )
     )
+    app = create_test_app()
+    app.agent_runtime.llm_provider = provider
 
-    with session_scope(session_factory) as session:
-        repository = CommitteeMeetingRepository(session)
-        meeting = repository.create_meeting(
+    try:
+        meeting = app.meeting_repository.create_meeting(
             "Should we add to NVDA?",
             "NVDA",
         )
-        result = CommitteeMeetingOrchestrator.default(repository, provider).run(
+        result = app.committee_orchestrator.run(
             meeting.id,
             "Should we add to NVDA?",
             "NVDA",
         )
-        messages = repository.list_meeting_messages(result.meeting_id)
-        persisted_meeting = session.get(CommitteeMeeting, result.meeting_id)
+        messages = app.meeting_repository.list_meeting_messages(result.meeting_id)
+        persisted_meeting = app.session.get(CommitteeMeeting, result.meeting_id)
+    finally:
+        app.close()
 
     assert result.status is MeetingStatus.COMPLETED
     assert len(messages) == 4
     assert [message.agent_name for message in messages] == [
-        "Bull Analyst",
-        "Bear Analyst",
-        "Risk Manager",
-        "Chairperson",
+        "Xixi",
+        "Dongdong",
+        "Yoyo",
+        "Chairman",
     ]
     assert persisted_meeting is not None
     assert persisted_meeting.status == MeetingStatus.PENDING.value

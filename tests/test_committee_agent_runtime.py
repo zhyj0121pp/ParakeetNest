@@ -13,7 +13,7 @@ from parakeetnest.llm import MockLLMProvider
 class RuntimeAgentStub:
     name: str = "Test Analyst"
     role: str = "Test Role"
-    prompt_filename: str = "bull_analyst.md"
+    prompt_filename: str = "xixi.md"
 
 
 def _context(*previous_agent_results: AgentResult) -> MeetingContext:
@@ -49,19 +49,19 @@ def test_prompt_renderer_includes_system_prompt() -> None:
 def test_prompt_renderer_includes_agent_prompt() -> None:
     prompt = PromptRenderer().render(RuntimeAgentStub(), _context())
 
-    assert "You are the Bull Analyst." in prompt
+    assert "You are Xixi, the Chief Fundamental Analyst." in prompt
 
 
 def test_prompt_renderer_includes_prior_agent_results() -> None:
     previous = AgentResult(
-        agent_name="Bear Analyst",
-        role="Bear Analyst",
+        agent_name="Dongdong",
+        role="Chief Opportunity Hunter",
         content='{"viewpoint": "Margins may compress."}',
     )
 
     prompt = PromptRenderer().render(RuntimeAgentStub(), _context(previous))
 
-    assert 'Bear Analyst (Bear Analyst): {"viewpoint": "Margins may compress."}' in prompt
+    assert 'Dongdong (Chief Opportunity Hunter): {"viewpoint": "Margins may compress."}' in prompt
 
 
 def test_agent_runtime_calls_llm_provider_once() -> None:

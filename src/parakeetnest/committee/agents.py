@@ -14,45 +14,45 @@ class PromptBackedCommitteeAgent:
     prompt_filename: str
 
 
-class BullAnalystAgent(PromptBackedCommitteeAgent):
-    """Bull-case analyst for the first committee meeting flow."""
+class XixiAgent(PromptBackedCommitteeAgent):
+    """Xixi, Chief Fundamental Analyst."""
 
     def __init__(self) -> None:
         super().__init__(
-            name="Bull Analyst",
-            role="Bull Analyst",
-            prompt_filename="bull_analyst.md",
+            name="Xixi",
+            role="Chief Fundamental Analyst",
+            prompt_filename="xixi.md",
         )
 
 
-class BearAnalystAgent(PromptBackedCommitteeAgent):
-    """Bear-case analyst for the first committee meeting flow."""
+class DongdongAgent(PromptBackedCommitteeAgent):
+    """Dongdong, Chief Opportunity Hunter."""
 
     def __init__(self) -> None:
         super().__init__(
-            name="Bear Analyst",
-            role="Bear Analyst",
-            prompt_filename="bear_analyst.md",
+            name="Dongdong",
+            role="Chief Opportunity Hunter",
+            prompt_filename="dongdong.md",
         )
 
 
-class RiskManagerAgent(PromptBackedCommitteeAgent):
-    """Risk manager for the first committee meeting flow."""
+class YoyoAgent(PromptBackedCommitteeAgent):
+    """Yoyo, Chief Risk Officer."""
 
     def __init__(self) -> None:
         super().__init__(
-            name="Risk Manager",
-            role="Risk Manager",
-            prompt_filename="risk_manager.md",
+            name="Yoyo",
+            role="Chief Risk Officer",
+            prompt_filename="yoyo.md",
         )
 
 
-class ChairpersonAgent(PromptBackedCommitteeAgent):
-    """Chairperson who produces the final structured result."""
+class ChairmanAgent(PromptBackedCommitteeAgent):
+    """Chairman who produces the final structured result."""
 
     def __init__(self) -> None:
         super().__init__(
-            name="Chairperson",
-            role="Chairperson",
-            prompt_filename="chairperson.md",
+            name="Chairman",
+            role="Final decision maker",
+            prompt_filename="chairman.md",
         )

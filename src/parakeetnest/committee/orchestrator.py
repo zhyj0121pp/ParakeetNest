@@ -5,17 +5,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from parakeetnest.committee.agents import (
-    BearAnalystAgent,
-    BullAnalystAgent,
-    ChairpersonAgent,
-    RiskManagerAgent,
-)
 from parakeetnest.committee.base import CommitteeAgent
 from parakeetnest.committee.models import AgentResult, MeetingContext, MeetingResult, MeetingStatus
 from parakeetnest.committee.runtime import AgentRuntime
 from parakeetnest.database.repository import CommitteeMeetingRepository
-from parakeetnest.llm import LLMProvider
 
 
 @dataclass
@@ -25,25 +18,6 @@ class CommitteeMeetingOrchestrator:
     repository: CommitteeMeetingRepository
     agents: tuple[CommitteeAgent, ...]
     agent_runtime: AgentRuntime | None = None
-
-    @classmethod
-    def default(
-        cls,
-        repository: CommitteeMeetingRepository,
-        llm_provider: LLMProvider,
-        model: str = "mock-committee",
-    ) -> "CommitteeMeetingOrchestrator":
-        """Create the fixed four-agent committee meeting flow."""
-        return cls(
-            repository=repository,
-            agents=(
-                BullAnalystAgent(),
-                BearAnalystAgent(),
-                RiskManagerAgent(),
-                ChairpersonAgent(),
-            ),
-            agent_runtime=AgentRuntime(llm_provider=llm_provider, model=model),
-        )
 
     def run(self, meeting_id: int, question: str, ticker: str) -> MeetingResult:
         """Run agents for an existing meeting and persist their messages."""

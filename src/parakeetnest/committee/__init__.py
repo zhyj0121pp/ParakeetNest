@@ -1,10 +1,10 @@
 """Committee members and meeting orchestration."""
 
 from parakeetnest.committee.agents import (
-    BearAnalystAgent,
-    BullAnalystAgent,
-    ChairpersonAgent,
-    RiskManagerAgent,
+    ChairmanAgent,
+    DongdongAgent,
+    XixiAgent,
+    YoyoAgent,
 )
 from parakeetnest.committee.base import CommitteeAgent, CommitteeMember
 from parakeetnest.committee.chairman import Chairman
@@ -26,16 +26,15 @@ from parakeetnest.committee.xixi import Xixi
 from parakeetnest.committee.yoyo import Yoyo
 
 __all__ = [
-    "BearAnalystAgent",
-    "BullAnalystAgent",
     "Chairman",
+    "ChairmanAgent",
     "ChairmanSummary",
-    "ChairpersonAgent",
     "CommitteeAgent",
     "CommitteeMember",
     "CommitteeMeetingResult",
     "CommitteeOpinion",
     "Dongdong",
+    "DongdongAgent",
     "InvestmentContext",
     "InvestmentSecretary",
     "AgentResult",
@@ -45,7 +44,8 @@ __all__ = [
     "MeetingResult",
     "MeetingStatus",
     "PromptRenderer",
-    "RiskManagerAgent",
     "Xixi",
+    "XixiAgent",
     "Yoyo",
+    "YoyoAgent",
 ]

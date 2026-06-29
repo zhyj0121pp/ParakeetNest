@@ -7,10 +7,10 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from parakeetnest.committee.agents import (
-    BearAnalystAgent,
-    BullAnalystAgent,
-    ChairpersonAgent,
-    RiskManagerAgent,
+    ChairmanAgent,
+    DongdongAgent,
+    XixiAgent,
+    YoyoAgent,
 )
 from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
@@ -70,10 +70,10 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     committee_orchestrator = CommitteeMeetingOrchestrator(
         repository=meeting_repository,
         agents=(
-            BullAnalystAgent(),
-            BearAnalystAgent(),
-            RiskManagerAgent(),
-            ChairpersonAgent(),
+            XixiAgent(),
+            DongdongAgent(),
+            YoyoAgent(),
+            ChairmanAgent(),
         ),
         agent_runtime=agent_runtime,
     )

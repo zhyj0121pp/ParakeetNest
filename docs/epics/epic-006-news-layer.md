@@ -18,14 +18,20 @@ systems.
 
 - 6.1: Add initial news domain models, provider abstraction, mock provider, and
   focused tests.
-- 6.2: Introduce a news service boundary if orchestration needs a single entry
-  point for provider behavior.
+- 6.2: Completed. Introduce a news service boundary as the single entry point for
+  provider behavior.
 - 6.3: Add Context Layer integration after the domain API stabilizes.
 - 6.4: Add one live news adapter behind the provider abstraction.
 
 ## Current Status
 
-6.1 in progress.
+6.2 completed.
+
+## NewsService Responsibilities
+
+- Single entry point for News Layer.
+- Provider orchestration boundary.
+- Future extension point for fallback, dedup, ranking, cache, and retry.
 
 ## Non-Goals
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -23,11 +24,11 @@ class MockLLMProvider(LLMProvider):
         self._responses = deque(self.responses)
 
     def complete(self, request: LLMRequest) -> LLMResponse:
-        """Return the next queued response or a deterministic empty JSON object."""
+        """Return the next queued response or a deterministic schema-valid response."""
         self.requests.append(request)
         if not self._responses:
             return LLMResponse(
-                content="{}",
+                content=self._default_response(request),
                 model=request.model or self.default_model,
                 provider_name=self.name,
             )
@@ -53,4 +54,38 @@ class MockLLMProvider(LLMProvider):
                 message="Mock provider timed out.",
                 retryable=True,
             ),
+        )
+
+    @staticmethod
+    def _default_response(request: LLMRequest) -> str:
+        response_schema = request.response_schema or {}
+        required = set(response_schema.get("required", ()))
+        evidence = [{"summary": "Deterministic mock response.", "source": "MockLLMProvider"}]
+        if "rationale" in required:
+            return json.dumps(
+                {
+                    "symbol": "UNKNOWN",
+                    "action": "watch",
+                    "confidence": "medium",
+                    "horizon": "3_months",
+                    "rationale": "Mock committee recommends watching while gathering real data.",
+                    "evidence": evidence,
+                    "risks": ["No real market data, news, or filings were used."],
+                    "catalysts": ["Connect real research inputs in a future epic."],
+                    "data_confidence": "medium",
+                },
+                sort_keys=True,
+            )
+        return json.dumps(
+            {
+                "member_name": request.metadata.get("agent_name", "Mock Agent"),
+                "role": request.metadata.get("role", "Committee Member"),
+                "symbol": "UNKNOWN",
+                "viewpoint": "Mock response generated for local and test execution.",
+                "confidence": "medium",
+                "evidence": evidence,
+                "risks": ["Mock output is not investment advice."],
+                "catalysts": ["Replace mock provider with real research inputs later."],
+            },
+            sort_keys=True,
         )

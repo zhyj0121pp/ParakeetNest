@@ -26,14 +26,11 @@ def test_cli_meeting_command_calls_meeting_service(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The CLI command should execute through MeetingService.run_meeting."""
+    """The CLI command should execute through create_app and MeetingService."""
     calls: list[tuple[str, str]] = []
+    configs: list[object] = []
 
     class RecordingMeetingService:
-        def __init__(self, repository: object, orchestrator: object) -> None:
-            self.repository = repository
-            self.orchestrator = orchestrator
-
         def run_meeting(self, question: str, ticker: str) -> MeetingResult:
             calls.append((question, ticker))
             return MeetingResult(
@@ -45,7 +42,23 @@ def test_cli_meeting_command_calls_meeting_service(
                 result_json={"action": "watch"},
             )
 
-    monkeypatch.setattr(cli, "MeetingService", RecordingMeetingService)
+    class RecordingApp:
+        meeting_service = RecordingMeetingService()
+
+        def commit(self) -> None:
+            pass
+
+        def rollback(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    def recording_create_app(config: object) -> RecordingApp:
+        configs.append(config)
+        return RecordingApp()
+
+    monkeypatch.setattr(cli, "create_app", recording_create_app)
 
     exit_code = cli.main(
         [
@@ -61,6 +74,8 @@ def test_cli_meeting_command_calls_meeting_service(
     output = capsys.readouterr().out
     assert exit_code == 0
     assert calls == [("Should I buy POET now?", "POET")]
+    assert len(configs) == 1
+    assert configs[0].database_path == tmp_path / "cli.sqlite3"
     assert "meeting_id: 42" in output
     assert "status: completed" in output
 

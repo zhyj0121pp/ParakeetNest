@@ -12,7 +12,7 @@ from parakeetnest.context.models import (
     MacroSnapshot,
     MarketSnapshot,
     MeetingContext,
-    NewsSnapshot,
+    NewsContext,
     PortfolioSnapshot,
 )
 
@@ -111,7 +111,7 @@ class MeetingContextPromptRenderer:
         return "\n".join(lines)
 
     @staticmethod
-    def _render_news(news: NewsSnapshot | None) -> str:
+    def _render_news(news: NewsContext | None) -> str:
         if news is None or not news.items:
             return "- No news available."
         lines = [

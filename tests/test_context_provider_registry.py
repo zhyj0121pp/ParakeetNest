@@ -10,7 +10,7 @@ from parakeetnest.context import (
     ContextRequest,
     ContextService,
     MeetingContext,
-    NewsSnapshot,
+    NewsContext,
 )
 
 
@@ -27,7 +27,7 @@ class RecordingProvider:
     def build_context(self, request: ContextRequest) -> ContextProviderResult:
         partial_context = MeetingContext(
             request=request,
-            news=NewsSnapshot(source=self.provider_name),
+            news=NewsContext(source=self.provider_name),
         )
         return ContextProviderResult(
             provider_name=self.provider_name,
@@ -95,5 +95,5 @@ def test_context_service_can_use_resolved_enabled_providers() -> None:
     service = ContextService(providers=registry.resolve_enabled_providers())
     context = service.build_context(request)
 
-    assert context.news == NewsSnapshot(source="enabled")
+    assert context.news == NewsContext(source="enabled")
     assert context.metadata.sources == ()

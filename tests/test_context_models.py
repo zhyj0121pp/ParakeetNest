@@ -15,6 +15,7 @@ from parakeetnest.context import (
     MarketDataPoint,
     MarketSnapshot,
     MeetingContext,
+    NewsContext,
     NewsItem,
     NewsSnapshot,
     PortfolioPosition,
@@ -56,13 +57,13 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             ),
         ),
     )
-    news = NewsSnapshot(
-        source="mock_news",
+    news = NewsContext(
+        source="news",
         fetched_at=fetched_at,
         items=(
             NewsItem(
                 title="AMD expands AI accelerator roadmap",
-                source="mock_news",
+                source="Parakeet Wire",
                 symbol="AMD",
                 published_at=fetched_at,
             ),
@@ -108,7 +109,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         generated_at=fetched_at,
         sources=(
             "mock_market",
-            "mock_news",
+            "news",
             "mock_filings",
             "mock_portfolio",
             "mock_macro",
@@ -138,6 +139,29 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
     assert context.metadata.sources[-1] == "knowledge_base"
 
 
+def test_news_context_creation() -> None:
+    """NewsContext should preserve provider-neutral news items."""
+    published_at = datetime(2026, 6, 29, 12, 30, tzinfo=UTC)
+    news_context = NewsContext(
+        source="news",
+        fetched_at=published_at,
+        items=(
+            NewsItem(
+                title="AMD expands AI accelerator roadmap",
+                source="Parakeet Wire",
+                symbol="AMD",
+                url="https://example.com/news/amd-ai-roadmap",
+                summary="AMD outlined new accelerator milestones.",
+                published_at=published_at,
+            ),
+        ),
+    )
+
+    assert news_context.source == "news"
+    assert news_context.items[0].symbol == "AMD"
+    assert news_context.items[0].source == "Parakeet Wire"
+
+
 def test_snapshot_collection_defaults_are_independent_tuples() -> None:
     """Collection defaults should be immutable empty tuples."""
     first = MeetingContext(request=ContextRequest("Review AAPL.", ("AAPL",)))
@@ -148,6 +172,7 @@ def test_snapshot_collection_defaults_are_independent_tuples() -> None:
     assert first.metadata.sources is second.metadata.sources
     assert KnowledgeBaseSnapshot().thesis == ()
     assert MarketSnapshot(source="empty").points == ()
+    assert NewsContext(source="empty").items == ()
     assert NewsSnapshot(source="empty").items == ()
     assert FilingSnapshot(source="empty").items == ()
     assert PortfolioSnapshot(source="empty").positions == ()

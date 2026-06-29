@@ -11,6 +11,7 @@ from parakeetnest.context.providers import (
     PortfolioContextProvider,
 )
 from parakeetnest.market_data import MarketDataService, MockMarketDataProvider
+from parakeetnest.news import MockNewsProvider, NewsService
 
 
 SECTION_NAMES = (
@@ -33,14 +34,18 @@ def _market_context_provider() -> MarketContextProvider:
     return MarketContextProvider(MarketDataService(MockMarketDataProvider()))
 
 
+def _news_context_provider() -> NewsContextProvider:
+    return NewsContextProvider(NewsService(MockNewsProvider()))
+
+
 def test_providers_support_expected_requests() -> None:
     request = ContextRequest(question="Review AMD.", symbols=("AMD",))
     no_symbols = ContextRequest(question="Review market.", symbols=())
 
     assert _market_context_provider().supports(request) is True
     assert _market_context_provider().supports(no_symbols) is False
-    assert NewsContextProvider().supports(request) is True
-    assert NewsContextProvider().supports(no_symbols) is False
+    assert _news_context_provider().supports(request) is True
+    assert _news_context_provider().supports(no_symbols) is False
 
     assert PortfolioContextProvider().supports(request) is True
     assert PortfolioContextProvider().supports(
@@ -74,7 +79,7 @@ def test_each_provider_contributes_only_its_own_section() -> None:
     request = ContextRequest(question="Review AMD.", symbols=("AMD",))
     providers = (
         (_market_context_provider(), ("market",)),
-        (NewsContextProvider(), ("news",)),
+        (_news_context_provider(), ("news",)),
         (PortfolioContextProvider(), ("portfolio",)),
         (MacroContextProvider(), ("macro",)),
         (KnowledgeBaseContextProvider(), ("knowledge_base",)),
@@ -94,7 +99,7 @@ def test_providers_return_deterministic_values() -> None:
 
     for provider in (
         _market_context_provider(),
-        NewsContextProvider(),
+        _news_context_provider(),
         PortfolioContextProvider(),
         MacroContextProvider(),
         KnowledgeBaseContextProvider(),
@@ -110,7 +115,7 @@ def test_mock_providers_work_with_context_service() -> None:
     service = ContextService(
         providers=(
             _market_context_provider(),
-            NewsContextProvider(),
+            _news_context_provider(),
             PortfolioContextProvider(),
             MacroContextProvider(),
             KnowledgeBaseContextProvider(),
@@ -146,14 +151,14 @@ def test_mock_providers_work_with_context_service() -> None:
     )
     assert context.metadata.sources == (
         "market_data",
-        "mock_news",
+        "news",
         "mock_portfolio",
         "mock_macro",
         "mock_knowledge_base",
     )
     assert context.metadata.data_quality_notes == (
         "market_data.source=market_data_service",
-        "mock_news.fixture=news",
+        "news.source=news_service",
         "mock_portfolio.fixture=portfolio",
         "mock_macro.fixture=macro",
         "mock_knowledge_base.fixture=knowledge_base",
@@ -164,7 +169,7 @@ def test_context_service_output_is_deterministic_with_mock_providers() -> None:
     request = ContextRequest(question="Review AMD.", symbols=("AMD",))
     providers = (
         _market_context_provider(),
-        NewsContextProvider(),
+        _news_context_provider(),
         PortfolioContextProvider(),
         MacroContextProvider(),
         KnowledgeBaseContextProvider(),

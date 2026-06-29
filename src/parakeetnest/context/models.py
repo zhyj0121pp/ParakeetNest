@@ -56,12 +56,15 @@ class NewsItem:
 
 
 @dataclass(frozen=True)
-class NewsSnapshot:
+class NewsContext:
     """News available to a context assembly."""
 
     source: str
     fetched_at: datetime | None = None
     items: tuple[NewsItem, ...] = field(default_factory=tuple)
+
+
+NewsSnapshot = NewsContext
 
 
 @dataclass(frozen=True)
@@ -149,7 +152,7 @@ class MeetingContext:
     request: ContextRequest
     metadata: ContextMetadata = field(default_factory=ContextMetadata)
     market: MarketSnapshot | None = None
-    news: NewsSnapshot | None = None
+    news: NewsContext | None = None
     filings: FilingSnapshot | None = None
     portfolio: PortfolioSnapshot | None = None
     macro: MacroSnapshot | None = None

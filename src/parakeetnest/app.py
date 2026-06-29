@@ -78,11 +78,14 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
 
     meeting_repository = CommitteeMeetingRepository(session)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
-    context_provider_registry = _create_context_provider_registry(resolved_config)
+    news_service = _create_news_service(resolved_config)
+    context_provider_registry = _create_context_provider_registry(
+        resolved_config,
+        news_service,
+    )
     context_service = ContextService(
         providers=context_provider_registry.resolve_enabled_providers()
     )
-    news_service = _create_news_service(resolved_config)
     llm_provider = _create_llm_provider(resolved_config)
     agent_runtime = AgentRuntime(
         llm_provider=llm_provider,
@@ -143,7 +146,10 @@ def _create_news_service(config: AppConfig) -> NewsService:
     return NewsService(news_provider)
 
 
-def _create_context_provider_registry(config: AppConfig) -> ContextProviderRegistry:
+def _create_context_provider_registry(
+    config: AppConfig,
+    news_service: NewsService,
+) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
     market_data_provider_registry = create_market_data_provider_registry()
     market_data_provider = market_data_provider_registry.resolve(
@@ -151,7 +157,7 @@ def _create_context_provider_registry(config: AppConfig) -> ContextProviderRegis
     )
     market_data_service = MarketDataService(market_data_provider)
     registry.register("market_data", MarketContextProvider(market_data_service))
-    registry.register("mock_news", NewsContextProvider())
+    registry.register("news", NewsContextProvider(news_service))
     registry.register("mock_portfolio", PortfolioContextProvider())
     registry.register("mock_macro", MacroContextProvider())
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())

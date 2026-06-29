@@ -22,11 +22,12 @@ systems.
   provider behavior.
 - 6.3: Completed. Add provider registry, configuration, and application
   bootstrap wiring for the News Layer.
-- 6.4: Add one live news adapter behind the provider abstraction.
+- 6.4: Completed. Integrate the News Layer into the Context Layer through
+  `NewsContextProvider`.
 
 ## Current Status
 
-6.3 completed.
+6.4 completed.
 
 ## NewsService Responsibilities
 
@@ -55,7 +56,8 @@ Supported provider IDs:
 Layer.
 
 Application bootstrap creates the News provider registry, resolves the
-configured provider, and passes only that provider into `NewsService`.
+configured provider, passes only that provider into `NewsService`, and injects
+`NewsService` into the Context Layer's `NewsContextProvider`.
 
 ## Lifecycle
 
@@ -64,10 +66,45 @@ configured provider, and passes only that provider into `NewsService`.
 3. The registry registers available News providers in deterministic order.
 4. Bootstrap resolves `config.news.provider`.
 5. `NewsService` receives the selected provider.
-6. Callers use `NewsService` without knowing provider registry details.
+6. Context integration uses `NewsContextProvider` with `NewsService`, not the
+   provider registry.
+7. Other callers use `NewsService` without knowing provider registry details.
 
-The News Layer is wired independently from Market Data. Epic 6.3 does not
-connect News provider selection to `ContextService`.
+The News Layer is wired independently from Market Data.
+
+## Context Integration
+
+Epic 6.4 adds `NewsContext` to the Context Layer and registers a
+provider-agnostic `NewsContextProvider` during application bootstrap.
+
+`ContextService` receives the news section only from registered context
+providers. It does not import or access `NewsProviderRegistry`; provider
+selection remains isolated to application bootstrap and the News Layer service
+boundary.
+
+## Data Flow
+
+1. Committee workflow asks `ContextService` to build a `MeetingContext`.
+2. `ContextService` invokes enabled context providers in configured order.
+3. `NewsContextProvider` converts the `ContextRequest` symbols into a
+   `NewsQuery`.
+4. `NewsContextProvider` calls `NewsService.get_news(...)`.
+5. `NewsService` delegates to the configured `NewsProvider`.
+6. `NewsContextProvider` maps provider-neutral `NewsArticle` objects into
+   `NewsContext` items.
+7. `ContextService` merges `NewsContext` into `MeetingContext.news`.
+
+## Layer Responsibilities
+
+- `ContextService`: orchestrates context providers and merges partial context;
+  it has no News provider registry dependency.
+- `NewsContextProvider`: adapts Context Layer requests to `NewsService` and
+  maps `NewsArticle` values into `NewsContext`.
+- `NewsService`: single News Layer service boundary and only entry point used by
+  the Context Layer for news.
+- `NewsProvider`: provider-specific retrieval behind the News Layer contract.
+- `NewsProviderRegistry`: bootstrap-only provider lookup by configured provider
+  ID.
 
 ## Future Providers
 
@@ -89,7 +126,6 @@ committee agents.
 
 - No real news API integration yet.
 - No Yahoo Finance news implementation yet.
-- No ContextService integration yet.
 - No fallback, retry, cache, ranking, deduplication, or provider composition.
 - No API keys or credentials.
 - No automatic trading.

@@ -13,8 +13,8 @@ from parakeetnest.context import (
     MarketDataPoint,
     MarketSnapshot,
     MeetingContext,
+    NewsContext,
     NewsItem,
-    NewsSnapshot,
 )
 
 
@@ -60,7 +60,7 @@ def _partial(
     provider_name: str,
     *,
     market: MarketSnapshot | None = None,
-    news: NewsSnapshot | None = None,
+    news: NewsContext | None = None,
     warnings: tuple[str, ...] = (),
     data_quality_notes: tuple[str, ...] = (),
 ) -> MeetingContext:
@@ -83,7 +83,7 @@ def test_multiple_providers_are_merged_correctly() -> None:
         source="market_provider",
         points=(MarketDataPoint(symbol="AMD", source="market_provider", price=175.0),),
     )
-    news = NewsSnapshot(
+    news = NewsContext(
         source="news_provider",
         items=(NewsItem(title="AMD expands roadmap", source="news_provider"),),
     )
@@ -121,7 +121,7 @@ def test_unsupported_providers_are_skipped() -> None:
         _partial(
             request,
             "supported",
-            news=NewsSnapshot(source="supported"),
+            news=NewsContext(source="supported"),
         ),
     )
     service = ContextService(providers=(unsupported, supported))
@@ -132,7 +132,7 @@ def test_unsupported_providers_are_skipped() -> None:
     assert unsupported.build_requests == []
     assert supported.build_requests == [request]
     assert context.market is None
-    assert context.news == NewsSnapshot(source="supported")
+    assert context.news == NewsContext(source="supported")
 
 
 def test_provider_ordering_is_deterministic_for_duplicate_sections() -> None:
@@ -211,7 +211,7 @@ def test_metadata_sources_and_data_quality_notes_merge_deterministically() -> No
         _partial(
             request,
             "second_source",
-            news=NewsSnapshot(source="second"),
+            news=NewsContext(source="second"),
             data_quality_notes=("second note",),
         ),
         metadata={"beta": "middle", "alpha": "again"},
@@ -238,7 +238,7 @@ def test_provider_errors_do_not_stop_context_assembly() -> None:
         _partial(request, "filings_provider"),
         errors=("SEC fixture unavailable",),
     )
-    succeeding_news = NewsSnapshot(source="news_provider")
+    succeeding_news = NewsContext(source="news_provider")
     succeeding = RecordingProvider(
         "news_provider",
         replace(

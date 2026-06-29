@@ -44,7 +44,7 @@ def test_create_app_can_disable_context_provider_before_service_creation(
     app = create_app(
         AppConfig(
             database_path=tmp_path / "app.sqlite3",
-            disabled_context_provider_ids=("mock_news",),
+            disabled_context_provider_ids=("news",),
         )
     )
     try:
@@ -58,7 +58,7 @@ def test_create_app_can_disable_context_provider_before_service_creation(
     finally:
         app.close()
 
-    assert registrations["mock_news"] is False
+    assert registrations["news"] is False
     assert registrations["market_data"] is True
     assert context.news is None
     assert context.market is not None
@@ -80,3 +80,26 @@ def test_create_app_wires_configured_news_service(tmp_path: Path) -> None:
     assert len(articles) == 1
     assert articles[0].provider == "mock"
     assert articles[0].symbols == ["POET"]
+
+
+def test_create_app_wires_news_context_provider_through_news_service(
+    tmp_path: Path,
+) -> None:
+    """The context pipeline should receive news through NewsService."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            news={"provider": "mock"},
+        )
+    )
+    try:
+        context = app.context_service.build_context(
+            ContextRequest(question="Review POET.", symbols=("POET",))
+        )
+    finally:
+        app.close()
+
+    assert context.news is not None
+    assert context.news.source == "news"
+    assert len(context.news.items) == 1
+    assert context.news.items[0].symbol == "POET"

@@ -15,8 +15,8 @@ from parakeetnest.context import (
     MarketSnapshot,
     MeetingContext,
     MeetingContextPromptRenderer,
+    NewsContext,
     NewsItem,
-    NewsSnapshot,
     PortfolioPosition,
     PortfolioSnapshot,
 )
@@ -83,7 +83,7 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
                 ),
             ),
         ),
-        news=NewsSnapshot(
+        news=NewsContext(
             source="news_provider",
             fetched_at=generated_at,
             items=(

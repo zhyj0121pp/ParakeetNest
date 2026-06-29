@@ -1,42 +1,29 @@
-"""Deterministic mock news context provider."""
+"""News context provider backed by the News Layer service boundary."""
 
 from __future__ import annotations
-
-from datetime import UTC, datetime
 
 from parakeetnest.context.models import (
     ContextMetadata,
     ContextRequest,
     MeetingContext,
+    NewsContext,
     NewsItem,
-    NewsSnapshot,
 )
 from parakeetnest.context.provider import (
     ContextProviderResult,
     UnsupportedContextRequestError,
 )
+from parakeetnest.news.models import NewsArticle, NewsQuery
+from parakeetnest.news.service import NewsService
 
 
 class NewsContextProvider:
-    """Build fixed news snapshots for requested symbols."""
+    """Build news context from provider-backed NewsService articles."""
 
-    provider_name = "mock_news"
-    _fetched_at = datetime(2026, 6, 29, 13, 5, tzinfo=UTC)
-    _published_at = datetime(2026, 6, 28, 14, 30, tzinfo=UTC)
-    _fixtures = {
-        "AMD": (
-            "AMD expands AI accelerator roadmap",
-            "Roadmap update highlights data center GPU demand and execution milestones.",
-        ),
-        "NVDA": (
-            "NVIDIA supply chain checks remain constructive",
-            "Channel commentary points to continued accelerator backlog visibility.",
-        ),
-    }
-    _fallback = (
-        "Requested symbol appears in mock market watchlist",
-        "Deterministic placeholder item used for Context Layer exercise.",
-    )
+    provider_name = "news"
+
+    def __init__(self, news_service: NewsService) -> None:
+        self._news_service = news_service
 
     def supports(self, request: ContextRequest) -> bool:
         return bool(request.symbols)
@@ -45,31 +32,51 @@ class NewsContextProvider:
         if not self.supports(request):
             raise UnsupportedContextRequestError(self.provider_name, request)
 
-        items = tuple(self._item_for(symbol) for symbol in request.symbols)
+        articles = tuple(
+            self._news_service.get_news(NewsQuery(symbols=list(request.symbols)))
+        )
+        fetched_at = request.as_of or max(
+            (article.published_at for article in articles),
+            default=None,
+        )
         partial_context = MeetingContext(
             request=request,
             metadata=ContextMetadata(
-                generated_at=self._fetched_at,
+                generated_at=fetched_at,
                 sources=(self.provider_name,),
             ),
-            news=NewsSnapshot(
+            news=NewsContext(
                 source=self.provider_name,
-                fetched_at=self._fetched_at,
-                items=items,
+                fetched_at=fetched_at,
+                items=tuple(self._item_for(article, request) for article in articles),
             ),
         )
         return ContextProviderResult(
             provider_name=self.provider_name,
             partial_context=partial_context,
-            metadata={"fixture": "news"},
+            metadata={"source": "news_service"},
         )
 
-    def _item_for(self, symbol: str) -> NewsItem:
-        title, summary = self._fixtures.get(symbol, self._fallback)
+    def _item_for(self, article: NewsArticle, request: ContextRequest) -> NewsItem:
         return NewsItem(
-            title=title,
-            source=self.provider_name,
-            symbol=symbol,
-            summary=summary,
-            published_at=self._published_at,
+            title=article.title,
+            source=article.source,
+            symbol=self._context_symbol(article, request),
+            url=article.url,
+            summary=article.summary,
+            published_at=article.published_at,
         )
+
+    @staticmethod
+    def _context_symbol(
+        article: NewsArticle,
+        request: ContextRequest,
+    ) -> str | None:
+        if not article.symbols:
+            return None
+
+        requested_symbols = set(request.symbols)
+        for symbol in article.symbols:
+            if symbol in requested_symbols:
+                return symbol
+        return article.symbols[0]

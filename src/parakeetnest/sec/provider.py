@@ -11,6 +11,14 @@ class SecFilingError(Exception):
     """Base class for provider-independent SEC filing failures."""
 
 
+class SecFilingHttpError(SecFilingError):
+    """Provider-independent error for SEC filing HTTP failures."""
+
+
+class SecFilingParsingError(SecFilingError):
+    """Provider-independent error for SEC filing response parsing failures."""
+
+
 ProviderError = SecFilingError
 
 
@@ -30,5 +38,7 @@ class SecFilingProvider(Protocol):
 __all__ = [
     "ProviderError",
     "SecFilingError",
+    "SecFilingHttpError",
+    "SecFilingParsingError",
     "SecFilingProvider",
 ]

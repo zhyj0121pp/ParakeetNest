@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from parakeetnest.exceptions import ConfigurationError
+from parakeetnest.sec.edgar import EdgarSecFilingProvider
 from parakeetnest.sec.mock import MockSecFilingProvider
 from parakeetnest.sec.provider import SecFilingProvider
 
@@ -66,6 +67,10 @@ def create_sec_filing_provider_registry() -> SecFilingProviderRegistry:
     """Create the default SEC filing provider registry."""
     registry = SecFilingProviderRegistry(default_provider_id="mock")
     registry.register("mock", MockSecFilingProvider())
+    registry.register(
+        "sec_edgar",
+        EdgarSecFilingProvider(user_agent="ParakeetNest/0.1 contact@example.com"),
+    )
     return registry
 
 

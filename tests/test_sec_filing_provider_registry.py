@@ -6,6 +6,7 @@ import pytest
 
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.sec import (
+    EdgarSecFilingProvider,
     MockSecFilingProvider,
     SecFiling,
     SecFilingContent,
@@ -74,6 +75,14 @@ def test_default_sec_filing_provider_is_mock() -> None:
     provider = registry.default()
 
     assert isinstance(provider, MockSecFilingProvider)
+
+
+def test_default_registry_includes_sec_edgar_provider() -> None:
+    registry = create_sec_filing_provider_registry()
+
+    provider = registry.get("sec_edgar")
+
+    assert isinstance(provider, EdgarSecFilingProvider)
 
 
 def test_selecting_configured_sec_filing_provider_works() -> None:

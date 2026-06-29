@@ -16,8 +16,11 @@ from deterministic fixtures during tests.
 flowchart TD
     A[Context Layer] --> B[MarketDataService]
     B --> C[MarketDataProvider]
-    C --> D[MockMarketDataProvider]
-    C -. future .-> E[YahooFinanceProvider]
+    I[MarketDataProviderRegistry] --> C
+    I --> D[MockMarketDataProvider]
+    I --> E[YahooFinanceProvider]
+    C --> D
+    C --> E
     C -. future .-> F[PolygonProvider]
     C -. future .-> G[RobinhoodProvider]
     C -. future .-> H[AlphaVantageProvider]
@@ -26,9 +29,10 @@ flowchart TD
 ```text
 Context Layer
   -> MarketDataService
+  -> MarketDataProviderRegistry
   -> MarketDataProvider
   -> MockMarketDataProvider
-  -> YahooFinanceProvider (future)
+  -> YahooFinanceProvider
   -> PolygonProvider (future)
 ```
 
@@ -51,18 +55,49 @@ snapshot or price history requests to the configured provider.
 supports a symbol, return a current `MarketDataSnapshot`, and return historical
 `PriceBar` data for a `MarketDataRange`.
 
+### MarketDataProviderRegistry
+
+`MarketDataProviderRegistry` centralizes provider selection. Application
+bootstrap registers available providers, resolves the provider named by
+configuration, and passes the resulting `MarketDataProvider` into
+`MarketDataService`.
+
+The default configuration is:
+
+```yaml
+market_data:
+  provider: mock
+```
+
+To use the Yahoo provider:
+
+```yaml
+market_data:
+  provider: yahoo
+```
+
+Unknown provider IDs raise a configuration error that includes the configured
+name and the available provider IDs. Provider selection must stay in the
+registry; application code should not scatter provider-specific conditionals.
+
 ### MockMarketDataProvider
 
-`MockMarketDataProvider` is the current concrete provider. It uses deterministic
+`MockMarketDataProvider` is the default concrete provider. It uses deterministic
 in-memory fixtures for supported symbols such as AMD, AAPL, MSFT, NVDA, SPY,
 and POET. It makes tests repeatable and allows the committee pipeline to run
 without network calls or API keys.
+
+### YahooFinanceProvider
+
+`YahooFinanceProvider` is the optional live-data adapter selected with
+`market_data.provider: yahoo`. It remains isolated behind the
+`MarketDataProvider` contract, and its third-party SDK import stays inside the
+provider module so mock-only runs do not depend on live provider behavior.
 
 ### Future Providers
 
 Future providers will implement the same `MarketDataProvider` interface:
 
-- `YahooFinanceProvider` for broad public quote and history access.
 - `PolygonProvider` for richer market data APIs and higher quality historical
   data.
 - `RobinhoodProvider` for account-adjacent market data only where appropriate;
@@ -109,7 +144,9 @@ it.
 
 `MarketDataService` exists so application code does not call providers
 directly. Today it owns the support check and delegates to one configured
-provider. This keeps the calling path stable while provider behavior grows.
+provider. Provider construction and selection live in
+`MarketDataProviderRegistry`, keeping the service public API stable while
+provider behavior grows.
 
 Future epics should place cross-provider operational behavior here:
 
@@ -129,8 +166,11 @@ flowchart TD
     B --> C[MarketContextProvider]
     C --> D[MarketDataService]
     D --> E[MarketDataProvider]
-    E --> F[MockMarketDataProvider]
-    E -. future .-> G[YahooFinanceProvider]
+    I[MarketDataProviderRegistry] --> E
+    I --> F[MockMarketDataProvider]
+    I --> G[YahooFinanceProvider]
+    E --> F
+    E --> G
     E -. future .-> H[PolygonProvider]
 ```
 

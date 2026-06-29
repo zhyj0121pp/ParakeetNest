@@ -1,5 +1,6 @@
 """Application configuration for ParakeetNest."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -18,16 +19,35 @@ DEFAULT_PROMPT_DIR = Path(__file__).parent / "committee" / "prompts"
 
 
 @dataclass(frozen=True)
+class MarketDataConfig:
+    """Market data provider configuration."""
+
+    provider: str = "mock"
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Application container configuration."""
 
     database_path: Path | None = None
     database_url: str | None = None
     llm_provider: str = "mock"
+    market_data: MarketDataConfig | Mapping[str, str] = field(
+        default_factory=MarketDataConfig
+    )
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
     enabled_context_provider_ids: tuple[str, ...] | None = None
     disabled_context_provider_ids: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        """Normalize nested configuration supplied as plain mappings."""
+        if isinstance(self.market_data, Mapping):
+            object.__setattr__(
+                self,
+                "market_data",
+                MarketDataConfig(**dict(self.market_data)),
+            )
 
     def resolved_database_url(self) -> str:
         """Return the configured SQLAlchemy database URL."""

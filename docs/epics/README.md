@@ -6,7 +6,7 @@
 | [Epic 002](epic-002-context-layer.md) | Context Layer | Completed |
 | [Epic 003](epic-003-context-pipeline-refinement.md) | Context Pipeline Refinement | Completed |
 | [Epic 004](epic-004-market-data-layer.md) | Market Data Layer | Completed |
-| Epic 005 | Yahoo Finance Provider | Planned |
+| [Epic 005](epic-005-yahoo-finance-provider.md) | Yahoo Finance Provider | Completed |
 | Epic 006 | News Layer | Planned |
 | Epic 007 | Portfolio Layer | Planned |
 | Epic 008 | Macro Layer | Planned |

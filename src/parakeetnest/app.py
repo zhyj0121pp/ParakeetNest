@@ -31,7 +31,10 @@ from parakeetnest.database import (
     initialize_database,
 )
 from parakeetnest.llm import LLMProvider, MockLLMProvider
-from parakeetnest.market_data import MarketDataService, MockMarketDataProvider
+from parakeetnest.market_data import (
+    MarketDataService,
+    create_market_data_provider_registry,
+)
 from parakeetnest.services import MeetingService
 
 
@@ -132,7 +135,11 @@ def _create_llm_provider(config: AppConfig) -> LLMProvider:
 
 def _create_context_provider_registry(config: AppConfig) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
-    market_data_service = MarketDataService(MockMarketDataProvider())
+    market_data_provider_registry = create_market_data_provider_registry()
+    market_data_provider = market_data_provider_registry.resolve(
+        config.market_data.provider
+    )
+    market_data_service = MarketDataService(market_data_provider)
     registry.register("market_data", MarketContextProvider(market_data_service))
     registry.register("mock_news", NewsContextProvider())
     registry.register("mock_portfolio", PortfolioContextProvider())

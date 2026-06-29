@@ -12,6 +12,7 @@ from parakeetnest.news import (
     NewsProviderRegistry,
     NewsQuery,
     NewsService,
+    YahooFinanceNewsProvider,
     create_news_provider_registry,
 )
 
@@ -86,3 +87,11 @@ def test_selecting_configured_news_provider_works() -> None:
     assert isinstance(provider, MockNewsProvider)
     assert articles[0].provider == "mock"
     assert articles[0].symbols == ["AMD"]
+
+
+def test_registry_lookup_for_yahoo_returns_yahoo_provider() -> None:
+    registry = create_news_provider_registry()
+
+    provider = registry.get("yahoo")
+
+    assert isinstance(provider, YahooFinanceNewsProvider)

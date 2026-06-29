@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.news.mock import MockNewsProvider
 from parakeetnest.news.provider import NewsProvider
+from parakeetnest.news.yahoo import YahooFinanceNewsProvider
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,7 @@ def create_news_provider_registry() -> NewsProviderRegistry:
     """Create the default news provider registry."""
     registry = NewsProviderRegistry(default_provider_id="mock")
     registry.register("mock", MockNewsProvider())
+    registry.register("yahoo", YahooFinanceNewsProvider())
     return registry
 
 

@@ -81,9 +81,13 @@ def test_context_service_does_not_access_news_provider_registry() -> None:
 def test_yahoo_finance_code_stays_isolated_to_yahoo_provider() -> None:
     """Yahoo Finance dependencies should stay inside the Yahoo adapter."""
     source_paths = Path("src/parakeetnest").rglob("*.py")
+    yahoo_provider_paths = {
+        Path("src/parakeetnest/market_data/yahoo.py"),
+        Path("src/parakeetnest/news/yahoo.py"),
+    }
 
     for source_path in source_paths:
-        if source_path == Path("src/parakeetnest/market_data/yahoo.py"):
+        if source_path in yahoo_provider_paths:
             continue
         source = source_path.read_text(encoding="utf-8").lower()
         assert "yfinance" not in source

@@ -9,6 +9,7 @@ from parakeetnest.news.registry import (
     create_news_provider_registry,
 )
 from parakeetnest.news.service import NewsService
+from parakeetnest.news.yahoo import YahooFinanceNewsProvider
 
 __all__ = [
     "MockNewsProvider",
@@ -18,5 +19,6 @@ __all__ = [
     "NewsProviderRegistry",
     "NewsQuery",
     "NewsService",
+    "YahooFinanceNewsProvider",
     "create_news_provider_registry",
 ]

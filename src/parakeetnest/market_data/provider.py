@@ -5,13 +5,13 @@ from __future__ import annotations
 from enum import Enum
 from typing import Protocol, runtime_checkable
 
+from parakeetnest.market_data.errors import MarketDataError
 from parakeetnest.market_data.models import (
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
     Symbol,
 )
-from parakeetnest.market_data.errors import MarketDataError
 
 
 class ProviderCapability(str, Enum):

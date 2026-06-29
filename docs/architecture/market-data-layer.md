@@ -147,12 +147,12 @@ without leaking vendor exception types to callers.
 
 Concrete providers are responsible for:
 
-- implementing `MarketDataProvider`;
-- normalizing vendor symbols into `Symbol`;
-- mapping quote payloads into `MarketDataSnapshot`;
-- mapping historical payloads into `PriceBar`;
-- converting provider-specific failures into `MarketDataError` subclasses;
-- keeping SDK imports and network behavior inside the provider module;
+- implementing `MarketDataProvider`.
+- normalizing vendor symbols into `Symbol`.
+- mapping quote payloads into `MarketDataSnapshot`.
+- mapping historical payloads into `PriceBar`.
+- converting provider-specific failures into `MarketDataError` subclasses.
+- keeping SDK imports and network behavior inside the provider module.
 - avoiding automatic trading and hard-coded API keys.
 
 `MockMarketDataProvider` is deterministic and network-free. It is the default
@@ -174,8 +174,8 @@ providers fetch data.
 
 Future cross-provider orchestration belongs in the service layer:
 
-- caching recent snapshots and historical bars;
-- provider fallback;
+- caching recent snapshots and historical bars.
+- provider fallback.
 - latency, freshness, and failure metrics.
 
 ## Context Layer Integration
@@ -187,19 +187,19 @@ clients or vendor payloads.
 
 This keeps the committee memory-first path independent of data sources:
 
-- market data is normalized before it enters `MeetingContext`;
-- provider metadata becomes context metadata and data quality notes;
+- market data is normalized before it enters `MeetingContext`.
+- provider metadata becomes context metadata and data quality notes.
 - replacing a provider does not require prompt, agent, or meeting changes.
 
 ## Package Exports
 
 `parakeetnest.market_data` exports the intentional public API:
 
-- domain models;
-- provider-independent errors;
-- `MarketDataProvider`, `ProviderCapability`, and `ProviderError`;
-- `MarketDataProviderRegistry` and default registry factory;
-- `MarketDataService`;
+- domain models.
+- provider-independent errors.
+- `MarketDataProvider`, `ProviderCapability`, and `ProviderError`.
+- `MarketDataProviderRegistry` and default registry factory.
+- `MarketDataService`.
 - concrete `MockMarketDataProvider` and `YahooFinanceMarketDataProvider`.
 
 Internal helper methods and vendor payload shapes are not exported.
@@ -208,14 +208,14 @@ Internal helper methods and vendor payload shapes are not exported.
 
 Tests cover the layer at several boundaries:
 
-- model normalization and immutable value objects;
-- provider protocol shape and provider-neutral return types;
-- mock provider deterministic snapshots and history;
-- service delegation and unsupported-symbol behavior;
-- registry configuration, default provider selection, and unknown providers;
-- Yahoo quote/history mapping without network calls through injected fakes;
-- provider-specific exception mapping into `MarketDataError` subclasses;
-- retry behavior for transient Yahoo failures;
+- model normalization and immutable value objects.
+- provider protocol shape and provider-neutral return types.
+- mock provider deterministic snapshots and history.
+- service delegation and unsupported-symbol behavior.
+- registry configuration, default provider selection, and unknown providers.
+- Yahoo quote/history mapping without network calls through injected fakes.
+- provider-specific exception mapping into `MarketDataError` subclasses.
+- retry behavior for transient Yahoo failures.
 - import-boundary tests that keep Yahoo Finance dependencies isolated.
 
 Live network tests are intentionally not required for the default suite. The

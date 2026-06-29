@@ -19,8 +19,8 @@ The mock provider remains the safe default for tests and local development.
 `YahooFinanceMarketDataProvider` implements the same provider protocol as
 `MockMarketDataProvider`:
 
-- `supports(symbol)`;
-- `get_snapshot(symbol)`;
+- `supports(symbol)`.
+- `get_snapshot(symbol)`.
 - `get_price_history(symbol, range)`.
 
 It also exposes `get_quote(symbol)` and `get_quotes(symbols)` as Yahoo-specific
@@ -105,10 +105,10 @@ The intentional public API for Epic 005 is:
 Yahoo-specific failures are hidden behind the Market Data Layer error hierarchy:
 
 - invalid, missing, unsupported, or delisted symbols become
-  `InvalidSymbolError`;
-- rate limit failures become `RateLimitError`;
-- timeouts and temporary network failures become `ProviderUnavailableError`;
-- empty or malformed payloads become `MalformedMarketDataError`;
+  `InvalidSymbolError`.
+- rate limit failures become `RateLimitError`.
+- timeouts and temporary network failures become `ProviderUnavailableError`.
+- empty or malformed payloads become `MalformedMarketDataError`.
 - unexpected non-retryable provider failures become `ProviderUnavailableError`
   with `retryable=False`.
 
@@ -119,13 +119,13 @@ Callers should catch `MarketDataError` subclasses, not `yfinance` exceptions.
 Epic 005 is covered without live network calls:
 
 - registry tests verify default provider selection, Yahoo selection, and
-  unknown-provider configuration errors;
-- provider protocol tests verify Yahoo satisfies the abstraction;
-- Yahoo tests inject fake `yfinance` modules and ticker objects;
-- mapping tests verify quote and history payloads become domain models;
-- error tests verify provider-specific failures do not escape;
+  unknown-provider configuration errors.
+- provider protocol tests verify Yahoo satisfies the abstraction.
+- Yahoo tests inject fake `yfinance` modules and ticker objects.
+- mapping tests verify quote and history payloads become domain models.
+- error tests verify provider-specific failures do not escape.
 - retry tests verify transient failures retry and exhausted retries raise
-  provider-neutral errors;
+  provider-neutral errors.
 - architecture tests verify Yahoo Finance dependencies stay isolated to the
   Yahoo provider module.
 
@@ -139,11 +139,11 @@ The required validation command is:
 
 Future providers should reuse the same pattern:
 
-- implement `MarketDataProvider`;
-- register a provider factory in `create_market_data_provider_registry()`;
-- map provider payloads into ParakeetNest models at the edge;
-- translate provider-specific exceptions into `MarketDataError` subclasses;
-- keep credentials in configuration or environment variables;
+- implement `MarketDataProvider`.
+- register a provider factory in `create_market_data_provider_registry()`.
+- map provider payloads into ParakeetNest models at the edge.
+- translate provider-specific exceptions into `MarketDataError` subclasses.
+- keep credentials in configuration or environment variables.
 - avoid automatic trading.
 
 Candidate providers:

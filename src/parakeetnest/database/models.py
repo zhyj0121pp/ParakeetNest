@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import JSON
 
@@ -177,6 +177,35 @@ class CommitteeDiscussion(TimestampMixin, Base):
     evidence: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     risks: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     catalysts: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+
+
+class CommitteeMeeting(TimestampMixin, Base):
+    """Persistent record for one AI committee meeting."""
+
+    __tablename__ = "committee_meeting"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    ticker: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    error_message: Mapped[str | None] = mapped_column(Text)
+
+
+class CommitteeMeetingMessage(TimestampMixin, Base):
+    """Persistent message emitted during a committee meeting."""
+
+    __tablename__ = "committee_meeting_message"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    meeting_id: Mapped[int] = mapped_column(
+        ForeignKey("committee_meeting.id"),
+        index=True,
+        nullable=False,
+    )
+    agent_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    role: Mapped[str] = mapped_column(String(120), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Recommendation(TimestampMixin, Base):

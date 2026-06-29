@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any
 
 from parakeetnest.models import (
     ConfidenceLevel,
@@ -11,6 +13,44 @@ from parakeetnest.models import (
     InvestmentHorizon,
     RecommendationAction,
 )
+
+
+class MeetingStatus(StrEnum):
+    """Persistent lifecycle states for an AI committee meeting."""
+
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class MeetingRequest:
+    """User request for a committee meeting."""
+
+    question: str
+    ticker: str
+
+
+@dataclass(frozen=True)
+class AgentResult:
+    """Persistable output from one committee agent."""
+
+    agent_name: str
+    role: str
+    content: str
+
+
+@dataclass(frozen=True)
+class MeetingResult:
+    """Final persistable result for a committee meeting."""
+
+    meeting_id: int
+    status: MeetingStatus
+    question: str
+    ticker: str
+    agent_results: tuple[AgentResult, ...] = field(default_factory=tuple)
+    result_json: dict[str, Any] | None = None
+    error_message: str | None = None
 
 
 @dataclass(frozen=True)

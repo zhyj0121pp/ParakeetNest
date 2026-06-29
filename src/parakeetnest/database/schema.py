@@ -2,7 +2,7 @@
 
 from sqlalchemy.engine import Engine
 
-from parakeetnest.database.models import Base
+from parakeetnest.database.migrations import run_migrations
 
 
 TABLES: tuple[str, ...] = (
@@ -16,6 +16,8 @@ TABLES: tuple[str, ...] = (
     "data_quality_reports",
     "investment_theses",
     "committee_discussions",
+    "committee_meeting",
+    "committee_meeting_message",
     "recommendations",
     "reports",
 )
@@ -28,4 +30,4 @@ def table_names() -> tuple[str, ...]:
 
 def initialize_database(engine: Engine) -> None:
     """Create all v1 database tables."""
-    Base.metadata.create_all(bind=engine)
+    run_migrations(engine)

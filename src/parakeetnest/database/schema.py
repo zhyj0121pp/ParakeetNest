@@ -13,6 +13,7 @@ TABLES: tuple[str, ...] = (
     "news_items",
     "macro_data",
     "calendar_events",
+    "data_quality_reports",
     "investment_theses",
     "committee_discussions",
     "recommendations",

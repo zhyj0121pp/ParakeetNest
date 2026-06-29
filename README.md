@@ -27,6 +27,11 @@ and numeric sanity before data is saved or analyzed.
 Milestone 4 adds deterministic mock data services and a collection orchestrator
 that validates snapshots and saves valid mock records to SQLite.
 
+Milestone 4.5 cleans up architecture boundaries: collection orchestration no
+longer imports ORM models directly, persistence is delegated to a database-side
+snapshot persistence service, and data quality metadata is stored alongside
+validated records.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -115,6 +120,7 @@ configured SQLite database with:
 .venv/bin/python - <<'PY'
 from parakeetnest.config import get_settings
 from parakeetnest.database import (
+    SnapshotPersistenceService,
     create_session_factory,
     create_sqlite_engine,
     initialize_database,
@@ -128,7 +134,19 @@ initialize_database(engine)
 session_factory = create_session_factory(engine)
 
 with session_scope(session_factory) as session:
-    result = DataCollectionOrchestrator().run(session)
+    persistence = SnapshotPersistenceService(session)
+    result = DataCollectionOrchestrator().run(persistence)
     print(f"Saved {result.saved_records} mock records")
 PY
 ```
+
+## Architecture Boundaries
+
+The collection layer owns service interfaces, mock services, validation, and
+orchestration. It does not import SQLAlchemy ORM models. Persistence mapping
+lives in `src/parakeetnest/database/snapshot_repository.py`, where validated
+domain snapshots are converted into SQLite records and `data_quality_reports`
+metadata rows.
+
+Future provider integrations should implement the explicit service protocols
+from `src/parakeetnest/services/base.py` and return typed domain snapshots.

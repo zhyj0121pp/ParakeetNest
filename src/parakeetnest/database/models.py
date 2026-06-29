@@ -130,6 +130,22 @@ class CalendarEvent(TimestampMixin, Base):
     source: Mapped[str | None] = mapped_column(String(64))
 
 
+class DataQualityReport(TimestampMixin, Base):
+    """Persisted data quality metadata for a stored snapshot."""
+
+    __tablename__ = "data_quality_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dataset_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    record_ids: Mapped[list[int]] = mapped_column(JSON, default=list, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    freshness_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    missing_fields: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    validation_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence_score: Mapped[float] = mapped_column(Float, nullable=False)
+
+
 class InvestmentThesis(TimestampMixin, Base):
     """Stored investment thesis for a company."""
 

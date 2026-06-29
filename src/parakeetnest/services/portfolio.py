@@ -38,6 +38,3 @@ class MockPortfolioService(MockDataService[PortfolioSnapshot]):
             cash_balance=1500.0,
         )
         return (self._result(snapshot),)
-
-
-PortfolioService = MockPortfolioService

@@ -31,6 +31,3 @@ class MockNewsService(MockDataService[NewsSnapshot]):
             ),
         )
         return tuple(self._result(snapshot) for snapshot in snapshots)
-
-
-NewsService = MockNewsService

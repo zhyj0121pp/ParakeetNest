@@ -9,12 +9,14 @@ from sqlalchemy.orm import Session
 from parakeetnest.database import create_sqlite_engine, initialize_database
 from parakeetnest.database.models import (
     CalendarEvent,
+    DataQualityReport,
     FinancialData,
     Holding,
     MacroData,
     MarketData,
     NewsItem,
 )
+from parakeetnest.database.snapshot_repository import SnapshotPersistenceService
 from parakeetnest.domain import MarketSnapshot
 from parakeetnest.services import (
     DataCollectionOrchestrator,
@@ -55,7 +57,8 @@ def test_orchestrator_saves_valid_mock_data(tmp_path: Path) -> None:
     initialize_database(engine)
 
     with Session(engine) as session:
-        result = DataCollectionOrchestrator().run(session, now=MOCK_FETCHED_AT)
+        persistence = SnapshotPersistenceService(session)
+        result = DataCollectionOrchestrator().run(persistence, now=MOCK_FETCHED_AT)
         session.commit()
 
         assert len(result.results) == 11
@@ -67,6 +70,9 @@ def test_orchestrator_saves_valid_mock_data(tmp_path: Path) -> None:
         assert len(session.scalars(select(FinancialData)).all()) == 2
         assert len(session.scalars(select(MacroData)).all()) == 2
         assert len(session.scalars(select(CalendarEvent)).all()) == 2
+        reports = session.scalars(select(DataQualityReport)).all()
+        assert len(reports) == 11
+        assert {report.validation_status for report in reports} == {"valid"}
 
 
 def test_orchestrator_skips_invalid_snapshots(tmp_path: Path) -> None:
@@ -98,15 +104,17 @@ def test_orchestrator_skips_invalid_snapshots(tmp_path: Path) -> None:
     initialize_database(engine)
 
     with Session(engine) as session:
+        persistence = SnapshotPersistenceService(session)
         result = DataCollectionOrchestrator(
             services=(InvalidMarketService(),),
-        ).run(session, now=MOCK_FETCHED_AT)
+        ).run(persistence, now=MOCK_FETCHED_AT)
         session.commit()
 
         assert len(result.results) == 1
         assert result.results[0].data_quality.is_valid is False
         assert result.saved_records == 0
         assert len(session.scalars(select(MarketData)).all()) == 0
+        assert len(session.scalars(select(DataQualityReport)).all()) == 0
 
 
 def test_mock_data_is_deterministic() -> None:

@@ -37,6 +37,3 @@ class MockMarketDataService(MockDataService[MarketSnapshot]):
             ),
         )
         return tuple(self._result(snapshot) for snapshot in snapshots)
-
-
-MarketDataService = MockMarketDataService

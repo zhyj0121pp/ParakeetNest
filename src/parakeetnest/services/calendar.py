@@ -32,6 +32,3 @@ class MockCalendarService(MockDataService[CalendarSnapshot]):
             ),
         )
         return tuple(self._result(snapshot) for snapshot in snapshots)
-
-
-CalendarService = MockCalendarService

@@ -44,6 +44,37 @@ class DataService(Protocol[SnapshotT]):
         """Collect normalized snapshots with data quality metadata."""
 
 
+class PortfolioService(DataService[PortfolioSnapshot], Protocol):
+    """Protocol for portfolio data collection services."""
+
+
+class MarketDataService(DataService[MarketSnapshot], Protocol):
+    """Protocol for market data collection services."""
+
+
+class NewsService(DataService[NewsSnapshot], Protocol):
+    """Protocol for news data collection services."""
+
+
+class FinancialService(DataService[FinancialSnapshot], Protocol):
+    """Protocol for financial data collection services."""
+
+
+class MacroService(DataService[MacroSnapshot], Protocol):
+    """Protocol for macro data collection services."""
+
+
+class CalendarService(DataService[CalendarSnapshot], Protocol):
+    """Protocol for calendar data collection services."""
+
+
+class SnapshotPersistence(Protocol):
+    """Protocol for persistence adapters that store validated snapshots."""
+
+    def save(self, snapshot: object, data_quality: DataQuality) -> int:
+        """Persist a validated snapshot and return the number of records saved."""
+
+
 class MockDataService(Generic[SnapshotT]):
     """Base helper for deterministic mock data services."""
 

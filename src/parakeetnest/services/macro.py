@@ -33,6 +33,3 @@ class MockMacroService(MockDataService[MacroSnapshot]):
             ),
         )
         return tuple(self._result(snapshot) for snapshot in snapshots)
-
-
-MacroService = MockMacroService

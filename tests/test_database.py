@@ -16,6 +16,7 @@ from parakeetnest.database import (
 from parakeetnest.database.models import (
     CalendarEvent,
     CommitteeDiscussion,
+    DataQualityReport,
     FinancialData,
     Holding,
     InvestmentThesis,
@@ -130,6 +131,17 @@ def test_all_required_models_can_be_created(tmp_path: Path) -> None:
         Repository(session, CalendarEvent).create(
             CalendarEvent(event_type="earnings", title="AMD earnings", symbol="AMD")
         )
+        Repository(session, DataQualityReport).create(
+            DataQualityReport(
+                dataset_type="MarketSnapshot",
+                record_ids=[1],
+                source="manual",
+                freshness_status="fresh",
+                missing_fields=[],
+                validation_status="valid",
+                confidence_score=1.0,
+            )
+        )
         Repository(session, InvestmentThesis).create(
             InvestmentThesis(
                 symbol="AMD",
@@ -179,6 +191,7 @@ def test_all_required_models_can_be_created(tmp_path: Path) -> None:
         assert len(Repository(session, NewsItem).list()) == 1
         assert len(Repository(session, MacroData).list()) == 1
         assert len(Repository(session, CalendarEvent).list()) == 1
+        assert len(Repository(session, DataQualityReport).list()) == 1
         assert len(Repository(session, InvestmentThesis).list()) == 1
         assert len(Repository(session, CommitteeDiscussion).list()) == 1
         assert len(Repository(session, Recommendation).list()) == 1

@@ -6,25 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy.orm import Session
-
-from parakeetnest.database.models import (
-    CalendarEvent,
-    FinancialData,
-    Holding,
-    MacroData,
-    MarketData,
-    NewsItem,
-)
-from parakeetnest.domain import (
-    CalendarSnapshot,
-    FinancialSnapshot,
-    MacroSnapshot,
-    MarketSnapshot,
-    NewsSnapshot,
-    PortfolioSnapshot,
-)
-from parakeetnest.services.base import DataService, ServiceResult
+from parakeetnest.services.base import DataService, ServiceResult, SnapshotPersistence
 from parakeetnest.services.calendar import MockCalendarService
 from parakeetnest.services.data_quality import DataQualityService
 from parakeetnest.services.financial import MockFinancialService
@@ -61,7 +43,11 @@ class DataCollectionOrchestrator:
             MockCalendarService(self.data_quality_service),
         )
 
-    def run(self, session: Session, now: datetime | None = None) -> DataCollectionResult:
+    def run(
+        self,
+        persistence: SnapshotPersistence,
+        now: datetime | None = None,
+    ) -> DataCollectionResult:
         """Collect from all services, validate snapshots, and save valid records."""
         collected: list[ServiceResult[Any]] = []
         saved_records = 0
@@ -79,87 +65,5 @@ class DataCollectionOrchestrator:
                 )
                 collected.append(validated_result)
                 if data_quality.is_valid:
-                    saved_records += self._save_snapshot(session, snapshot)
-        session.flush()
+                    saved_records += persistence.save(snapshot, data_quality)
         return DataCollectionResult(results=tuple(collected), saved_records=saved_records)
-
-    def _save_snapshot(self, session: Session, snapshot: object) -> int:
-        """Persist one validated snapshot and return the number of records saved."""
-        if isinstance(snapshot, PortfolioSnapshot):
-            for holding in snapshot.holdings:
-                session.add(
-                    Holding(
-                        symbol=holding.symbol,
-                        quantity=holding.quantity,
-                        cost_basis=holding.cost_basis,
-                        market_value=holding.market_value,
-                        source=snapshot.source,
-                        observed_at=snapshot.fetched_at,
-                    )
-                )
-            return len(snapshot.holdings)
-        if isinstance(snapshot, MarketSnapshot):
-            session.add(
-                MarketData(
-                    symbol=snapshot.symbol,
-                    price=snapshot.price,
-                    daily_change=snapshot.daily_change,
-                    volume=snapshot.volume,
-                    market_cap=snapshot.market_cap,
-                    pe_ratio=snapshot.pe_ratio,
-                    eps=snapshot.eps,
-                    source=snapshot.source,
-                    observed_at=snapshot.fetched_at,
-                )
-            )
-            return 1
-        if isinstance(snapshot, FinancialSnapshot):
-            session.add(
-                FinancialData(
-                    symbol=snapshot.symbol,
-                    period=snapshot.period,
-                    revenue=snapshot.revenue,
-                    eps=snapshot.eps,
-                    gross_margin=snapshot.gross_margin,
-                    operating_margin=snapshot.operating_margin,
-                    free_cash_flow=snapshot.free_cash_flow,
-                    source=snapshot.source,
-                    observed_at=snapshot.fetched_at,
-                )
-            )
-            return 1
-        if isinstance(snapshot, NewsSnapshot):
-            session.add(
-                NewsItem(
-                    symbol=snapshot.symbol,
-                    title=snapshot.title,
-                    url=snapshot.url,
-                    source=snapshot.source,
-                    summary=snapshot.summary,
-                    published_at=snapshot.published_at,
-                )
-            )
-            return 1
-        if isinstance(snapshot, MacroSnapshot):
-            session.add(
-                MacroData(
-                    indicator=snapshot.indicator,
-                    value=snapshot.value,
-                    unit=snapshot.unit,
-                    source=snapshot.source,
-                    observed_on=snapshot.observed_on,
-                )
-            )
-            return 1
-        if isinstance(snapshot, CalendarSnapshot):
-            session.add(
-                CalendarEvent(
-                    event_type=snapshot.event_type,
-                    title=snapshot.title,
-                    symbol=snapshot.symbol,
-                    event_at=snapshot.event_at,
-                    source=snapshot.source,
-                )
-            )
-            return 1
-        return 0

@@ -194,6 +194,43 @@ def test_metadata_aggregation_works() -> None:
     )
 
 
+def test_metadata_sources_and_data_quality_notes_merge_deterministically() -> None:
+    request = ContextRequest(question="Review AMD.", symbols=("AMD",))
+    first = RecordingProvider(
+        "first",
+        _partial(
+            request,
+            "first_source",
+            market=MarketSnapshot(source="first"),
+            data_quality_notes=("first note",),
+        ),
+        metadata={"zeta": "last", "alpha": "first"},
+    )
+    second = RecordingProvider(
+        "second",
+        _partial(
+            request,
+            "second_source",
+            news=NewsSnapshot(source="second"),
+            data_quality_notes=("second note",),
+        ),
+        metadata={"beta": "middle", "alpha": "again"},
+    )
+    service = ContextService(providers=(first, second))
+
+    context = service.build_context(request)
+
+    assert context.metadata.sources == ("first_source", "second_source")
+    assert context.metadata.data_quality_notes == (
+        "first note",
+        "first.alpha=first",
+        "first.zeta=last",
+        "second note",
+        "second.alpha=again",
+        "second.beta=middle",
+    )
+
+
 def test_provider_errors_do_not_stop_context_assembly() -> None:
     request = ContextRequest(question="Review AMD.", symbols=("AMD",))
     failing = RecordingProvider(

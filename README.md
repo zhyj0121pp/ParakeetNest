@@ -13,6 +13,9 @@ This repository contains the initial Python skeleton only. External API calls,
 brokerage integrations, market data providers, LLM calls, email delivery, and
 automatic trading are not implemented.
 
+Milestone 1 adds the foundation layer: configuration loading, structured
+logging, common exceptions, and an application bootstrap.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -30,6 +33,26 @@ automatic trading are not implemented.
 ## Development
 
 ```bash
-python -m pip install -e ".[dev]"
-python -m pytest
+python -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/python -m pytest
 ```
+
+## Local Configuration
+
+Create a local environment file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Configuration is loaded with the `PARAKEETNEST_` prefix. Leave future
+integration secrets blank until those integrations are implemented.
+
+Useful local settings:
+
+- `PARAKEETNEST_ENVIRONMENT`: `development`, `test`, or `production`.
+- `PARAKEETNEST_LOG_LEVEL`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or
+  `CRITICAL`.
+- `PARAKEETNEST_LOG_JSON`: `true` for structured JSON logs.
+- `PARAKEETNEST_SQLITE_PATH`: future SQLite database path.

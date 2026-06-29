@@ -6,12 +6,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from parakeetnest.committee import (
-    AgentResult,
-    CommitteeMeetingOrchestrator,
-    MeetingContext,
-    MeetingStatus,
-)
+import pytest
+
+from parakeetnest.committee import AgentResult, MeetingContext, MeetingStatus
+from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.database import (
     CommitteeMeetingRepository,
     create_session_factory,
@@ -78,7 +76,8 @@ def test_orchestrator_runs_all_four_agents_in_order(tmp_path: Path) -> None:
     orchestrator = _orchestrator(tmp_path, provider)
 
     try:
-        result = orchestrator.run("Should we add to NVDA?", "NVDA")
+        meeting = orchestrator.repository.create_meeting("Should we add to NVDA?", "NVDA")
+        result = orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA")
         orchestrator.repository.session.commit()
     finally:
         orchestrator._test_session.close()
@@ -114,12 +113,17 @@ def test_orchestrator_persists_messages_and_final_result(tmp_path: Path) -> None
 
     with session_scope(session_factory) as session:
         repository = CommitteeMeetingRepository(session)
+        meeting = repository.create_meeting(
+            "Should we add to NVDA?",
+            "NVDA",
+        )
         result = CommitteeMeetingOrchestrator.default(repository, provider).run(
+            meeting.id,
             "Should we add to NVDA?",
             "NVDA",
         )
         messages = repository.list_meeting_messages(result.meeting_id)
-        meeting = session.get(CommitteeMeeting, result.meeting_id)
+        persisted_meeting = session.get(CommitteeMeeting, result.meeting_id)
 
     assert result.status is MeetingStatus.COMPLETED
     assert len(messages) == 4
@@ -129,9 +133,9 @@ def test_orchestrator_persists_messages_and_final_result(tmp_path: Path) -> None
         "Risk Manager",
         "Chairperson",
     ]
-    assert meeting is not None
-    assert meeting.status == MeetingStatus.COMPLETED.value
-    assert meeting.result_json == result.result_json
+    assert persisted_meeting is not None
+    assert persisted_meeting.status == MeetingStatus.PENDING.value
+    assert persisted_meeting.result_json is None
     assert result.result_json == {
         "symbol": "NVDA",
         "action": "watch",
@@ -156,25 +160,25 @@ class FailingAgent:
         raise RuntimeError("agent failed")
 
 
-def test_failed_agent_marks_meeting_failed(tmp_path: Path) -> None:
-    """The orchestrator should persist FAILED when an agent raises."""
+def test_failed_agent_error_propagates_without_finalizing_meeting(tmp_path: Path) -> None:
+    """The orchestrator should leave lifecycle finalization to MeetingService."""
     engine = create_sqlite_engine(tmp_path / "failed.sqlite3")
     initialize_database(engine)
     session_factory = create_session_factory(engine)
 
     with session_scope(session_factory) as session:
         repository = CommitteeMeetingRepository(session)
+        meeting = repository.create_meeting("Should we add to NVDA?", "NVDA")
         orchestrator = CommitteeMeetingOrchestrator(
             repository=repository,
             agents=(FailingAgent(),),
         )
-        result = orchestrator.run("Should we add to NVDA?", "NVDA")
-        messages = repository.list_meeting_messages(result.meeting_id)
-        meeting = session.get(CommitteeMeeting, result.meeting_id)
+        with pytest.raises(RuntimeError, match="agent failed"):
+            orchestrator.run(meeting.id, "Should we add to NVDA?", "NVDA")
+        messages = repository.list_meeting_messages(meeting.id)
+        persisted_meeting = session.get(CommitteeMeeting, meeting.id)
 
-    assert result.status is MeetingStatus.FAILED
-    assert result.error_message == "agent failed"
     assert messages == []
-    assert meeting is not None
-    assert meeting.status == MeetingStatus.FAILED.value
-    assert meeting.error_message == "agent failed"
+    assert persisted_meeting is not None
+    assert persisted_meeting.status == MeetingStatus.PENDING.value
+    assert persisted_meeting.error_message is None

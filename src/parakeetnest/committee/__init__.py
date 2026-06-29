@@ -20,7 +20,6 @@ from parakeetnest.committee.models import (
     MeetingResult,
     MeetingStatus,
 )
-from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
 from parakeetnest.committee.secretary import InvestmentSecretary
 from parakeetnest.committee.xixi import Xixi
@@ -35,7 +34,6 @@ __all__ = [
     "CommitteeAgent",
     "CommitteeMember",
     "CommitteeMeetingResult",
-    "CommitteeMeetingOrchestrator",
     "CommitteeOpinion",
     "Dongdong",
     "InvestmentContext",

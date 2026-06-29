@@ -76,6 +76,7 @@ class CommitteeMeetingRepository:
         meeting = self._require_meeting(meeting_id)
         meeting.status = MeetingStatus.FAILED.value
         meeting.error_message = error_message
+        meeting.result_json = None
         self.session.flush()
         self.session.refresh(meeting)
         return meeting

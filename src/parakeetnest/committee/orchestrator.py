@@ -20,7 +20,7 @@ from parakeetnest.llm import LLMProvider
 
 @dataclass
 class CommitteeMeetingOrchestrator:
-    """Run and persist the first end-to-end AI committee meeting."""
+    """Run the fixed agent flow for an existing persistent meeting."""
 
     repository: CommitteeMeetingRepository
     agents: tuple[CommitteeAgent, ...]
@@ -45,48 +45,35 @@ class CommitteeMeetingOrchestrator:
             agent_runtime=AgentRuntime(llm_provider=llm_provider, model=model),
         )
 
-    def run(self, question: str, ticker: str) -> MeetingResult:
-        """Create, run, and persist a committee meeting."""
-        meeting = self.repository.create_meeting(question=question, ticker=ticker)
+    def run(self, meeting_id: int, question: str, ticker: str) -> MeetingResult:
+        """Run agents for an existing meeting and persist their messages."""
         agent_results: list[AgentResult] = []
-        try:
-            for agent in self.agents:
-                context = MeetingContext(
-                    meeting_id=meeting.id,
-                    question=question,
-                    ticker=ticker,
-                    previous_agent_results=tuple(agent_results),
-                )
-                result = self._run_agent(agent, context)
-                self.repository.insert_meeting_message(
-                    meeting_id=meeting.id,
-                    agent_name=result.agent_name,
-                    role=result.role,
-                    content=result.content,
-                )
-                agent_results.append(result)
+        for agent in self.agents:
+            context = MeetingContext(
+                meeting_id=meeting_id,
+                question=question,
+                ticker=ticker,
+                previous_agent_results=tuple(agent_results),
+            )
+            result = self._run_agent(agent, context)
+            self.repository.insert_meeting_message(
+                meeting_id=meeting_id,
+                agent_name=result.agent_name,
+                role=result.role,
+                content=result.content,
+            )
+            agent_results.append(result)
 
-            final_result = agent_results[-1]
-            result_json = json.loads(final_result.content)
-            self.repository.update_meeting_completed(meeting.id, result_json)
-            return MeetingResult(
-                meeting_id=meeting.id,
-                status=MeetingStatus.COMPLETED,
-                question=question,
-                ticker=ticker,
-                agent_results=tuple(agent_results),
-                result_json=result_json,
-            )
-        except Exception as exc:
-            self.repository.update_meeting_failed(meeting.id, str(exc))
-            return MeetingResult(
-                meeting_id=meeting.id,
-                status=MeetingStatus.FAILED,
-                question=question,
-                ticker=ticker,
-                agent_results=tuple(agent_results),
-                error_message=str(exc),
-            )
+        final_result = agent_results[-1]
+        result_json = json.loads(final_result.content)
+        return MeetingResult(
+            meeting_id=meeting_id,
+            status=MeetingStatus.COMPLETED,
+            question=question,
+            ticker=ticker,
+            agent_results=tuple(agent_results),
+            result_json=result_json,
+        )
 
     def _run_agent(self, agent: CommitteeAgent, context: MeetingContext) -> AgentResult:
         """Run a prompt-backed agent, allowing explicit test doubles to fail directly."""

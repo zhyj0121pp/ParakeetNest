@@ -33,6 +33,13 @@ class NewsConfig:
 
 
 @dataclass(frozen=True)
+class SecFilingConfig:
+    """SEC filing provider configuration."""
+
+    provider: str = "mock"
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Application container configuration."""
 
@@ -43,6 +50,9 @@ class AppConfig:
         default_factory=MarketDataConfig
     )
     news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)
+    sec_filings: SecFilingConfig | Mapping[str, str] = field(
+        default_factory=SecFilingConfig
+    )
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
     enabled_context_provider_ids: tuple[str, ...] | None = None
@@ -61,6 +71,12 @@ class AppConfig:
                 self,
                 "news",
                 NewsConfig(**dict(self.news)),
+            )
+        if isinstance(self.sec_filings, Mapping):
+            object.__setattr__(
+                self,
+                "sec_filings",
+                SecFilingConfig(**dict(self.sec_filings)),
             )
 
     def resolved_database_url(self) -> str:

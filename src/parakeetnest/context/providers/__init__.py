@@ -5,6 +5,7 @@ from parakeetnest.context.providers.macro import MacroContextProvider
 from parakeetnest.context.providers.market import MarketContextProvider
 from parakeetnest.context.providers.news import NewsContextProvider
 from parakeetnest.context.providers.portfolio import PortfolioContextProvider
+from parakeetnest.context.providers.sec_filings import SecFilingContextProvider
 
 __all__ = [
     "KnowledgeBaseContextProvider",
@@ -12,4 +13,5 @@ __all__ = [
     "MarketContextProvider",
     "NewsContextProvider",
     "PortfolioContextProvider",
+    "SecFilingContextProvider",
 ]

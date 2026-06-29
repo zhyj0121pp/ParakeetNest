@@ -21,6 +21,7 @@ from parakeetnest.context.providers import (
     MarketContextProvider,
     NewsContextProvider,
     PortfolioContextProvider,
+    SecFilingContextProvider,
 )
 from parakeetnest.context.registry import ContextProviderRegistry
 from parakeetnest.context.service import ContextService
@@ -36,6 +37,7 @@ from parakeetnest.market_data import (
     create_market_data_provider_registry,
 )
 from parakeetnest.news import NewsService, create_news_provider_registry
+from parakeetnest.sec import SecFilingService, create_sec_filing_provider_registry
 from parakeetnest.services import MeetingService
 
 
@@ -49,6 +51,7 @@ class ParakeetNestApp:
     context_provider_registry: ContextProviderRegistry
     context_service: ContextService
     news_service: NewsService
+    sec_filing_service: SecFilingService
     llm_provider: LLMProvider
     agent_runtime: AgentRuntime
     committee_orchestrator: CommitteeMeetingOrchestrator
@@ -79,9 +82,11 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     meeting_repository = CommitteeMeetingRepository(session)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
     news_service = _create_news_service(resolved_config)
+    sec_filing_service = _create_sec_filing_service(resolved_config)
     context_provider_registry = _create_context_provider_registry(
         resolved_config,
         news_service,
+        sec_filing_service,
     )
     context_service = ContextService(
         providers=context_provider_registry.resolve_enabled_providers()
@@ -115,6 +120,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         context_provider_registry=context_provider_registry,
         context_service=context_service,
         news_service=news_service,
+        sec_filing_service=sec_filing_service,
         llm_provider=llm_provider,
         agent_runtime=agent_runtime,
         committee_orchestrator=committee_orchestrator,
@@ -146,9 +152,16 @@ def _create_news_service(config: AppConfig) -> NewsService:
     return NewsService(news_provider)
 
 
+def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
+    sec_filing_provider_registry = create_sec_filing_provider_registry()
+    sec_filing_provider = sec_filing_provider_registry.get(config.sec_filings.provider)
+    return SecFilingService(sec_filing_provider)
+
+
 def _create_context_provider_registry(
     config: AppConfig,
     news_service: NewsService,
+    sec_filing_service: SecFilingService,
 ) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
     market_data_provider_registry = create_market_data_provider_registry()
@@ -158,6 +171,7 @@ def _create_context_provider_registry(
     market_data_service = MarketDataService(market_data_provider)
     registry.register("market_data", MarketContextProvider(market_data_service))
     registry.register("news", NewsContextProvider(news_service))
+    registry.register("sec_filings", SecFilingContextProvider(sec_filing_service))
     registry.register("mock_portfolio", PortfolioContextProvider())
     registry.register("mock_macro", MacroContextProvider())
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())

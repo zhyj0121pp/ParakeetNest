@@ -1,12 +1,36 @@
-"""News service boundary.
+"""Deterministic mock news service."""
 
-External news API calls are intentionally not implemented yet.
-"""
+from parakeetnest.domain import NewsSnapshot
+from parakeetnest.services.base import MockDataService, ServiceResult
+from parakeetnest.services.portfolio import MOCK_FETCHED_AT
 
 
-class NewsService:
-    """Collect company, industry, AI, and semiconductor news."""
+class MockNewsService(MockDataService[NewsSnapshot]):
+    """Return deterministic news snapshots without news provider access."""
 
-    def fetch_news(self, symbol: str) -> tuple[dict[str, object], ...]:
-        """Return placeholder news items for a symbol."""
-        return ()
+    name = "mock_news"
+
+    def collect(self) -> tuple[ServiceResult[NewsSnapshot], ...]:
+        """Collect deterministic news snapshots."""
+        snapshots = (
+            NewsSnapshot(
+                source=self.name,
+                fetched_at=MOCK_FETCHED_AT,
+                symbol="NVDA",
+                title="Mock AI infrastructure demand remains resilient",
+                summary="Deterministic placeholder news for local testing.",
+                published_at=MOCK_FETCHED_AT,
+            ),
+            NewsSnapshot(
+                source=self.name,
+                fetched_at=MOCK_FETCHED_AT,
+                symbol="TSLA",
+                title="Mock vehicle delivery expectations stay in focus",
+                summary="Deterministic placeholder news for local testing.",
+                published_at=MOCK_FETCHED_AT,
+            ),
+        )
+        return tuple(self._result(snapshot) for snapshot in snapshots)
+
+
+NewsService = MockNewsService

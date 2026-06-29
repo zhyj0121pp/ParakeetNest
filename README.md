@@ -24,6 +24,9 @@ Milestone 3 adds normalized domain snapshots and a data quality layer that
 checks source attribution, fetch time, required fields, freshness, empty values,
 and numeric sanity before data is saved or analyzed.
 
+Milestone 4 adds deterministic mock data services and a collection orchestrator
+that validates snapshots and saves valid mock records to SQLite.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -101,3 +104,31 @@ quality service returns:
 Validation currently covers required fields, stale data, empty values, and
 invalid numeric values. External providers are still intentionally absent; tests
 use manually constructed snapshots.
+
+## Mock Data Collection
+
+Mock services are deterministic and do not call Robinhood, Yahoo Finance, FRED,
+OpenAI, or any network service. Run a local mock collection against the
+configured SQLite database with:
+
+```bash
+.venv/bin/python - <<'PY'
+from parakeetnest.config import get_settings
+from parakeetnest.database import (
+    create_session_factory,
+    create_sqlite_engine,
+    initialize_database,
+    session_scope,
+)
+from parakeetnest.services import DataCollectionOrchestrator
+
+settings = get_settings()
+engine = create_sqlite_engine(settings.sqlite_path)
+initialize_database(engine)
+session_factory = create_session_factory(engine)
+
+with session_scope(session_factory) as session:
+    result = DataCollectionOrchestrator().run(session)
+    print(f"Saved {result.saved_records} mock records")
+PY
+```

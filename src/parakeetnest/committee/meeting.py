@@ -2,32 +2,56 @@
 
 from dataclasses import dataclass
 
+from parakeetnest.committee.base import CommitteeMember
 from parakeetnest.committee.chairman import Chairman
 from parakeetnest.committee.dongdong import Dongdong
+from parakeetnest.committee.models import CommitteeMeetingResult
 from parakeetnest.committee.secretary import InvestmentSecretary
 from parakeetnest.committee.xixi import Xixi
 from parakeetnest.committee.yoyo import Yoyo
-from parakeetnest.models import CommitteeMemo, Recommendation
 
 
 @dataclass
 class CommitteeMeeting:
     """Coordinate the remember-before-reason workflow."""
 
-    xixi: Xixi
-    dongdong: Dongdong
-    yoyo: Yoyo
+    xixi: CommitteeMember
+    dongdong: CommitteeMember
+    yoyo: CommitteeMember
     chairman: Chairman
     secretary: InvestmentSecretary
 
-    def review_symbol(self, symbol: str) -> tuple[tuple[CommitteeMemo, ...], Recommendation]:
-        """Run placeholder committee reviews for a symbol."""
-        memos = (
-            self.xixi.review(symbol),
-            self.dongdong.review(symbol),
-            self.yoyo.review(symbol),
+    @classmethod
+    def default(cls) -> "CommitteeMeeting":
+        """Create a deterministic mock committee meeting."""
+        return cls(
+            xixi=Xixi(),
+            dongdong=Dongdong(),
+            yoyo=Yoyo(),
+            chairman=Chairman(),
+            secretary=InvestmentSecretary(),
         )
-        recommendation = self.chairman.summarize(symbol)
-        self.secretary.collect_memos(memos)
-        self.secretary.record_recommendation(recommendation)
-        return memos, recommendation
+
+    def run(
+        self,
+        symbol: str,
+        current_facts: tuple[str, ...] = (),
+        data_quality_notes: tuple[str, ...] = (),
+    ) -> CommitteeMeetingResult:
+        """Run the memory-first deterministic committee workflow."""
+        context = self.secretary.load_context(
+            symbol=symbol,
+            current_facts=current_facts,
+            data_quality_notes=data_quality_notes,
+        )
+        opinions = (
+            self.xixi.review(context),
+            self.dongdong.review(context),
+            self.yoyo.review(context),
+        )
+        chairman_summary = self.chairman.summarize(context, opinions)
+        return self.secretary.record_discussion(context, opinions, chairman_summary)
+
+    def review_symbol(self, symbol: str) -> CommitteeMeetingResult:
+        """Run the deterministic committee workflow for a symbol."""
+        return self.run(symbol)

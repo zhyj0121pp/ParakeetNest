@@ -32,6 +32,10 @@ longer imports ORM models directly, persistence is delegated to a database-side
 snapshot persistence service, and data quality metadata is stored alongside
 validated records.
 
+Milestone 5 adds a deterministic committee engine without OpenAI. The committee
+loads memory first, then Xixi, Dongdong, and Yoyo produce typed opinions,
+Chairman summarizes, and the Investment Secretary records the discussion.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -150,3 +154,32 @@ metadata rows.
 
 Future provider integrations should implement the explicit service protocols
 from `src/parakeetnest/services/base.py` and return typed domain snapshots.
+
+## Committee Flow
+
+The committee engine is deterministic for now and does not call OpenAI or any
+external market service. A meeting follows the required memory-first sequence:
+
+1. Investment Secretary loads historical thesis and discussion context.
+2. Xixi reviews fundamentals.
+3. Dongdong reviews opportunity.
+4. Yoyo reviews risk.
+5. Chairman summarizes the committee opinions.
+6. Investment Secretary records the discussion.
+
+Example:
+
+```bash
+.venv/bin/python - <<'PY'
+from parakeetnest.committee.meeting import CommitteeMeeting
+
+meeting = CommitteeMeeting.default()
+result = meeting.run(
+    "NVDA",
+    current_facts=("AI demand growth remains visible in mock data.",),
+    data_quality_notes=("validated mock data quality is medium",),
+)
+print(result.chairman_summary.action)
+print(result.chairman_summary.rationale)
+PY
+```

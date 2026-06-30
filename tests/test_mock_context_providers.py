@@ -11,6 +11,7 @@ from parakeetnest.context.providers import (
     PortfolioContextProvider,
 )
 from parakeetnest.market_data import MarketDataService, MockMarketDataProvider
+from parakeetnest.macro import MacroDataService, MockMacroDataProvider
 from parakeetnest.news import MockNewsProvider, NewsService
 
 
@@ -38,6 +39,10 @@ def _news_context_provider() -> NewsContextProvider:
     return NewsContextProvider(NewsService(MockNewsProvider()))
 
 
+def _macro_context_provider() -> MacroContextProvider:
+    return MacroContextProvider(MacroDataService(MockMacroDataProvider()))
+
+
 def test_providers_support_expected_requests() -> None:
     request = ContextRequest(question="Review AMD.", symbols=("AMD",))
     no_symbols = ContextRequest(question="Review market.", symbols=())
@@ -56,8 +61,8 @@ def test_providers_support_expected_requests() -> None:
         )
     ) is False
 
-    assert MacroContextProvider().supports(request) is True
-    assert MacroContextProvider().supports(
+    assert _macro_context_provider().supports(request) is True
+    assert _macro_context_provider().supports(
         ContextRequest(
             question="Review AMD without macro.",
             symbols=("AMD",),
@@ -81,7 +86,7 @@ def test_each_provider_contributes_only_its_own_section() -> None:
         (_market_context_provider(), ("market",)),
         (_news_context_provider(), ("news",)),
         (PortfolioContextProvider(), ("portfolio",)),
-        (MacroContextProvider(), ("macro",)),
+        (_macro_context_provider(), ("macro",)),
         (KnowledgeBaseContextProvider(), ("knowledge_base",)),
     )
 
@@ -101,7 +106,7 @@ def test_providers_return_deterministic_values() -> None:
         _market_context_provider(),
         _news_context_provider(),
         PortfolioContextProvider(),
-        MacroContextProvider(),
+        _macro_context_provider(),
         KnowledgeBaseContextProvider(),
     ):
         first = provider.build_context(request)
@@ -117,7 +122,7 @@ def test_mock_providers_work_with_context_service() -> None:
             _market_context_provider(),
             _news_context_provider(),
             PortfolioContextProvider(),
-            MacroContextProvider(),
+            _macro_context_provider(),
             KnowledgeBaseContextProvider(),
         )
     )
@@ -141,8 +146,13 @@ def test_mock_providers_work_with_context_service() -> None:
         "NVDA",
     )
     assert context.macro is not None
-    assert context.macro.summary == (
-        "Mock macro backdrop is neutral-to-constructive for risk assets."
+    assert context.macro.summary is None
+    assert context.macro.indicators[:3] == (
+        "Interest Rates:",
+        "Federal Funds Rate (fed_funds_rate, US, monthly, percent): "
+        "4 as of 2026-06-30",
+        "10-Year Treasury Yield (treasury_10y_yield, US, monthly, percent): "
+        "4.08 as of 2026-06-30",
     )
     assert context.knowledge_base is not None
     assert context.knowledge_base.lessons_learned == (
@@ -153,14 +163,14 @@ def test_mock_providers_work_with_context_service() -> None:
         "market_data",
         "news",
         "mock_portfolio",
-        "mock_macro",
+        "macro",
         "mock_knowledge_base",
     )
     assert context.metadata.data_quality_notes == (
         "market_data.source=market_data_service",
         "news.source=news_service",
         "mock_portfolio.fixture=portfolio",
-        "mock_macro.fixture=macro",
+        "macro.source=macro_data_service",
         "mock_knowledge_base.fixture=knowledge_base",
     )
 
@@ -171,7 +181,7 @@ def test_context_service_output_is_deterministic_with_mock_providers() -> None:
         _market_context_provider(),
         _news_context_provider(),
         PortfolioContextProvider(),
-        MacroContextProvider(),
+        _macro_context_provider(),
         KnowledgeBaseContextProvider(),
     )
 

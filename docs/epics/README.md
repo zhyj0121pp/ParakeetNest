@@ -12,7 +12,7 @@
 | [Epic 008](epic-008-financial-statement-layer.md) | Financial Statement Layer | Completed |
 | [Epic 009](epic-009-valuation-layer.md) | Valuation Layer | Completed |
 | [Epic 010](epic-010-macro-layer.md) | Macro Layer | Completed |
-| Epic 011 | Economic Regime Layer | Planned |
+| [Epic 011](epic-011-economic-regime.md) | Economic Regime Layer | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

@@ -3,6 +3,9 @@
 from parakeetnest.intelligence.market_breadth.calculator import (
     MarketBreadthCalculator,
 )
+from parakeetnest.intelligence.market_breadth.context import (
+    MarketBreadthContextProvider,
+)
 from parakeetnest.intelligence.market_breadth.models import (
     BreadthRegime,
     MarketBreadthSnapshot,
@@ -16,6 +19,7 @@ from parakeetnest.intelligence.market_breadth.service import MarketBreadthServic
 __all__ = [
     "BreadthRegime",
     "MarketBreadthCalculator",
+    "MarketBreadthContextProvider",
     "MarketBreadthProvider",
     "MarketBreadthService",
     "MarketBreadthSnapshot",

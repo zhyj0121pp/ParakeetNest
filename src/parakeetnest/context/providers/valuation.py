@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date
 
 from parakeetnest.context.models import (
     ContextMetadata,
     ContextRequest,
+    FinancialStatementSnapshot,
+    MarketSnapshot,
     MeetingContext,
     ValuationContextItem,
     ValuationContextSnapshot,
@@ -18,13 +19,23 @@ from parakeetnest.context.provider import (
 )
 from parakeetnest.valuation.models import (
     ValuationInput,
-    ValuationMethod,
     ValuationSnapshot,
+)
+from parakeetnest.valuation.input_builder import (
+    ValuationInputBuilder as DefaultValuationInputBuilder,
 )
 from parakeetnest.valuation.service import ValuationService
 
 
-ValuationInputBuilder = Callable[[str, ContextRequest], ValuationInput]
+ValuationInputBuilder = Callable[
+    [
+        str,
+        ContextRequest,
+        MarketSnapshot | None,
+        FinancialStatementSnapshot | None,
+    ],
+    ValuationInput,
+]
 
 
 class ValuationContextProvider:
@@ -37,9 +48,13 @@ class ValuationContextProvider:
         valuation_service: ValuationService,
         *,
         input_builder: ValuationInputBuilder | None = None,
+        market: MarketSnapshot | None = None,
+        financials: FinancialStatementSnapshot | None = None,
     ) -> None:
         self._valuation_service = valuation_service
-        self._input_builder = input_builder
+        self._input_builder = input_builder or DefaultValuationInputBuilder()
+        self._market = market
+        self._financials = financials
 
     def supports(self, request: ContextRequest) -> bool:
         return bool(request.symbols)
@@ -77,16 +92,11 @@ class ValuationContextProvider:
         symbol: str,
         request: ContextRequest,
     ) -> ValuationInput:
-        if self._input_builder is not None:
-            return self._input_builder(symbol, request)
-
-        return ValuationInput(
-            symbol=symbol,
-            method=ValuationMethod.HISTORICAL_MULTIPLES,
-            as_of_date=request.as_of.date() if request.as_of else date.today(),
-            calculation_notes=[
-                "Default valuation input contains no raw financial assumptions."
-            ],
+        return self._input_builder(
+            symbol,
+            request,
+            self._market,
+            self._financials,
         )
 
     @staticmethod

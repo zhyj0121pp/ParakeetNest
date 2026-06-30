@@ -1,5 +1,6 @@
-"""Provider-agnostic Economic Regime domain models."""
+"""Provider-agnostic Economic Regime package."""
 
+from parakeetnest.regime.classifier import EconomicRegimeClassifier
 from parakeetnest.regime.models import (
     EconomicRegime,
     EconomicRegimeSnapshot,
@@ -9,6 +10,7 @@ from parakeetnest.regime.models import (
 )
 
 __all__ = [
+    "EconomicRegimeClassifier",
     "EconomicRegime",
     "EconomicRegimeSnapshot",
     "RegimeConfidence",

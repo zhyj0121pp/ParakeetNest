@@ -9,9 +9,11 @@ from parakeetnest.macro.models import (
     MacroSnapshot,
     MacroUnit,
 )
+from parakeetnest.macro.provider import MacroDataProvider
 
 __all__ = [
     "MacroCategory",
+    "MacroDataProvider",
     "MacroFrequency",
     "MacroIndicator",
     "MacroObservation",

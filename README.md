@@ -42,11 +42,17 @@ can now recall thesis history and prior discussions before member reviews.
 Epic 3.5 documents the Context Layer pipeline that assembles provider data and
 memory into committee prompt context before any LLM reasoning.
 
+Epic 7 adds the SEC Filing Layer, including provider-neutral filing models, a
+mock provider, an optional SEC EDGAR provider, a filing service, and context
+integration through `MeetingContext.filings`.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
 - `src/parakeetnest/context`: context provider registry, provider contracts,
   context assembly, and prompt rendering for committee meetings.
+- `src/parakeetnest/sec`: SEC filing domain models, provider protocol, mock and
+  EDGAR providers, registry, and service boundary.
 - `src/parakeetnest/services`: data collection and validation boundaries.
 - `src/parakeetnest/domain.py`: normalized snapshot models shared across
   services, persistence, and future analyzers.
@@ -73,6 +79,8 @@ python -m venv .venv
 - [Documentation Overview](docs/README.md)
 - [Context Layer Architecture](docs/architecture/context-layer.md)
 - [Market Data Layer Architecture](docs/architecture/market-data-layer.md)
+- [Data Source Layer Architecture](docs/architecture/data-source-layer.md)
+- [Architecture Milestone Review v0.7](docs/architecture/milestone-review-v0.7.md)
 - [Epic Index](docs/epics/README.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture Decision Records](docs/adr/README.md)
@@ -176,6 +184,11 @@ The Context Layer is documented in
 [`docs/architecture/context-layer.md`](docs/architecture/context-layer.md). It
 defines how providers are registered, configured, merged, and rendered into
 committee prompts.
+
+The SEC Filing Layer follows the shared Data Source Layer pattern documented in
+[`docs/architecture/data-source-layer.md`](docs/architecture/data-source-layer.md)
+and summarized in
+[`docs/epics/epic-007-sec-filing-layer.md`](docs/epics/epic-007-sec-filing-layer.md).
 
 Epic 003 summarizes the Context Pipeline Refinement work in
 [`docs/epics/epic-003-context-pipeline-refinement.md`](docs/epics/epic-003-context-pipeline-refinement.md).

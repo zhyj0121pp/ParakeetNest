@@ -72,10 +72,10 @@ Current examples:
 
 - `MarketDataProvider` normalizes quotes and price history.
 - `NewsProvider` normalizes source-attributed articles.
+- `SecFilingProvider` normalizes filing metadata and content requests.
 
 Future examples:
 
-- `FilingProvider` for SEC filings and company documents.
 - `MacroProvider` for economic indicators.
 - `PortfolioProvider` for account and position snapshots.
 - `CalendarProvider` for earnings, dividends, and events.
@@ -258,10 +258,10 @@ Completed provider-backed data families:
 
 - Market Data Layer: mock and Yahoo Finance providers.
 - News Layer: mock and Yahoo Finance news providers.
+- SEC Filing Layer: mock and SEC EDGAR providers.
 
 Planned provider-backed data families:
 
-- SEC Filing Layer.
 - Macro Layer.
 - Portfolio Layer.
 - Calendar Layer.

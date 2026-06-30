@@ -8,7 +8,7 @@
 | [Epic 004](epic-004-market-data-layer.md) | Market Data Layer | Completed |
 | [Epic 005](epic-005-yahoo-finance-provider.md) | Yahoo Finance Provider | Completed |
 | [Epic 006](epic-006-news-layer.md) | News Layer | Completed |
-| Epic 007 | SEC Filing Layer | Planned |
+| [Epic 007](epic-007-sec-filing-layer.md) | SEC Filing Layer | Completed |
 | Epic 008 | Macro Layer | Planned |
 | Epic 009 | Portfolio Layer | Planned |
 | Epic 010 | Calendar Layer | Planned |

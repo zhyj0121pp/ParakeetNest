@@ -89,6 +89,8 @@ class SectorRotationCalculator:
             return SectorRotationClassification.LEADING
         if relative_return > 0:
             return SectorRotationClassification.IMPROVING
+        if relative_return == 0:
+            return SectorRotationClassification.NEUTRAL
         if relative_return >= -0.05:
             return SectorRotationClassification.WEAKENING
         return SectorRotationClassification.LAGGING
@@ -208,6 +210,10 @@ class SectorRotationCalculator:
             signal.classification is SectorRotationClassification.WEAKENING
             for signal in signals
         )
+        neutral_count = sum(
+            signal.classification is SectorRotationClassification.NEUTRAL
+            for signal in signals
+        )
         lagging_count = sum(
             signal.classification is SectorRotationClassification.LAGGING
             for signal in signals
@@ -221,6 +227,7 @@ class SectorRotationCalculator:
             f"{leading_count} leading, "
             f"{improving_count} improving, "
             f"{weakening_count} weakening, "
+            f"{neutral_count} neutral, "
             f"{lagging_count} lagging, "
             f"{unknown_count} unknown."
         )

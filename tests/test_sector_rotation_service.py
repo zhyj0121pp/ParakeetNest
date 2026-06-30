@@ -120,8 +120,8 @@ def test_mock_provider_can_be_used_through_service() -> None:
     assert snapshot.as_of_date == AS_OF_DATE
     assert snapshot.source == "sector_rotation_calculator"
     assert [signal.classification for signal in snapshot.signals] == [
-        SectorRotationClassification.WEAKENING,
-        SectorRotationClassification.WEAKENING,
+        SectorRotationClassification.NEUTRAL,
+        SectorRotationClassification.NEUTRAL,
     ]
     assert [signal.sector.name for signal in snapshot.signals] == [
         "Technology",

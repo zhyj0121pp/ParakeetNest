@@ -62,8 +62,8 @@ def test_calculator_applies_relative_return_classification_rules() -> None:
                 relative_return=0.05,
             ),
             performance(
-                "weakening_zero",
-                "Weakening Zero",
+                "neutral_zero",
+                "Neutral Zero",
                 period_return=0.00,
                 relative_return=0.0,
             ),
@@ -92,7 +92,7 @@ def test_calculator_applies_relative_return_classification_rules() -> None:
     assert signals_by_sector(snapshot) == {
         "leading": SectorRotationClassification.LEADING,
         "improving": SectorRotationClassification.IMPROVING,
-        "weakening_zero": SectorRotationClassification.WEAKENING,
+        "neutral_zero": SectorRotationClassification.NEUTRAL,
         "weakening_floor": SectorRotationClassification.WEAKENING,
         "lagging": SectorRotationClassification.LAGGING,
         "unknown": SectorRotationClassification.UNKNOWN,

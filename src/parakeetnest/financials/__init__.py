@@ -9,6 +9,10 @@ from parakeetnest.financials.models import (
     FinancialStatementRequest,
     IncomeStatement,
 )
+from parakeetnest.financials.provider import (
+    FinancialStatementProvider,
+    FinancialStatementProviderError,
+)
 
 __all__ = [
     "BalanceSheet",
@@ -16,6 +20,8 @@ __all__ = [
     "FinancialPeriodType",
     "FinancialStatementBundle",
     "FinancialStatementPeriod",
+    "FinancialStatementProvider",
+    "FinancialStatementProviderError",
     "FinancialStatementRequest",
     "IncomeStatement",
 ]

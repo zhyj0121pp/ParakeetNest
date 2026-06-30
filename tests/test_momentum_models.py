@@ -67,6 +67,55 @@ def test_momentum_snapshot_normalizes_fields_and_is_immutable() -> None:
         snapshot.momentum_score = 0.3
 
 
+def test_momentum_snapshot_defaults_evidence_to_empty_tuple() -> None:
+    """Evidence should be optional but always normalized to an immutable tuple."""
+    snapshot = MomentumSnapshot(
+        symbol="MSFT",
+        as_of=AS_OF_DATE,
+        price_change_1m="0.01",
+        price_change_3m="0.02",
+        price_change_6m="0.03",
+        relative_strength="55",
+        trend_strength="0.52",
+        momentum_score="0.61",
+        momentum_regime=MomentumRegime.UPTREND,
+        reversal_risk=ReversalRisk.LOW,
+        confidence="0.7",
+    )
+
+    assert snapshot.price_change_1m == 0.01
+    assert snapshot.price_change_3m == 0.02
+    assert snapshot.price_change_6m == 0.03
+    assert snapshot.relative_strength == 55.0
+    assert snapshot.trend_strength == 0.52
+    assert snapshot.momentum_score == 0.61
+    assert snapshot.confidence == 0.7
+    assert snapshot.evidence == ()
+
+
+def test_momentum_snapshot_does_not_mutate_source_evidence_sequence() -> None:
+    """Snapshot evidence normalization should not retain a mutable source list."""
+    evidence = [" first ", " second "]
+
+    snapshot = MomentumSnapshot(
+        symbol="MSFT",
+        as_of=AS_OF_DATE,
+        price_change_1m=0.01,
+        price_change_3m=0.02,
+        price_change_6m=0.03,
+        relative_strength=55,
+        trend_strength=0.52,
+        momentum_score=0.61,
+        momentum_regime=MomentumRegime.UPTREND,
+        reversal_risk=ReversalRisk.LOW,
+        confidence=0.7,
+        evidence=evidence,
+    )
+    evidence.append(" late mutation ")
+
+    assert snapshot.evidence == ("first", "second")
+
+
 def test_momentum_models_have_no_provider_specific_fields() -> None:
     """Momentum models should avoid vendor-specific structure."""
     forbidden_names = {
@@ -92,6 +141,9 @@ def test_public_models_are_exported_from_momentum_package() -> None:
     assert momentum.MomentumRegime is MomentumRegime
     assert momentum.ReversalRisk is ReversalRisk
     assert momentum.MomentumSnapshot is MomentumSnapshot
+    assert "MomentumRegime" in momentum.__all__
+    assert "MomentumSnapshot" in momentum.__all__
+    assert "ReversalRisk" in momentum.__all__
 
 
 def test_invalid_momentum_values_are_rejected() -> None:

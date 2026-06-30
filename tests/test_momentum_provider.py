@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import inspect
 import sys
-from dataclasses import fields
+from dataclasses import FrozenInstanceError, fields
 from datetime import date
+
+import pytest
 
 from parakeetnest.intelligence.momentum import (
     MockMomentumProvider,
@@ -77,6 +79,29 @@ def test_momentum_inputs_are_raw_provider_neutral_fields() -> None:
     assert "momentum_score" not in field_names
     assert "momentum_regime" not in field_names
     assert "reversal_risk" not in field_names
+
+
+def test_momentum_inputs_normalize_types_and_are_immutable() -> None:
+    """Raw inputs should normalize symbols and numerics without becoming outputs."""
+    inputs = MomentumInputs(
+        symbol=" msft ",
+        as_of=AS_OF_DATE,
+        price_change_1m="0.01",
+        price_change_3m="0.02",
+        price_change_6m="0.03",
+        relative_strength="61",
+        trend_strength="0.59",
+    )
+
+    assert inputs.symbol == "MSFT"
+    assert inputs.price_change_1m == 0.01
+    assert inputs.price_change_3m == 0.02
+    assert inputs.price_change_6m == 0.03
+    assert inputs.relative_strength == 61.0
+    assert inputs.trend_strength == 0.59
+
+    with pytest.raises(FrozenInstanceError):
+        inputs.trend_strength = 0.2
 
 
 def test_momentum_provider_module_has_no_provider_specific_imports() -> None:
@@ -162,6 +187,36 @@ def test_mock_provider_can_return_injected_inputs() -> None:
     assert provider.calls == [("NVDA", AS_OF_DATE)]
 
 
+def test_mock_provider_normalizes_injected_lookup_keys() -> None:
+    """Injected fixtures should be found regardless of caller symbol casing."""
+    injected = MomentumInputs(
+        symbol="TSLA",
+        as_of=AS_OF_DATE,
+        price_change_1m=0.01,
+        price_change_3m=0.02,
+        price_change_6m=0.03,
+        relative_strength=52,
+        trend_strength=0.50,
+    )
+    provider = MockMomentumProvider(inputs={" tsla ": injected})
+
+    inputs = provider.get_momentum_inputs(" tsla ")
+
+    assert inputs is injected
+    assert provider.calls == [(" tsla ", None)]
+
+
+def test_mock_provider_honors_requested_as_of_for_default_inputs() -> None:
+    """Default fixture generation should be deterministic for any supplied date."""
+    requested_date = date(2026, 1, 15)
+    provider = MockMomentumProvider()
+
+    inputs = provider.get_momentum_inputs("AAPL", as_of=requested_date)
+
+    assert inputs.as_of == requested_date
+    assert provider.calls == [("AAPL", requested_date)]
+
+
 def test_momentum_package_exports_provider_boundary() -> None:
     """The package should expose provider and mock provider boundaries."""
     import parakeetnest.intelligence.momentum as momentum
@@ -169,3 +224,6 @@ def test_momentum_package_exports_provider_boundary() -> None:
     assert momentum.MomentumProvider is MomentumProvider
     assert momentum.MomentumInputs is MomentumInputs
     assert momentum.MockMomentumProvider is MockMomentumProvider
+    assert "MomentumProvider" in momentum.__all__
+    assert "MomentumInputs" in momentum.__all__
+    assert "MockMomentumProvider" in momentum.__all__

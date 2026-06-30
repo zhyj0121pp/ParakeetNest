@@ -139,6 +139,26 @@ def test_dependency_injection_works() -> None:
     assert result is expected
 
 
+def test_service_requires_explicit_dependencies() -> None:
+    """The public constructor should keep provider and calculator injectable."""
+    signature = inspect.signature(MomentumService)
+
+    assert list(signature.parameters) == ["provider", "calculator"]
+    assert signature.parameters["provider"].default is inspect.Signature.empty
+    assert signature.parameters["calculator"].default is inspect.Signature.empty
+
+
+def test_service_preserves_optional_as_of_none() -> None:
+    """The service should not invent dates before asking the provider."""
+    inputs = momentum_inputs(symbol="AAPL")
+    provider = RecordingProvider(inputs)
+    service = MomentumService(provider, RecordingCalculator(momentum_snapshot()))
+
+    service.get_snapshot("AAPL")
+
+    assert provider.calls == [("AAPL", None)]
+
+
 def test_mock_provider_works_with_real_calculator() -> None:
     """The mock provider should compose with the real calculator."""
     inputs = momentum_inputs(symbol="NVDA")
@@ -175,3 +195,20 @@ def test_momentum_package_exports_service() -> None:
     import parakeetnest.intelligence.momentum as momentum
 
     assert momentum.MomentumService is MomentumService
+    assert "MomentumService" in momentum.__all__
+
+
+def test_momentum_package_exports_complete_public_api() -> None:
+    """The package export list should cover the v1.1 Momentum Layer surface."""
+    import parakeetnest.intelligence.momentum as momentum
+
+    assert momentum.__all__ == [
+        "MockMomentumProvider",
+        "MomentumCalculator",
+        "MomentumInputs",
+        "MomentumProvider",
+        "MomentumRegime",
+        "MomentumService",
+        "MomentumSnapshot",
+        "ReversalRisk",
+    ]

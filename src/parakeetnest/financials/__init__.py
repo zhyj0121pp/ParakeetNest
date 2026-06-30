@@ -14,6 +14,7 @@ from parakeetnest.financials.provider import (
     FinancialStatementProvider,
     FinancialStatementProviderError,
 )
+from parakeetnest.financials.service import FinancialStatementService
 
 __all__ = [
     "BalanceSheet",
@@ -24,6 +25,7 @@ __all__ = [
     "FinancialStatementProvider",
     "FinancialStatementProviderError",
     "FinancialStatementRequest",
+    "FinancialStatementService",
     "IncomeStatement",
     "MockFinancialStatementProvider",
 ]

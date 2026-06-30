@@ -46,6 +46,11 @@ Epic 7 adds the SEC Filing Layer, including provider-neutral filing models, a
 mock provider, an optional SEC EDGAR provider, a filing service, and context
 integration through `MeetingContext.filings`.
 
+Epic 8 adds the Financial Statement Layer, including provider-neutral income
+statement, balance sheet, cash flow, period, and bundle models, a mock provider,
+a registry, a service boundary, and context integration through
+`MeetingContext.financials`.
+
 ## Project Layout
 
 - `src/parakeetnest/committee`: committee roles and meeting orchestration.
@@ -53,6 +58,8 @@ integration through `MeetingContext.filings`.
   context assembly, and prompt rendering for committee meetings.
 - `src/parakeetnest/sec`: SEC filing domain models, provider protocol, mock and
   EDGAR providers, registry, and service boundary.
+- `src/parakeetnest/financials`: financial statement domain models, provider
+  interface, mock provider, registry, service boundary, and context adapter.
 - `src/parakeetnest/services`: data collection and validation boundaries.
 - `src/parakeetnest/domain.py`: normalized snapshot models shared across
   services, persistence, and future analyzers.
@@ -80,6 +87,7 @@ python -m venv .venv
 - [Context Layer Architecture](docs/architecture/context-layer.md)
 - [Market Data Layer Architecture](docs/architecture/market-data-layer.md)
 - [Data Source Layer Architecture](docs/architecture/data-source-layer.md)
+- [Architecture Milestone Review v0.8](docs/architecture/milestone-review-v0.8.md)
 - [Architecture Milestone Review v0.7](docs/architecture/milestone-review-v0.7.md)
 - [Epic Index](docs/epics/README.md)
 - [Roadmap](docs/roadmap.md)
@@ -189,6 +197,9 @@ The SEC Filing Layer follows the shared Data Source Layer pattern documented in
 [`docs/architecture/data-source-layer.md`](docs/architecture/data-source-layer.md)
 and summarized in
 [`docs/epics/epic-007-sec-filing-layer.md`](docs/epics/epic-007-sec-filing-layer.md).
+
+The Financial Statement Layer follows the same pattern and is documented in
+[`docs/epics/epic-008-financial-statement-layer.md`](docs/epics/epic-008-financial-statement-layer.md).
 
 Epic 003 summarizes the Context Pipeline Refinement work in
 [`docs/epics/epic-003-context-pipeline-refinement.md`](docs/epics/epic-003-context-pipeline-refinement.md).

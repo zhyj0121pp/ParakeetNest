@@ -73,6 +73,8 @@ Current examples:
 - `MarketDataProvider` normalizes quotes and price history.
 - `NewsProvider` normalizes source-attributed articles.
 - `SecFilingProvider` normalizes filing metadata and content requests.
+- `FinancialStatementProvider` normalizes income statements, balance sheets,
+  cash flow statements, and fiscal periods.
 
 Future examples:
 
@@ -131,6 +133,8 @@ Current examples:
 
 - `MarketDataService`
 - `NewsService`
+- `SecFilingService`
+- `FinancialStatementService`
 
 ## Context Provider Pattern
 
@@ -201,6 +205,20 @@ ContextRequest.symbols
   -> MeetingContext.market
 ```
 
+Financial statements follow the same flow:
+
+```text
+ContextRequest.symbols
+  -> FinancialStatementContextProvider
+  -> FinancialStatementRequest
+  -> FinancialStatementService
+  -> FinancialStatementProvider
+  -> MockFinancialStatementProvider
+  -> FinancialStatementBundle
+  -> FinancialStatementSnapshot
+  -> MeetingContext.financials
+```
+
 ## Dependency Direction
 
 Dependencies point inward from concrete infrastructure toward provider-neutral
@@ -259,6 +277,7 @@ Completed provider-backed data families:
 - Market Data Layer: mock and Yahoo Finance providers.
 - News Layer: mock and Yahoo Finance news providers.
 - SEC Filing Layer: mock and SEC EDGAR providers.
+- Financial Statement Layer: mock provider.
 
 Planned provider-backed data families:
 

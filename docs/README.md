@@ -18,6 +18,7 @@ and lower-level design notes.
 - [Context Layer](architecture/context-layer.md)
 - [Data Source Layer](architecture/data-source-layer.md)
 - [Market Data Layer](architecture/market-data-layer.md)
+- [Architecture Milestone Review v0.8](architecture/milestone-review-v0.8.md)
 - [Architecture Milestone Review v0.7](architecture/milestone-review-v0.7.md)
 - [Architecture Milestone Review v0.6](architecture/milestone-review-v0.6.md)
 - [Dependency Boundaries](dependency-boundaries.md)
@@ -35,6 +36,7 @@ epics have dedicated detail pages:
 - [Epic 005: Yahoo Finance Provider](epics/epic-005-yahoo-finance-provider.md)
 - [Epic 006: News Layer](epics/epic-006-news-layer.md)
 - [Epic 007: SEC Filing Layer](epics/epic-007-sec-filing-layer.md)
+- [Epic 008: Financial Statement Layer](epics/epic-008-financial-statement-layer.md)
 
 ## How Docs Are Organized
 

@@ -9,7 +9,7 @@
 | [Epic 005](epic-005-yahoo-finance-provider.md) | Yahoo Finance Provider | Completed |
 | [Epic 006](epic-006-news-layer.md) | News Layer | Completed |
 | [Epic 007](epic-007-sec-filing-layer.md) | SEC Filing Layer | Completed |
-| Epic 008 | Financial Statement Layer | Planned |
+| [Epic 008](epic-008-financial-statement-layer.md) | Financial Statement Layer | Completed |
 | Epic 009 | Economic Data / Macro Layer | Planned |
 | Epic 010 | Insider Trading Layer or Calendar Layer | Planned |
 

@@ -3,6 +3,7 @@
 from parakeetnest.context.models import (
     ContextMetadata,
     ContextRequest,
+    EconomicRegimeContextSnapshot,
     FilingItem,
     FilingSnapshot,
     FinancialStatementItem,
@@ -40,6 +41,7 @@ __all__ = [
     "ContextProviderResult",
     "ContextRequest",
     "ContextService",
+    "EconomicRegimeContextSnapshot",
     "FilingItem",
     "FilingSnapshot",
     "FinancialStatementItem",

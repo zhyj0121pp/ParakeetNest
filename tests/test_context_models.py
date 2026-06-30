@@ -8,6 +8,7 @@ import pytest
 from parakeetnest.context import (
     ContextMetadata,
     ContextRequest,
+    EconomicRegimeContextSnapshot,
     FilingItem,
     FilingSnapshot,
     FinancialStatementItem,
@@ -143,6 +144,16 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         indicators=("Fed policy remains restrictive.",),
         observed_on=date(2026, 6, 29),
     )
+    economic_regime = EconomicRegimeContextSnapshot(
+        source="economic_regime",
+        fetched_at=fetched_at,
+        regime="expansion",
+        confidence="medium",
+        observed_on=date(2026, 6, 29),
+        indicators=("GDP Growth (growth): 2.1 percent as of 2026-06-29",),
+        summary="Growth is steady.",
+        regime_source="economic_regime_service",
+    )
     knowledge_base = KnowledgeBaseSnapshot(
         thesis=("Own if AI data center share gains continue.",),
         discussions=("Prior committee wanted margin evidence.",),
@@ -157,6 +168,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             "valuation",
             "mock_portfolio",
             "mock_macro",
+            "economic_regime",
             "knowledge_base",
         ),
         data_quality_notes=("All context is deterministic test data.",),
@@ -172,6 +184,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         valuation=valuation,
         portfolio=portfolio,
         macro=macro,
+        economic_regime=economic_regime,
         knowledge_base=knowledge_base,
     )
 
@@ -183,6 +196,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
     assert context.valuation == valuation
     assert context.portfolio == portfolio
     assert context.macro == macro
+    assert context.economic_regime == economic_regime
     assert context.knowledge_base == knowledge_base
     assert context.metadata.sources[-1] == "knowledge_base"
 

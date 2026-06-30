@@ -44,6 +44,8 @@ from parakeetnest.market_data import (
 )
 from parakeetnest.macro import MacroDataService, MockMacroDataProvider
 from parakeetnest.news import NewsService, create_news_provider_registry
+from parakeetnest.regime import EconomicRegimeService
+from parakeetnest.regime.context_provider import EconomicRegimeContextProvider
 from parakeetnest.sec import SecFilingService, create_sec_filing_provider_registry
 from parakeetnest.services import MeetingService
 
@@ -59,6 +61,7 @@ class ParakeetNestApp:
     context_service: ContextService
     news_service: NewsService
     macro_data_service: MacroDataService
+    economic_regime_service: EconomicRegimeService
     sec_filing_service: SecFilingService
     financial_statement_service: FinancialStatementService
     llm_provider: LLMProvider
@@ -92,12 +95,14 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
     news_service = _create_news_service(resolved_config)
     macro_data_service = _create_macro_data_service()
+    economic_regime_service = EconomicRegimeService(macro_data_service)
     sec_filing_service = _create_sec_filing_service(resolved_config)
     financial_statement_service = _create_financial_statement_service(resolved_config)
     context_provider_registry = _create_context_provider_registry(
         resolved_config,
         news_service,
         macro_data_service,
+        economic_regime_service,
         sec_filing_service,
         financial_statement_service,
     )
@@ -134,6 +139,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         context_service=context_service,
         news_service=news_service,
         macro_data_service=macro_data_service,
+        economic_regime_service=economic_regime_service,
         sec_filing_service=sec_filing_service,
         financial_statement_service=financial_statement_service,
         llm_provider=llm_provider,
@@ -210,6 +216,7 @@ def _create_context_provider_registry(
     config: AppConfig,
     news_service: NewsService,
     macro_data_service: MacroDataService,
+    economic_regime_service: EconomicRegimeService,
     sec_filing_service: SecFilingService,
     financial_statement_service: FinancialStatementService,
 ) -> ContextProviderRegistry:
@@ -228,6 +235,10 @@ def _create_context_provider_registry(
     )
     registry.register("mock_portfolio", PortfolioContextProvider())
     registry.register("macro", MacroContextProvider(macro_data_service))
+    registry.register(
+        "economic_regime",
+        EconomicRegimeContextProvider(economic_regime_service),
+    )
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())
     _apply_context_provider_config(registry, config)
     return registry

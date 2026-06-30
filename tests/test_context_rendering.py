@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from parakeetnest.context import (
     ContextMetadata,
     ContextRequest,
+    EconomicRegimeContextSnapshot,
     FilingItem,
     FilingSnapshot,
     KnowledgeBaseSnapshot,
@@ -48,6 +49,7 @@ def test_renderer_outputs_structured_empty_context() -> None:
             "## Valuation\n- No valuation context available.",
             "## Portfolio\n- No portfolio data available.",
             "## Macro\n- No macro context available.",
+            "## Economic Regime\n- No economic regime context available.",
             "## Knowledge Base\n- No knowledge base context available.",
         )
     )
@@ -68,7 +70,7 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
                 "market_provider",
                 "news_provider",
                 "filings_provider",
-                "knowledge_base",
+            "knowledge_base",
             ),
             warnings=("news feed delayed",),
             data_quality_notes=("quotes are delayed 15 minutes",),
@@ -153,6 +155,16 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             observed_on=date(2026, 6, 29),
             summary="Liquidity is mixed.",
         ),
+        economic_regime=EconomicRegimeContextSnapshot(
+            source="economic_regime",
+            fetched_at=generated_at,
+            regime="expansion",
+            confidence="high",
+            observed_on=date(2026, 6, 29),
+            indicators=("GDP Growth (growth): 2.4 percent as of 2026-06-29",),
+            summary="Growth is resilient.",
+            regime_source="economic_regime_service",
+        ),
         knowledge_base=KnowledgeBaseSnapshot(
             source="knowledge_base",
             fetched_at=generated_at,
@@ -207,6 +219,15 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             "- Summary: Liquidity is mixed.\n"
             "- Observed on: 2026-06-29\n"
             "- Rates remain restrictive.",
+            "## Economic Regime\n"
+            "- Snapshot: source=economic_regime, fetched_at=2026-06-29T13:00:00+00:00\n"
+            "- Current regime: expansion\n"
+            "- Confidence: high\n"
+            "- Observed on: 2026-06-29\n"
+            "- Summary: Growth is resilient.\n"
+            "- Source: economic_regime_service\n"
+            "- Supporting indicators:\n"
+            "  - GDP Growth (growth): 2.4 percent as of 2026-06-29",
             "## Knowledge Base\n"
             "- Snapshot: source=knowledge_base, fetched_at=2026-06-29T13:00:00+00:00\n"
             "- Thesis: Own if AI share gains continue.\n"

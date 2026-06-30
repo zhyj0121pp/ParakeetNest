@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 from parakeetnest.context.models import (
+    EconomicRegimeContextSnapshot,
     FilingSnapshot,
     FinancialStatementSnapshot,
     KnowledgeBaseSnapshot,
@@ -36,6 +37,8 @@ class MeetingContextPromptRenderer:
                 "## Valuation\n" + self._render_valuation(context.valuation),
                 "## Portfolio\n" + self._render_portfolio(context.portfolio),
                 "## Macro\n" + self._render_macro(context.macro),
+                "## Economic Regime\n"
+                + self._render_economic_regime(context.economic_regime),
                 "## Knowledge Base\n"
                 + self._render_knowledge_base(context.knowledge_base),
             )
@@ -290,6 +293,41 @@ class MeetingContextPromptRenderer:
             lines.append(f"- Observed on: {macro.observed_on.isoformat()}")
         lines.extend(f"- {indicator}" for indicator in macro.indicators)
         return "\n".join(lines) if len(lines) > 1 else "- No macro context available."
+
+    @staticmethod
+    def _render_economic_regime(
+        economic_regime: EconomicRegimeContextSnapshot | None,
+    ) -> str:
+        if economic_regime is None:
+            return "- No economic regime context available."
+        lines = [
+            MeetingContextPromptRenderer._render_snapshot_header(
+                economic_regime.source,
+                economic_regime.fetched_at,
+            ),
+            f"- Current regime: {economic_regime.regime}",
+            f"- Confidence: {economic_regime.confidence}",
+        ]
+        if economic_regime.observed_on:
+            lines.append(f"- Observed on: {economic_regime.observed_on.isoformat()}")
+        if economic_regime.summary:
+            lines.append(f"- Summary: {economic_regime.summary}")
+        lines.append(
+            "- Source: "
+            + (
+                economic_regime.regime_source
+                if economic_regime.regime_source
+                else economic_regime.source
+            )
+        )
+        if economic_regime.indicators:
+            lines.append("- Supporting indicators:")
+            lines.extend(
+                f"  - {indicator}" for indicator in economic_regime.indicators
+            )
+        else:
+            lines.append("- Supporting indicators: None")
+        return "\n".join(lines)
 
     @staticmethod
     def _render_knowledge_base(

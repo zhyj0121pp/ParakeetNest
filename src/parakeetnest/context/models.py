@@ -177,6 +177,20 @@ class MacroSnapshot:
 
 
 @dataclass(frozen=True)
+class EconomicRegimeContextSnapshot:
+    """Economic regime context available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    regime: str = "unknown"
+    confidence: str = "unknown"
+    observed_on: date | None = None
+    indicators: tuple[str, ...] = field(default_factory=tuple)
+    summary: str | None = None
+    regime_source: str | None = None
+
+
+@dataclass(frozen=True)
 class KnowledgeBaseSnapshot:
     """Remembered research context loaded before committee reasoning."""
 
@@ -211,4 +225,5 @@ class MeetingContext:
     valuation: ValuationContextSnapshot | None = None
     portfolio: PortfolioSnapshot | None = None
     macro: MacroSnapshot | None = None
+    economic_regime: EconomicRegimeContextSnapshot | None = None
     knowledge_base: KnowledgeBaseSnapshot | None = None

@@ -40,7 +40,7 @@ epics have dedicated detail pages:
 - [Epic 007: SEC Filing Layer](epics/epic-007-sec-filing-layer.md)
 - [Epic 008: Financial Statement Layer](epics/epic-008-financial-statement-layer.md)
 - [Epic 009: Valuation Layer](epics/epic-009-valuation-layer.md)
-- [Epic 010: Macro Layer](epics/epic-10-macro-layer.md)
+- [Epic 010: Macro Layer](epics/epic-010-macro-layer.md)
 
 ## How Docs Are Organized
 

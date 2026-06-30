@@ -22,7 +22,7 @@ The completed scope includes:
 - network-free tests for models, provider contract, mock provider, service
   delegation, context integration, and rendering.
 
-## Architecture Overview
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -46,6 +46,39 @@ concrete provider -> provider protocol and domain models -> service
 
 The committee receives rendered macro evidence only. It does not import macro
 providers, select providers, parse external payloads, or make trading actions.
+
+## Stories 10.1-10.6
+
+### Story 10.1: Macro Domain Models
+
+Completed. Added provider-neutral macro models for categories, frequencies,
+units, indicators, observations, series, and snapshots.
+
+### Story 10.2: Macro Provider Abstraction
+
+Completed. Added `MacroDataProvider` with provider-neutral operations for
+series, latest observation, and point-in-time snapshots.
+
+### Story 10.3: Mock Macro Provider
+
+Completed. Added `MockMacroDataProvider` with deterministic local fixtures for
+rates, inflation, labor, growth, and money indicators.
+
+### Story 10.4: Macro Data Service
+
+Completed. Added `MacroDataService` as the application service boundary over
+the provider contract.
+
+### Story 10.5: Macro Context Provider
+
+Completed. Added `MacroContextProvider`, application bootstrap registration,
+and prompt-renderable `MeetingContext.macro` integration.
+
+### Story 10.6: Macro Layer Documentation and v1.0 Milestone Review
+
+Completed. Added this Epic 010 documentation, updated documentation indexes,
+updated the Data Source Layer status, and added the v1.0 architecture milestone
+review.
 
 ## Macro Domain Models
 
@@ -186,7 +219,7 @@ Test coverage includes:
 - import-boundary checks that keep concrete provider concerns away from context
   and service layers.
 
-## Future Provider Candidates
+## Future Providers
 
 The v1 Macro Layer is provider-neutral and ready for live providers behind the
 existing contract. Likely candidates:
@@ -203,3 +236,13 @@ existing contract. Likely candidates:
 Future providers should preserve the same dependency rule: external source
 payloads stop at the provider boundary, and the committee receives only
 provider-neutral context.
+
+## Completion Status
+
+Epic 010 is complete.
+
+The Macro Layer now has provider-neutral domain models, a provider abstraction,
+a deterministic mock provider, a service boundary, a Context Layer adapter,
+application bootstrap registration, prompt rendering, network-free tests, and
+architecture documentation. Future work should add live providers behind the
+existing `MacroDataProvider` contract without changing committee workflows.

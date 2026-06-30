@@ -16,6 +16,7 @@ _CONTEXT_SECTIONS = (
     "news",
     "filings",
     "financials",
+    "valuation",
     "portfolio",
     "macro",
     "knowledge_base",

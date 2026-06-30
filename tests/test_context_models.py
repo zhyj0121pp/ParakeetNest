@@ -22,6 +22,8 @@ from parakeetnest.context import (
     NewsSnapshot,
     PortfolioPosition,
     PortfolioSnapshot,
+    ValuationContextItem,
+    ValuationContextSnapshot,
 )
 
 
@@ -106,6 +108,21 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             ),
         ),
     )
+    valuation = ValuationContextSnapshot(
+        source="valuation",
+        fetched_at=fetched_at,
+        items=(
+            ValuationContextItem(
+                symbol="AMD",
+                as_of_date=date(2026, 6, 29),
+                fiscal_period="TTM",
+                metrics={"pe_ratio": 35.0},
+                calculation_notes=("Calculated from normalized inputs.",),
+                confidence="medium",
+                data_sources=("market snapshot", "financial statements"),
+            ),
+        ),
+    )
     portfolio = PortfolioSnapshot(
         source="mock_portfolio",
         fetched_at=fetched_at,
@@ -137,6 +154,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             "news",
             "mock_filings",
             "mock_financials",
+            "valuation",
             "mock_portfolio",
             "mock_macro",
             "knowledge_base",
@@ -151,6 +169,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         news=news,
         filings=filings,
         financials=financials,
+        valuation=valuation,
         portfolio=portfolio,
         macro=macro,
         knowledge_base=knowledge_base,
@@ -161,6 +180,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
     assert context.news == news
     assert context.filings == filings
     assert context.financials == financials
+    assert context.valuation == valuation
     assert context.portfolio == portfolio
     assert context.macro == macro
     assert context.knowledge_base == knowledge_base
@@ -204,4 +224,5 @@ def test_snapshot_collection_defaults_are_independent_tuples() -> None:
     assert NewsSnapshot(source="empty").items == ()
     assert FilingSnapshot(source="empty").items == ()
     assert FinancialStatementSnapshot(source="empty").items == ()
+    assert ValuationContextSnapshot(source="empty").items == ()
     assert PortfolioSnapshot(source="empty").positions == ()

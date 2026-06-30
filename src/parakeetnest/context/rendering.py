@@ -15,6 +15,7 @@ from parakeetnest.context.models import (
     MeetingContext,
     NewsContext,
     PortfolioSnapshot,
+    ValuationContextSnapshot,
 )
 
 
@@ -32,6 +33,7 @@ class MeetingContextPromptRenderer:
                 "## Filings\n" + self._render_filings(context.filings),
                 "## Financial Statements\n"
                 + self._render_financials(context.financials),
+                "## Valuation\n" + self._render_valuation(context.valuation),
                 "## Portfolio\n" + self._render_portfolio(context.portfolio),
                 "## Macro\n" + self._render_macro(context.macro),
                 "## Knowledge Base\n"
@@ -206,6 +208,42 @@ class MeetingContextPromptRenderer:
         return "\n".join(lines)
 
     @staticmethod
+    def _render_valuation(
+        valuation: ValuationContextSnapshot | None,
+    ) -> str:
+        if valuation is None or not valuation.items:
+            return "- No valuation context available."
+        lines = [
+            MeetingContextPromptRenderer._render_snapshot_header(
+                valuation.source, valuation.fetched_at
+            )
+        ]
+        for item in valuation.items:
+            fields = (
+                ("as_of_date", item.as_of_date),
+                ("fiscal_period", item.fiscal_period),
+                ("metrics", MeetingContextPromptRenderer._format_mapping(item.metrics)),
+                (
+                    "calculation_notes",
+                    MeetingContextPromptRenderer._format_sequence(
+                        item.calculation_notes
+                    ),
+                ),
+                ("confidence", item.confidence),
+                (
+                    "data_sources",
+                    MeetingContextPromptRenderer._format_sequence(item.data_sources),
+                ),
+            )
+            lines.append(
+                "- "
+                + item.symbol
+                + ": "
+                + MeetingContextPromptRenderer._format_fields(fields)
+            )
+        return "\n".join(lines)
+
+    @staticmethod
     def _render_portfolio(portfolio: PortfolioSnapshot | None) -> str:
         if portfolio is None:
             return "- No portfolio data available."
@@ -277,6 +315,12 @@ class MeetingContextPromptRenderer:
     @staticmethod
     def _format_optional_sentence(value: str | None) -> str:
         return f". {value}" if value else ""
+
+    @staticmethod
+    def _format_mapping(values: dict[str, float | None]) -> str:
+        if not values:
+            return "None"
+        return "; ".join(f"{key}={value}" for key, value in sorted(values.items()))
 
     @staticmethod
     def _format_parenthetical_fields(fields: tuple[tuple[str, Any], ...]) -> str:

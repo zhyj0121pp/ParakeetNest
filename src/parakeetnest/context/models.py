@@ -121,6 +121,28 @@ class FinancialStatementSnapshot:
 
 
 @dataclass(frozen=True)
+class ValuationContextItem:
+    """Valuation context for one symbol and fiscal period."""
+
+    symbol: str
+    as_of_date: date
+    fiscal_period: str | None = None
+    metrics: dict[str, float | None] = field(default_factory=dict)
+    calculation_notes: tuple[str, ...] = field(default_factory=tuple)
+    confidence: str = "unknown"
+    data_sources: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class ValuationContextSnapshot:
+    """Valuation snapshots available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    items: tuple[ValuationContextItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class PortfolioPosition:
     """One portfolio position relevant to the requested context."""
 
@@ -186,6 +208,7 @@ class MeetingContext:
     news: NewsContext | None = None
     filings: FilingSnapshot | None = None
     financials: FinancialStatementSnapshot | None = None
+    valuation: ValuationContextSnapshot | None = None
     portfolio: PortfolioSnapshot | None = None
     macro: MacroSnapshot | None = None
     knowledge_base: KnowledgeBaseSnapshot | None = None

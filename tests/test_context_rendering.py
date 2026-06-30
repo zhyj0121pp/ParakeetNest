@@ -19,6 +19,8 @@ from parakeetnest.context import (
     NewsItem,
     PortfolioPosition,
     PortfolioSnapshot,
+    ValuationContextItem,
+    ValuationContextSnapshot,
 )
 
 
@@ -43,6 +45,7 @@ def test_renderer_outputs_structured_empty_context() -> None:
             "## News\n- No news available.",
             "## Filings\n- No filings available.",
             "## Financial Statements\n- No financial statements available.",
+            "## Valuation\n- No valuation context available.",
             "## Portfolio\n- No portfolio data available.",
             "## Macro\n- No macro context available.",
             "## Knowledge Base\n- No knowledge base context available.",
@@ -112,6 +115,21 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
                 ),
             ),
         ),
+        valuation=ValuationContextSnapshot(
+            source="valuation",
+            fetched_at=generated_at,
+            items=(
+                ValuationContextItem(
+                    symbol="AMD",
+                    as_of_date=date(2026, 6, 29),
+                    fiscal_period="TTM",
+                    metrics={"pe_ratio": 35.0, "ps_ratio": 8.5},
+                    calculation_notes=("Calculated from normalized inputs.",),
+                    confidence="medium",
+                    data_sources=("market snapshot", "financial statements"),
+                ),
+            ),
+        ),
         portfolio=PortfolioSnapshot(
             source="portfolio_provider",
             fetched_at=generated_at,
@@ -171,6 +189,12 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             "(source=sec, filed_at=2026-06-28, "
             "accession_number=0000000000-26-000001)",
             "## Financial Statements\n- No financial statements available.",
+            "## Valuation\n"
+            "- Snapshot: source=valuation, fetched_at=2026-06-29T13:00:00+00:00\n"
+            "- AMD: as_of_date=2026-06-29, fiscal_period=TTM, "
+            "metrics=pe_ratio=35.0; ps_ratio=8.5, "
+            "calculation_notes=Calculated from normalized inputs., "
+            "confidence=medium, data_sources=market snapshot, financial statements",
             "## Portfolio\n"
             "- Snapshot: source=portfolio_provider, fetched_at=2026-06-29T13:00:00+00:00\n"
             "- Total value: 2252.5\n"

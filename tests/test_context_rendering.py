@@ -20,6 +20,7 @@ from parakeetnest.context import (
     NewsItem,
     PortfolioPosition,
     PortfolioSnapshot,
+    SectorRotationContextSnapshot,
     ValuationContextItem,
     ValuationContextSnapshot,
 )
@@ -50,6 +51,7 @@ def test_renderer_outputs_structured_empty_context() -> None:
             "## Portfolio\n- No portfolio data available.",
             "## Macro\n- No macro context available.",
             "## Economic Regime\n- No economic regime context available.",
+            "## Sector Rotation\n- No sector rotation context available.",
             "## Knowledge Base\n- No knowledge base context available.",
         )
     )
@@ -70,7 +72,7 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
                 "market_provider",
                 "news_provider",
                 "filings_provider",
-            "knowledge_base",
+                "knowledge_base",
             ),
             warnings=("news feed delayed",),
             data_quality_notes=("quotes are delayed 15 minutes",),
@@ -165,6 +167,21 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             summary="Growth is resilient.",
             regime_source="economic_regime_service",
         ),
+        sector_rotation=SectorRotationContextSnapshot(
+            source="sector_rotation_calculator",
+            fetched_at=generated_at,
+            as_of_date=date(2026, 6, 29),
+            summary="Technology leads while defensives weaken.",
+            leaders=("Technology",),
+            improving=("Industrials",),
+            weakening=("Utilities",),
+            laggards=("Real Estate",),
+            unknown=("Materials",),
+            evidence=(
+                "Technology: Relative return classified as leading.",
+                "Utilities: Relative return classified as weakening.",
+            ),
+        ),
         knowledge_base=KnowledgeBaseSnapshot(
             source="knowledge_base",
             fetched_at=generated_at,
@@ -228,6 +245,20 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             "- Source: economic_regime_service\n"
             "- Supporting indicators:\n"
             "  - GDP Growth (growth): 2.4 percent as of 2026-06-29",
+            "## Sector Rotation\n"
+            "- Snapshot: source=sector_rotation_calculator, "
+            "fetched_at=2026-06-29T13:00:00+00:00\n"
+            "- As of: 2026-06-29\n"
+            "- Summary: Technology leads while defensives weaken.\n"
+            "- Leading sectors: Technology\n"
+            "- Improving sectors: Industrials\n"
+            "- Weakening sectors: Utilities\n"
+            "- Lagging sectors: Real Estate\n"
+            "- Unknown sectors: Materials\n"
+            "- Evidence:\n"
+            "  - Technology: Relative return classified as leading.\n"
+            "  - Utilities: Relative return classified as weakening.\n"
+            "- Source: sector_rotation_calculator",
             "## Knowledge Base\n"
             "- Snapshot: source=knowledge_base, fetched_at=2026-06-29T13:00:00+00:00\n"
             "- Thesis: Own if AI share gains continue.\n"

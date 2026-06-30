@@ -20,6 +20,7 @@ _CONTEXT_SECTIONS = (
     "portfolio",
     "macro",
     "economic_regime",
+    "sector_rotation",
     "knowledge_base",
 )
 

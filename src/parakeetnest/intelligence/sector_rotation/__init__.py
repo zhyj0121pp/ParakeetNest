@@ -3,6 +3,9 @@
 from parakeetnest.intelligence.sector_rotation.calculator import (
     SectorRotationCalculator,
 )
+from parakeetnest.intelligence.sector_rotation.context_provider import (
+    SectorRotationContextProvider,
+)
 from parakeetnest.intelligence.sector_rotation.models import (
     MomentumSignal,
     RelativeStrengthSignal,
@@ -26,6 +29,7 @@ __all__ = [
     "SectorPerformance",
     "SectorRotationCalculator",
     "SectorRotationClassification",
+    "SectorRotationContextProvider",
     "SectorRotationProvider",
     "SectorRotationService",
     "SectorRotationSignal",

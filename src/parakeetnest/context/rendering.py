@@ -16,6 +16,7 @@ from parakeetnest.context.models import (
     MeetingContext,
     NewsContext,
     PortfolioSnapshot,
+    SectorRotationContextSnapshot,
     ValuationContextSnapshot,
 )
 
@@ -39,6 +40,8 @@ class MeetingContextPromptRenderer:
                 "## Macro\n" + self._render_macro(context.macro),
                 "## Economic Regime\n"
                 + self._render_economic_regime(context.economic_regime),
+                "## Sector Rotation\n"
+                + self._render_sector_rotation(context.sector_rotation),
                 "## Knowledge Base\n"
                 + self._render_knowledge_base(context.knowledge_base),
             )
@@ -327,6 +330,53 @@ class MeetingContextPromptRenderer:
             )
         else:
             lines.append("- Supporting indicators: None")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _render_sector_rotation(
+        sector_rotation: SectorRotationContextSnapshot | None,
+    ) -> str:
+        if sector_rotation is None:
+            return "- No sector rotation context available."
+        lines = [
+            MeetingContextPromptRenderer._render_snapshot_header(
+                sector_rotation.source,
+                sector_rotation.fetched_at,
+            ),
+            f"- As of: {sector_rotation.as_of_date.isoformat()}",
+        ]
+        if sector_rotation.summary:
+            lines.append(f"- Summary: {sector_rotation.summary}")
+        lines.extend(
+            (
+                "- Leading sectors: "
+                + MeetingContextPromptRenderer._format_sequence(
+                    sector_rotation.leaders
+                ),
+                "- Improving sectors: "
+                + MeetingContextPromptRenderer._format_sequence(
+                    sector_rotation.improving
+                ),
+                "- Weakening sectors: "
+                + MeetingContextPromptRenderer._format_sequence(
+                    sector_rotation.weakening
+                ),
+                "- Lagging sectors: "
+                + MeetingContextPromptRenderer._format_sequence(
+                    sector_rotation.laggards
+                ),
+                "- Unknown sectors: "
+                + MeetingContextPromptRenderer._format_sequence(
+                    sector_rotation.unknown
+                ),
+            )
+        )
+        if sector_rotation.evidence:
+            lines.append("- Evidence:")
+            lines.extend(f"  - {item}" for item in sector_rotation.evidence)
+        else:
+            lines.append("- Evidence: None")
+        lines.append(f"- Source: {sector_rotation.source}")
         return "\n".join(lines)
 
     @staticmethod

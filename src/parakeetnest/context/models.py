@@ -191,6 +191,22 @@ class EconomicRegimeContextSnapshot:
 
 
 @dataclass(frozen=True)
+class SectorRotationContextSnapshot:
+    """Sector rotation context available to a context assembly."""
+
+    source: str
+    as_of_date: date
+    fetched_at: datetime | None = None
+    summary: str | None = None
+    leaders: tuple[str, ...] = field(default_factory=tuple)
+    improving: tuple[str, ...] = field(default_factory=tuple)
+    weakening: tuple[str, ...] = field(default_factory=tuple)
+    laggards: tuple[str, ...] = field(default_factory=tuple)
+    unknown: tuple[str, ...] = field(default_factory=tuple)
+    evidence: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class KnowledgeBaseSnapshot:
     """Remembered research context loaded before committee reasoning."""
 
@@ -226,4 +242,5 @@ class MeetingContext:
     portfolio: PortfolioSnapshot | None = None
     macro: MacroSnapshot | None = None
     economic_regime: EconomicRegimeContextSnapshot | None = None
+    sector_rotation: SectorRotationContextSnapshot | None = None
     knowledge_base: KnowledgeBaseSnapshot | None = None

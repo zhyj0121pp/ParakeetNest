@@ -252,7 +252,8 @@ def test_valuation_context_provider_is_provider_neutral() -> None:
     item = result.partial_context.valuation.items[0]
     assert not isinstance(item, ValuationSnapshot)
     assert "yahoo" not in repr(result).lower()
-    assert "sec" not in repr(result).lower()
+    assert "sec_edgar" not in repr(result).lower()
+    assert "edgar" not in repr(result).lower()
 
 
 def test_valuation_context_provider_renders_snapshots() -> None:

@@ -23,6 +23,7 @@ from parakeetnest.context import (
     NewsSnapshot,
     PortfolioPosition,
     PortfolioSnapshot,
+    SectorRotationContextSnapshot,
     ValuationContextItem,
     ValuationContextSnapshot,
 )
@@ -154,6 +155,18 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         summary="Growth is steady.",
         regime_source="economic_regime_service",
     )
+    sector_rotation = SectorRotationContextSnapshot(
+        source="sector_rotation_calculator",
+        fetched_at=fetched_at,
+        as_of_date=date(2026, 6, 29),
+        summary="Technology leads while defensives weaken.",
+        leaders=("Technology",),
+        improving=("Industrials",),
+        weakening=("Utilities",),
+        laggards=("Real Estate",),
+        unknown=("Materials",),
+        evidence=("Technology: Relative return classified as leading.",),
+    )
     knowledge_base = KnowledgeBaseSnapshot(
         thesis=("Own if AI data center share gains continue.",),
         discussions=("Prior committee wanted margin evidence.",),
@@ -169,6 +182,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             "mock_portfolio",
             "mock_macro",
             "economic_regime",
+            "sector_rotation",
             "knowledge_base",
         ),
         data_quality_notes=("All context is deterministic test data.",),
@@ -185,6 +199,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         portfolio=portfolio,
         macro=macro,
         economic_regime=economic_regime,
+        sector_rotation=sector_rotation,
         knowledge_base=knowledge_base,
     )
 
@@ -197,6 +212,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
     assert context.portfolio == portfolio
     assert context.macro == macro
     assert context.economic_regime == economic_regime
+    assert context.sector_rotation == sector_rotation
     assert context.knowledge_base == knowledge_base
     assert context.metadata.sources[-1] == "knowledge_base"
 
@@ -240,3 +256,7 @@ def test_snapshot_collection_defaults_are_independent_tuples() -> None:
     assert FinancialStatementSnapshot(source="empty").items == ()
     assert ValuationContextSnapshot(source="empty").items == ()
     assert PortfolioSnapshot(source="empty").positions == ()
+    assert SectorRotationContextSnapshot(
+        source="empty",
+        as_of_date=date(2026, 6, 29),
+    ).leaders == ()

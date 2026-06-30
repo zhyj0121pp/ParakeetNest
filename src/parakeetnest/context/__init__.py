@@ -18,6 +18,7 @@ from parakeetnest.context.models import (
     NewsSnapshot,
     PortfolioPosition,
     PortfolioSnapshot,
+    SectorRotationContextSnapshot,
     ValuationContextItem,
     ValuationContextSnapshot,
 )
@@ -57,6 +58,7 @@ __all__ = [
     "NewsSnapshot",
     "PortfolioPosition",
     "PortfolioSnapshot",
+    "SectorRotationContextSnapshot",
     "UnsupportedContextRequestError",
     "ValuationContextItem",
     "ValuationContextSnapshot",

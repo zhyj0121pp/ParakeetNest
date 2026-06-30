@@ -13,7 +13,7 @@
 | [Epic 009](epic-009-valuation-layer.md) | Valuation Layer | Completed |
 | [Epic 010](epic-010-macro-layer.md) | Macro Layer | Completed |
 | [Epic 011](epic-011-economic-regime.md) | Economic Regime Layer | Completed |
-| [Epic 012](epic-012-sector-rotation.md) | Sector Rotation Layer | In Progress |
+| [Epic 012](epic-012-sector-rotation.md) | Sector Rotation Layer | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

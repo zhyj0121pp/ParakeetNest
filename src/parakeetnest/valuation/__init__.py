@@ -8,6 +8,7 @@ from parakeetnest.valuation.models import (
     ValuationMetric,
     ValuationSnapshot,
 )
+from parakeetnest.valuation.service import ValuationService
 
 __all__ = [
     "ValuationCalculator",
@@ -15,5 +16,6 @@ __all__ = [
     "ValuationInput",
     "ValuationMethod",
     "ValuationMetric",
+    "ValuationService",
     "ValuationSnapshot",
 ]

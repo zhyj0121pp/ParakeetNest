@@ -9,6 +9,7 @@ from parakeetnest.intelligence.risk.models import (
     RiskSummary,
 )
 from parakeetnest.intelligence.risk.provider import RiskProvider
+from parakeetnest.intelligence.risk.service import RiskService
 
 __all__ = [
     "RiskAssessment",
@@ -16,6 +17,7 @@ __all__ = [
     "RiskCalculator",
     "RiskLevel",
     "RiskProvider",
+    "RiskService",
     "RiskSignal",
     "RiskSummary",
 ]

@@ -7,9 +7,10 @@ import sys
 from datetime import date
 
 from parakeetnest.intelligence.risk import (
-    RiskAssessment,
+    RiskCategory,
     RiskLevel,
     RiskProvider,
+    RiskSignal,
 )
 
 
@@ -21,42 +22,45 @@ class RecordingRiskProvider:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str | None, date | None]] = []
-        self.assessment = RiskAssessment(
-            overall_level=RiskLevel.MODERATE,
-            overall_score=0.5,
-            as_of_date=AS_OF_DATE,
-            source="recording_risk_provider",
-        )
+        self.signals = [
+            RiskSignal(
+                category=RiskCategory.MARKET,
+                level=RiskLevel.MODERATE,
+                score=0.5,
+                label="Market risk",
+                description="Market risk is balanced.",
+            )
+        ]
 
-    def get_risk_assessment(
+    def get_risk_signals(
         self,
         *,
         subject: str | None = None,
         as_of_date: date | None = None,
-    ) -> RiskAssessment:
+    ) -> list[RiskSignal]:
         self.calls.append((subject, as_of_date))
-        return self.assessment
+        return self.signals
 
 
 def test_risk_provider_protocol_accepts_structural_implementation() -> None:
     """Providers should satisfy the contract by shape, not inheritance."""
     provider: RiskProvider = RecordingRiskProvider()
 
-    assessment = provider.get_risk_assessment(
+    signals = provider.get_risk_signals(
         subject="portfolio",
         as_of_date=AS_OF_DATE,
     )
 
-    assert assessment.overall_level is RiskLevel.MODERATE
+    assert signals[0].level is RiskLevel.MODERATE
     assert provider.calls == [("portfolio", AS_OF_DATE)]
 
 
 def test_risk_provider_signature_is_simple_and_provider_neutral() -> None:
     """The provider boundary should avoid vendor-specific dependencies."""
-    signature = inspect.signature(RiskProvider.get_risk_assessment)
+    signature = inspect.signature(RiskProvider.get_risk_signals)
 
     assert list(signature.parameters) == ["self", "subject", "as_of_date"]
-    assert signature.return_annotation == "RiskAssessment"
+    assert signature.return_annotation == "list[RiskSignal]"
 
 
 def test_risk_provider_module_has_no_provider_specific_imports() -> None:
@@ -89,9 +93,9 @@ def test_risk_provider_module_has_no_provider_specific_imports() -> None:
         sys.modules.pop(module_name, None)
 
     provider: RiskProvider = RecordingRiskProvider()
-    assessment = provider.get_risk_assessment(as_of_date=AS_OF_DATE)
+    signals = provider.get_risk_signals(as_of_date=AS_OF_DATE)
 
-    assert isinstance(assessment, RiskAssessment)
+    assert isinstance(signals[0], RiskSignal)
     assert all(name not in source for name in forbidden_names)
     assert forbidden_modules.isdisjoint(sys.modules)
 

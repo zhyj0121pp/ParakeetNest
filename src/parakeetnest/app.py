@@ -31,6 +31,7 @@ from parakeetnest.database import (
     create_session_factory,
     initialize_database,
 )
+from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.llm import LLMProvider, MockLLMProvider
 from parakeetnest.market_data import (
     MarketDataService,
@@ -153,7 +154,17 @@ def _create_news_service(config: AppConfig) -> NewsService:
 
 
 def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
-    sec_filing_provider_registry = create_sec_filing_provider_registry()
+    sec_edgar_user_agent = config.sec_filings.sec_edgar_user_agent
+    if config.sec_filings.provider.strip().lower() == "sec_edgar":
+        if sec_edgar_user_agent is None or not sec_edgar_user_agent.strip():
+            raise ConfigurationError(
+                "SEC filing provider 'sec_edgar' requires "
+                "sec_filings.sec_edgar_user_agent."
+            )
+
+    sec_filing_provider_registry = create_sec_filing_provider_registry(
+        sec_edgar_user_agent=sec_edgar_user_agent
+    )
     sec_filing_provider = sec_filing_provider_registry.get(config.sec_filings.provider)
     return SecFilingService(sec_filing_provider)
 

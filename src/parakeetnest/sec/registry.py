@@ -63,14 +63,18 @@ class SecFilingProviderRegistry:
         return provider_id.strip().lower()
 
 
-def create_sec_filing_provider_registry() -> SecFilingProviderRegistry:
+def create_sec_filing_provider_registry(
+    *,
+    sec_edgar_user_agent: str | None = None,
+) -> SecFilingProviderRegistry:
     """Create the default SEC filing provider registry."""
     registry = SecFilingProviderRegistry(default_provider_id="mock")
     registry.register("mock", MockSecFilingProvider())
-    registry.register(
-        "sec_edgar",
-        EdgarSecFilingProvider(user_agent="ParakeetNest/0.1 contact@example.com"),
-    )
+    if sec_edgar_user_agent is not None:
+        registry.register(
+            "sec_edgar",
+            EdgarSecFilingProvider(user_agent=sec_edgar_user_agent),
+        )
     return registry
 
 

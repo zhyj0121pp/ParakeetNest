@@ -2,11 +2,15 @@
 
 from pathlib import Path
 
+import pytest
+
 from parakeetnest.app import ParakeetNestApp, create_app, create_test_app
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
+from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.news import NewsQuery
+from parakeetnest.sec import EdgarSecFilingProvider, MockSecFilingProvider
 
 
 def test_create_app_returns_working_application(tmp_path: Path) -> None:
@@ -103,3 +107,52 @@ def test_create_app_wires_news_context_provider_through_news_service(
     assert context.news.source == "news"
     assert len(context.news.items) == 1
     assert context.news.items[0].symbol == "POET"
+
+
+def test_create_app_defaults_to_mock_sec_filing_provider(tmp_path: Path) -> None:
+    """The app factory should keep deterministic SEC filings as the default."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        context = app.context_service.build_context(
+            ContextRequest(question="Review AAPL.", symbols=("AAPL",))
+        )
+    finally:
+        app.close()
+
+    assert isinstance(app.sec_filing_service._provider, MockSecFilingProvider)
+    assert context.filings is not None
+    assert context.filings.source == "sec_filings"
+    assert context.filings.items[0].source == "mock"
+
+
+def test_create_app_wires_sec_edgar_provider_when_configured(tmp_path: Path) -> None:
+    """The app factory should resolve SEC EDGAR without making live requests."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            sec_filings={
+                "provider": "sec_edgar",
+                "sec_edgar_user_agent": "ParakeetNest tests test@example.com",
+            },
+        )
+    )
+    try:
+        provider = app.sec_filing_service._provider
+    finally:
+        app.close()
+
+    assert isinstance(provider, EdgarSecFilingProvider)
+
+
+def test_create_app_rejects_sec_edgar_without_user_agent(tmp_path: Path) -> None:
+    """SEC EDGAR requires an explicit app identity before bootstrap succeeds."""
+    with pytest.raises(
+        ConfigurationError,
+        match="sec_filings.sec_edgar_user_agent",
+    ):
+        create_app(
+            AppConfig(
+                database_path=tmp_path / "app.sqlite3",
+                sec_filings={"provider": "sec_edgar"},
+            )
+        )

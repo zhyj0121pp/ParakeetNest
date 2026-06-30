@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from parakeetnest.config import AppConfig, SecFilingConfig
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.sec import (
     EdgarSecFilingProvider,
@@ -70,15 +71,33 @@ def test_registry_unknown_provider_lookup_raises_clear_config_error() -> None:
 
 
 def test_default_sec_filing_provider_is_mock() -> None:
+    config = AppConfig()
     registry = create_sec_filing_provider_registry()
 
     provider = registry.default()
 
+    assert config.sec_filings == SecFilingConfig(provider="mock")
     assert isinstance(provider, MockSecFilingProvider)
 
 
+def test_sec_filing_config_accepts_sec_edgar_user_agent_mapping() -> None:
+    config = AppConfig(
+        sec_filings={
+            "provider": "sec_edgar",
+            "sec_edgar_user_agent": "ParakeetNest tests test@example.com",
+        }
+    )
+
+    assert config.sec_filings == SecFilingConfig(
+        provider="sec_edgar",
+        sec_edgar_user_agent="ParakeetNest tests test@example.com",
+    )
+
+
 def test_default_registry_includes_sec_edgar_provider() -> None:
-    registry = create_sec_filing_provider_registry()
+    registry = create_sec_filing_provider_registry(
+        sec_edgar_user_agent="ParakeetNest tests test@example.com"
+    )
 
     provider = registry.get("sec_edgar")
 

@@ -37,6 +37,7 @@ class SecFilingConfig:
     """SEC filing provider configuration."""
 
     provider: str = "mock"
+    sec_edgar_user_agent: str | None = None
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,7 @@ class AppConfig:
         default_factory=MarketDataConfig
     )
     news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)
-    sec_filings: SecFilingConfig | Mapping[str, str] = field(
+    sec_filings: SecFilingConfig | Mapping[str, str | None] = field(
         default_factory=SecFilingConfig
     )
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)

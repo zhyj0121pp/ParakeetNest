@@ -61,6 +61,42 @@ def test_meeting_service_has_no_market_data_dependency() -> None:
     assert all("MarketData" not in ast.unparse(node) for node in ast.walk(tree))
 
 
+def test_meeting_service_has_no_sec_filing_dependency() -> None:
+    """MeetingService must receive filings only through ContextService."""
+    source_path = Path("src/parakeetnest/services/meeting.py")
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+
+    imported_modules = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module is not None:
+            imported_modules.append(node.module)
+        elif isinstance(node, ast.Import):
+            imported_modules.extend(alias.name for alias in node.names)
+
+    assert all(not module.startswith("parakeetnest.sec") for module in imported_modules)
+    assert all("SecFiling" not in ast.unparse(node) for node in ast.walk(tree))
+
+
+def test_committee_runtime_has_no_sec_filing_dependency() -> None:
+    """Committee agents should consume filing context, not SEC provider services."""
+    source_path = Path("src/parakeetnest/committee")
+
+    imported_modules = []
+    source = ""
+    for path in source_path.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        source += text
+        tree = ast.parse(text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module is not None:
+                imported_modules.append(node.module)
+            elif isinstance(node, ast.Import):
+                imported_modules.extend(alias.name for alias in node.names)
+
+    assert all(not module.startswith("parakeetnest.sec") for module in imported_modules)
+    assert "SecFilingService" not in source
+
+
 def test_context_service_does_not_access_news_provider_registry() -> None:
     """ContextService must receive news through context providers and NewsService."""
     source_path = Path("src/parakeetnest/context/service.py")

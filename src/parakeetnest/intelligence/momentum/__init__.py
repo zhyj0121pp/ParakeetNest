@@ -1,5 +1,6 @@
 """Provider-neutral Momentum Layer package."""
 
+from parakeetnest.intelligence.momentum.calculator import MomentumCalculator
 from parakeetnest.intelligence.momentum.models import (
     MomentumRegime,
     MomentumSnapshot,
@@ -13,6 +14,7 @@ from parakeetnest.intelligence.momentum.provider import (
 
 __all__ = [
     "MockMomentumProvider",
+    "MomentumCalculator",
     "MomentumInputs",
     "MomentumProvider",
     "MomentumRegime",

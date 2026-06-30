@@ -207,6 +207,29 @@ class SectorRotationContextSnapshot:
 
 
 @dataclass(frozen=True)
+class MarketBreadthContextSnapshot:
+    """Market breadth context available to a context assembly."""
+
+    source: str
+    as_of_date: date
+    universe: str
+    fetched_at: datetime | None = None
+    breadth_regime: str = "unknown"
+    breadth_score: float = 0.0
+    advancers: int = 0
+    decliners: int = 0
+    unchanged: int = 0
+    new_highs: int = 0
+    new_lows: int = 0
+    percent_above_20d_ma: float = 0.0
+    percent_above_50d_ma: float = 0.0
+    percent_above_200d_ma: float = 0.0
+    up_volume: float = 0.0
+    down_volume: float = 0.0
+    warnings: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class KnowledgeBaseSnapshot:
     """Remembered research context loaded before committee reasoning."""
 
@@ -243,4 +266,5 @@ class MeetingContext:
     macro: MacroSnapshot | None = None
     economic_regime: EconomicRegimeContextSnapshot | None = None
     sector_rotation: SectorRotationContextSnapshot | None = None
+    market_breadth: MarketBreadthContextSnapshot | None = None
     knowledge_base: KnowledgeBaseSnapshot | None = None

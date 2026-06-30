@@ -37,6 +37,12 @@ from parakeetnest.financials import (
     FinancialStatementService,
     create_financial_statement_provider_registry,
 )
+from parakeetnest.intelligence.market_breadth import (
+    MarketBreadthCalculator,
+    MarketBreadthContextProvider,
+    MarketBreadthService,
+    MockMarketBreadthProvider,
+)
 from parakeetnest.intelligence.sector_rotation import (
     MockSectorRotationProvider,
     SectorRotationService,
@@ -70,6 +76,7 @@ class ParakeetNestApp:
     macro_data_service: MacroDataService
     economic_regime_service: EconomicRegimeService
     sector_rotation_service: SectorRotationService
+    market_breadth_service: MarketBreadthService
     sec_filing_service: SecFilingService
     financial_statement_service: FinancialStatementService
     llm_provider: LLMProvider
@@ -105,6 +112,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     macro_data_service = _create_macro_data_service()
     economic_regime_service = EconomicRegimeService(macro_data_service)
     sector_rotation_service = _create_sector_rotation_service()
+    market_breadth_service = _create_market_breadth_service()
     sec_filing_service = _create_sec_filing_service(resolved_config)
     financial_statement_service = _create_financial_statement_service(resolved_config)
     context_provider_registry = _create_context_provider_registry(
@@ -113,6 +121,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         macro_data_service,
         economic_regime_service,
         sector_rotation_service,
+        market_breadth_service,
         sec_filing_service,
         financial_statement_service,
     )
@@ -151,6 +160,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         macro_data_service=macro_data_service,
         economic_regime_service=economic_regime_service,
         sector_rotation_service=sector_rotation_service,
+        market_breadth_service=market_breadth_service,
         sec_filing_service=sec_filing_service,
         financial_statement_service=financial_statement_service,
         llm_provider=llm_provider,
@@ -190,6 +200,13 @@ def _create_macro_data_service() -> MacroDataService:
 
 def _create_sector_rotation_service() -> SectorRotationService:
     return SectorRotationService(MockSectorRotationProvider())
+
+
+def _create_market_breadth_service() -> MarketBreadthService:
+    return MarketBreadthService(
+        MockMarketBreadthProvider(),
+        calculator=MarketBreadthCalculator(),
+    )
 
 
 def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
@@ -233,6 +250,7 @@ def _create_context_provider_registry(
     macro_data_service: MacroDataService,
     economic_regime_service: EconomicRegimeService,
     sector_rotation_service: SectorRotationService,
+    market_breadth_service: MarketBreadthService,
     sec_filing_service: SecFilingService,
     financial_statement_service: FinancialStatementService,
 ) -> ContextProviderRegistry:
@@ -258,6 +276,10 @@ def _create_context_provider_registry(
     registry.register(
         "sector_rotation",
         SectorRotationContextProvider(sector_rotation_service),
+    )
+    registry.register(
+        "market_breadth",
+        MarketBreadthContextProvider(market_breadth_service),
     )
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())
     _apply_context_provider_config(registry, config)

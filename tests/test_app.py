@@ -9,6 +9,12 @@ from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.financials import MockFinancialStatementProvider
+from parakeetnest.intelligence.market_breadth import (
+    MarketBreadthCalculator,
+    MarketBreadthContextProvider,
+    MarketBreadthService,
+    MockMarketBreadthProvider,
+)
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.news import NewsQuery
 from parakeetnest.sec import EdgarSecFilingProvider, MockSecFilingProvider
@@ -192,6 +198,33 @@ def test_create_app_wires_financial_statement_context_provider(
         "quarterly",
         "ttm",
     ]
+
+
+def test_create_app_wires_market_breadth_layer(tmp_path: Path) -> None:
+    """The app factory should register the Market Breadth dependency graph."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        registrations = {
+            registration.provider_id: registration.provider
+            for registration in app.context_provider_registry.list_registrations()
+        }
+        provider = registrations["market_breadth"]
+        context = app.context_service.build_context(
+            ContextRequest(question="Review market conditions.", symbols=("SPY",))
+        )
+    finally:
+        app.close()
+
+    assert isinstance(app.market_breadth_service, MarketBreadthService)
+    assert isinstance(provider, MarketBreadthContextProvider)
+    assert provider._service is app.market_breadth_service
+    assert isinstance(app.market_breadth_service._provider, MockMarketBreadthProvider)
+    assert isinstance(app.market_breadth_service._calculator, MarketBreadthCalculator)
+    assert context.market_breadth is not None
+    assert context.market_breadth.source == "market_breadth"
+    assert context.market_breadth.universe == "SP500"
+    assert context.market_breadth.breadth_regime == "healthy"
+    assert app.market_breadth_service._provider.calls == ["SP500"]
 
 
 def test_create_app_rejects_sec_edgar_without_user_agent(tmp_path: Path) -> None:

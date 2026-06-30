@@ -21,6 +21,7 @@ _CONTEXT_SECTIONS = (
     "macro",
     "economic_regime",
     "sector_rotation",
+    "market_breadth",
     "knowledge_base",
 )
 

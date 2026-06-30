@@ -8,9 +8,11 @@ from parakeetnest.regime.models import (
     RegimeIndicator,
     RegimeSignal,
 )
+from parakeetnest.regime.service import EconomicRegimeService
 
 __all__ = [
     "EconomicRegimeClassifier",
+    "EconomicRegimeService",
     "EconomicRegime",
     "EconomicRegimeSnapshot",
     "RegimeConfidence",

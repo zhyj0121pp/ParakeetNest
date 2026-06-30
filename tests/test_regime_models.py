@@ -164,8 +164,10 @@ def test_public_models_are_exported_from_regime_package() -> None:
     assert regime.RegimeIndicator is RegimeIndicator
     assert regime.EconomicRegimeSnapshot is EconomicRegimeSnapshot
     assert regime.EconomicRegimeClassifier is EconomicRegimeClassifier
+    assert regime.EconomicRegimeService.__name__ == "EconomicRegimeService"
     assert set(regime.__all__) == {
         "EconomicRegimeClassifier",
+        "EconomicRegimeService",
         "EconomicRegime",
         "EconomicRegimeSnapshot",
         "RegimeConfidence",

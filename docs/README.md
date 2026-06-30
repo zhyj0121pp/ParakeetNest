@@ -17,6 +17,7 @@ and lower-level design notes.
 
 - [Context Layer](architecture/context-layer.md)
 - [Data Source Layer](architecture/data-source-layer.md)
+- [Domain Model Boundary](architecture/domain-model-boundary.md)
 - [Market Data Layer](architecture/market-data-layer.md)
 - [Architecture Milestone Review v1.0](architecture/architecture-milestone-review-v1.0.md)
 - [Architecture Milestone Review v0.9](architecture/milestone-review-v0.9.md)

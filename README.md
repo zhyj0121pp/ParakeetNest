@@ -9,47 +9,19 @@ evidence, risks, and catalysts.
 
 ## Current Status
 
-This repository contains the initial Python skeleton only. External API calls,
-brokerage integrations, market data providers, LLM calls, email delivery, and
-automatic trading are not implemented.
+ParakeetNest v1.0 is complete and frozen as the Phase I architecture baseline.
+The platform now has a memory-first committee workflow, SQLite-backed
+persistence, a provider-neutral Context Layer, and repeatable Data Source Layer
+patterns for market data, Yahoo Finance, news, SEC filings, financial
+statements, valuation, and macro context.
 
-Milestone 1 adds the foundation layer: configuration loading, structured
-logging, common exceptions, and an application bootstrap.
+The committee still produces investment research outputs only. Automatic
+trading is not implemented, API keys are not hard-coded, and deterministic mock
+providers remain first-class for local development and tests.
 
-Milestone 2 adds the SQLite database foundation using SQLAlchemy 2.0, including
-ORM models, engine/session setup, repository helpers, and database
-initialization.
-
-Milestone 3 adds normalized domain snapshots and a data quality layer that
-checks source attribution, fetch time, required fields, freshness, empty values,
-and numeric sanity before data is saved or analyzed.
-
-Milestone 4 adds deterministic mock data services and a collection orchestrator
-that validates snapshots and saves valid mock records to SQLite.
-
-Milestone 4.5 cleans up architecture boundaries: collection orchestration no
-longer imports ORM models directly, persistence is delegated to a database-side
-snapshot persistence service, and data quality metadata is stored alongside
-validated records.
-
-Milestone 5 adds a deterministic committee engine without OpenAI. The committee
-loads memory first, then Xixi, Dongdong, and Yoyo produce typed opinions,
-Chairman summarizes, and the Investment Secretary records the discussion.
-
-Milestone 6 adds an append-only knowledge base and thesis tracker. The committee
-can now recall thesis history and prior discussions before member reviews.
-
-Epic 3.5 documents the Context Layer pipeline that assembles provider data and
-memory into committee prompt context before any LLM reasoning.
-
-Epic 7 adds the SEC Filing Layer, including provider-neutral filing models, a
-mock provider, an optional SEC EDGAR provider, a filing service, and context
-integration through `MeetingContext.filings`.
-
-Epic 8 adds the Financial Statement Layer, including provider-neutral income
-statement, balance sheet, cash flow, period, and bundle models, a mock provider,
-a registry, a service boundary, and context integration through
-`MeetingContext.financials`.
+Phase II planning starts after this v1.0 architecture freeze. New work should
+build on the completed boundaries instead of changing the v1.0 model contracts
+without an explicit architecture decision.
 
 ## Project Layout
 
@@ -61,8 +33,8 @@ a registry, a service boundary, and context integration through
 - `src/parakeetnest/financials`: financial statement domain models, provider
   interface, mock provider, registry, service boundary, and context adapter.
 - `src/parakeetnest/services`: data collection and validation boundaries.
-- `src/parakeetnest/domain.py`: normalized snapshot models shared across
-  services, persistence, and future analyzers.
+- `src/parakeetnest/domain.py`: legacy normalized snapshot boundary for the
+  original collection and persistence path.
 - `src/parakeetnest/analyzers`: portfolio, stock, market, catalyst, risk,
   opportunity, and thesis analyzers.
 - `src/parakeetnest/decision`: recommendation and policy engine skeletons.
@@ -85,8 +57,10 @@ python -m venv .venv
 
 - [Documentation Overview](docs/README.md)
 - [Context Layer Architecture](docs/architecture/context-layer.md)
+- [Domain Model Boundary](docs/architecture/domain-model-boundary.md)
 - [Market Data Layer Architecture](docs/architecture/market-data-layer.md)
 - [Data Source Layer Architecture](docs/architecture/data-source-layer.md)
+- [Architecture Milestone Review v1.0](docs/architecture/architecture-milestone-review-v1.0.md)
 - [Architecture Milestone Review v0.8](docs/architecture/milestone-review-v0.8.md)
 - [Architecture Milestone Review v0.7](docs/architecture/milestone-review-v0.7.md)
 - [Epic Index](docs/epics/README.md)

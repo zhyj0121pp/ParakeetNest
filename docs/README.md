@@ -19,6 +19,7 @@ and lower-level design notes.
 - [Data Source Layer](architecture/data-source-layer.md)
 - [Domain Model Boundary](architecture/domain-model-boundary.md)
 - [Market Data Layer](architecture/market-data-layer.md)
+- [Architecture Milestone Review v1.1](architecture/architecture-milestone-review-v1.1.md)
 - [Architecture Milestone Review v1.0](architecture/architecture-milestone-review-v1.0.md)
 - [ADR 003: Investment Intelligence Layer Pattern](architecture/ADR-003-investment-intelligence-pattern.md)
 - [Architecture Milestone Review v0.9](architecture/milestone-review-v0.9.md)
@@ -44,6 +45,7 @@ epics have dedicated detail pages:
 - [Epic 009: Valuation Layer](epics/epic-009-valuation-layer.md)
 - [Epic 010: Macro Layer](epics/epic-010-macro-layer.md)
 - [Epic 011: Economic Regime Layer](epics/epic-011-economic-regime.md)
+- [Epic 012: Sector Rotation Layer](epics/epic-012-sector-rotation.md)
 
 ## How Docs Are Organized
 

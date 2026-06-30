@@ -60,6 +60,7 @@ python -m venv .venv
 - [Domain Model Boundary](docs/architecture/domain-model-boundary.md)
 - [Market Data Layer Architecture](docs/architecture/market-data-layer.md)
 - [Data Source Layer Architecture](docs/architecture/data-source-layer.md)
+- [Architecture Milestone Review v1.1](docs/architecture/architecture-milestone-review-v1.1.md)
 - [Architecture Milestone Review v1.0](docs/architecture/architecture-milestone-review-v1.0.md)
 - [Architecture Milestone Review v0.8](docs/architecture/milestone-review-v0.8.md)
 - [Architecture Milestone Review v0.7](docs/architecture/milestone-review-v0.7.md)

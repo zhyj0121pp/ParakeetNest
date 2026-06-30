@@ -9,6 +9,7 @@ from parakeetnest.financials.models import (
     FinancialStatementRequest,
     IncomeStatement,
 )
+from parakeetnest.financials.mock import MockFinancialStatementProvider
 from parakeetnest.financials.provider import (
     FinancialStatementProvider,
     FinancialStatementProviderError,
@@ -24,4 +25,5 @@ __all__ = [
     "FinancialStatementProviderError",
     "FinancialStatementRequest",
     "IncomeStatement",
+    "MockFinancialStatementProvider",
 ]

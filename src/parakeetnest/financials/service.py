@@ -16,6 +16,7 @@ from parakeetnest.financials.provider import (
     FinancialStatementProvider,
     FinancialStatementProviderError,
 )
+from parakeetnest.financials.registry import FinancialStatementProviderRegistry
 
 _T = TypeVar("_T")
 
@@ -23,40 +24,52 @@ _T = TypeVar("_T")
 class FinancialStatementService:
     """Single entry point for provider-backed financial statement requests."""
 
-    def __init__(self, provider: FinancialStatementProvider) -> None:
-        """Initialize the service with one financial statement provider."""
-        self._provider = provider
+    def __init__(
+        self,
+        provider: FinancialStatementProvider | FinancialStatementProviderRegistry,
+    ) -> None:
+        """Initialize the service with a provider or provider registry."""
+        self._provider_source = provider
 
     def get_income_statement(
         self,
         request: FinancialStatementRequest,
     ) -> list[IncomeStatement]:
         """Return provider-backed income statements for the request."""
-        return self._call_provider(self._provider.get_income_statement, request)
+        provider = self._get_provider()
+        return self._call_provider(provider.get_income_statement, request)
 
     def get_balance_sheet(
         self,
         request: FinancialStatementRequest,
     ) -> list[BalanceSheet]:
         """Return provider-backed balance sheets for the request."""
-        return self._call_provider(self._provider.get_balance_sheet, request)
+        provider = self._get_provider()
+        return self._call_provider(provider.get_balance_sheet, request)
 
     def get_cash_flow_statement(
         self,
         request: FinancialStatementRequest,
     ) -> list[CashFlowStatement]:
         """Return provider-backed cash flow statements for the request."""
-        return self._call_provider(self._provider.get_cash_flow_statement, request)
+        provider = self._get_provider()
+        return self._call_provider(provider.get_cash_flow_statement, request)
 
     def get_financial_statement_bundle(
         self,
         request: FinancialStatementRequest,
     ) -> list[FinancialStatementBundle]:
         """Return provider-backed financial statement bundles for the request."""
+        provider = self._get_provider()
         return self._call_provider(
-            self._provider.get_financial_statement_bundle,
+            provider.get_financial_statement_bundle,
             request,
         )
+
+    def _get_provider(self) -> FinancialStatementProvider:
+        if isinstance(self._provider_source, FinancialStatementProviderRegistry):
+            return self._provider_source.get_default_provider()
+        return self._provider_source
 
     def _call_provider(
         self,

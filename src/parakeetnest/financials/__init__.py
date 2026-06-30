@@ -14,6 +14,7 @@ from parakeetnest.financials.provider import (
     FinancialStatementProvider,
     FinancialStatementProviderError,
 )
+from parakeetnest.financials.registry import FinancialStatementProviderRegistry
 from parakeetnest.financials.service import FinancialStatementService
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "FinancialStatementPeriod",
     "FinancialStatementProvider",
     "FinancialStatementProviderError",
+    "FinancialStatementProviderRegistry",
     "FinancialStatementRequest",
     "FinancialStatementService",
     "IncomeStatement",

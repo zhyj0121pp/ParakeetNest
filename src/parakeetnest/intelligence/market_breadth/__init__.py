@@ -11,11 +11,13 @@ from parakeetnest.intelligence.market_breadth.provider import (
     MarketBreadthProvider,
     MockMarketBreadthProvider,
 )
+from parakeetnest.intelligence.market_breadth.service import MarketBreadthService
 
 __all__ = [
     "BreadthRegime",
     "MarketBreadthCalculator",
     "MarketBreadthProvider",
+    "MarketBreadthService",
     "MarketBreadthSnapshot",
     "MockMarketBreadthProvider",
 ]

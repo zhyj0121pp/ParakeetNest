@@ -154,9 +154,11 @@ def _create_news_service(config: AppConfig) -> NewsService:
 
 
 def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
-    sec_edgar_user_agent = config.sec_filings.sec_edgar_user_agent
+    sec_edgar_user_agent = _normalize_optional_string(
+        config.sec_filings.sec_edgar_user_agent
+    )
     if config.sec_filings.provider.strip().lower() == "sec_edgar":
-        if sec_edgar_user_agent is None or not sec_edgar_user_agent.strip():
+        if sec_edgar_user_agent is None:
             raise ConfigurationError(
                 "SEC filing provider 'sec_edgar' requires "
                 "sec_filings.sec_edgar_user_agent."
@@ -167,6 +169,13 @@ def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
     )
     sec_filing_provider = sec_filing_provider_registry.get(config.sec_filings.provider)
     return SecFilingService(sec_filing_provider)
+
+
+def _normalize_optional_string(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized_value = value.strip()
+    return normalized_value or None
 
 
 def _create_context_provider_registry(

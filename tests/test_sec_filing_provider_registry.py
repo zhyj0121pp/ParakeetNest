@@ -80,6 +80,16 @@ def test_default_sec_filing_provider_is_mock() -> None:
     assert isinstance(provider, MockSecFilingProvider)
 
 
+def test_registry_treats_blank_sec_edgar_user_agent_as_unconfigured() -> None:
+    registry = create_sec_filing_provider_registry(sec_edgar_user_agent="   ")
+
+    provider_ids = [
+        registration.provider_id for registration in registry.list_registrations()
+    ]
+
+    assert provider_ids == ["mock"]
+
+
 def test_sec_filing_config_accepts_sec_edgar_user_agent_mapping() -> None:
     config = AppConfig(
         sec_filings={

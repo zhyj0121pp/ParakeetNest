@@ -125,6 +125,27 @@ def test_create_app_defaults_to_mock_sec_filing_provider(tmp_path: Path) -> None
     assert context.filings.items[0].source == "mock"
 
 
+def test_create_app_allows_mock_sec_filings_with_blank_edgar_user_agent(
+    tmp_path: Path,
+) -> None:
+    """Blank SEC EDGAR identity should be ignored while mock filings are selected."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            sec_filings={
+                "provider": "mock",
+                "sec_edgar_user_agent": "   ",
+            },
+        )
+    )
+    try:
+        provider = app.sec_filing_service._provider
+    finally:
+        app.close()
+
+    assert isinstance(provider, MockSecFilingProvider)
+
+
 def test_create_app_wires_sec_edgar_provider_when_configured(tmp_path: Path) -> None:
     """The app factory should resolve SEC EDGAR without making live requests."""
     app = create_app(
@@ -153,6 +174,9 @@ def test_create_app_rejects_sec_edgar_without_user_agent(tmp_path: Path) -> None
         create_app(
             AppConfig(
                 database_path=tmp_path / "app.sqlite3",
-                sec_filings={"provider": "sec_edgar"},
+                sec_filings={
+                    "provider": "sec_edgar",
+                    "sec_edgar_user_agent": "   ",
+                },
             )
         )

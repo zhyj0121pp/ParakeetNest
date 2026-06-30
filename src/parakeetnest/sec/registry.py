@@ -70,12 +70,20 @@ def create_sec_filing_provider_registry(
     """Create the default SEC filing provider registry."""
     registry = SecFilingProviderRegistry(default_provider_id="mock")
     registry.register("mock", MockSecFilingProvider())
-    if sec_edgar_user_agent is not None:
+    normalized_sec_edgar_user_agent = _normalize_optional_string(sec_edgar_user_agent)
+    if normalized_sec_edgar_user_agent is not None:
         registry.register(
             "sec_edgar",
-            EdgarSecFilingProvider(user_agent=sec_edgar_user_agent),
+            EdgarSecFilingProvider(user_agent=normalized_sec_edgar_user_agent),
         )
     return registry
+
+
+def _normalize_optional_string(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized_value = value.strip()
+    return normalized_value or None
 
 
 __all__ = [

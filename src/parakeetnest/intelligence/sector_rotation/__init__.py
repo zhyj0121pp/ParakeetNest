@@ -1,5 +1,8 @@
 """Provider-neutral Sector Rotation package."""
 
+from parakeetnest.intelligence.sector_rotation.calculator import (
+    SectorRotationCalculator,
+)
 from parakeetnest.intelligence.sector_rotation.models import (
     MomentumSignal,
     RelativeStrengthSignal,
@@ -21,10 +24,10 @@ __all__ = [
     "RelativeStrengthSignal",
     "SectorIdentifier",
     "SectorPerformance",
+    "SectorRotationCalculator",
     "SectorRotationClassification",
     "SectorRotationProvider",
     "SectorRotationService",
     "SectorRotationSignal",
     "SectorRotationSnapshot",
 ]
-

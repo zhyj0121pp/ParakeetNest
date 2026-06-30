@@ -9,6 +9,7 @@ from parakeetnest.macro.models import (
     MacroSnapshot,
     MacroUnit,
 )
+from parakeetnest.macro.mock import MockMacroDataProvider
 from parakeetnest.macro.provider import MacroDataProvider
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "MacroSeries",
     "MacroSnapshot",
     "MacroUnit",
+    "MockMacroDataProvider",
 ]

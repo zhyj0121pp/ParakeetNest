@@ -18,6 +18,8 @@ and lower-level design notes.
 - [Context Layer](architecture/context-layer.md)
 - [Data Source Layer](architecture/data-source-layer.md)
 - [Market Data Layer](architecture/market-data-layer.md)
+- [Architecture Milestone Review v1.0](architecture/architecture-milestone-review-v1.0.md)
+- [Architecture Milestone Review v0.9](architecture/milestone-review-v0.9.md)
 - [Architecture Milestone Review v0.8](architecture/milestone-review-v0.8.md)
 - [Architecture Milestone Review v0.7](architecture/milestone-review-v0.7.md)
 - [Architecture Milestone Review v0.6](architecture/milestone-review-v0.6.md)
@@ -37,6 +39,8 @@ epics have dedicated detail pages:
 - [Epic 006: News Layer](epics/epic-006-news-layer.md)
 - [Epic 007: SEC Filing Layer](epics/epic-007-sec-filing-layer.md)
 - [Epic 008: Financial Statement Layer](epics/epic-008-financial-statement-layer.md)
+- [Epic 009: Valuation Layer](epics/epic-009-valuation-layer.md)
+- [Epic 010: Macro Layer](epics/epic-10-macro-layer.md)
 
 ## How Docs Are Organized
 

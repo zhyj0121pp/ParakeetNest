@@ -11,8 +11,8 @@
 | [Epic 007](epic-007-sec-filing-layer.md) | SEC Filing Layer | Completed |
 | [Epic 008](epic-008-financial-statement-layer.md) | Financial Statement Layer | Completed |
 | [Epic 009](epic-009-valuation-layer.md) | Valuation Layer | Completed |
-| Epic 010 | Economic Data / Macro Layer | Planned |
-| Epic 011 | Insider Trading Layer or Calendar Layer | Planned |
+| [Epic 010](epic-10-macro-layer.md) | Macro Layer ✅ | Completed |
+| Epic 011 | Economic Regime Layer | Planned |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

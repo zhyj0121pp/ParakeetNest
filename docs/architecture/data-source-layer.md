@@ -75,10 +75,11 @@ Current examples:
 - `SecFilingProvider` normalizes filing metadata and content requests.
 - `FinancialStatementProvider` normalizes income statements, balance sheets,
   cash flow statements, and fiscal periods.
+- `MacroDataProvider` normalizes economic indicators, observations, series, and
+  snapshots.
 
 Future examples:
 
-- `MacroProvider` for economic indicators.
 - `PortfolioProvider` for account and position snapshots.
 - `CalendarProvider` for earnings, dividends, and events.
 
@@ -135,6 +136,7 @@ Current examples:
 - `NewsService`
 - `SecFilingService`
 - `FinancialStatementService`
+- `MacroDataService`
 
 ## Context Provider Pattern
 
@@ -219,6 +221,18 @@ ContextRequest.symbols
   -> MeetingContext.financials
 ```
 
+Macro data follows the same flow:
+
+```text
+ContextRequest.include_macro
+  -> MacroContextProvider
+  -> MacroDataService
+  -> MacroDataProvider
+  -> MockMacroDataProvider
+  -> MacroSnapshot
+  -> MeetingContext.macro
+```
+
 ## Dependency Direction
 
 Dependencies point inward from concrete infrastructure toward provider-neutral
@@ -278,9 +292,9 @@ Completed provider-backed data families:
 - News Layer: mock and Yahoo Finance news providers.
 - SEC Filing Layer: mock and SEC EDGAR providers.
 - Financial Statement Layer: mock provider.
+- Macro Layer: mock provider.
 
 Planned provider-backed data families:
 
-- Macro Layer.
 - Portfolio Layer.
 - Calendar Layer.

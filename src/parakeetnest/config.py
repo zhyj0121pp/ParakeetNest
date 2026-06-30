@@ -41,6 +41,13 @@ class SecFilingConfig:
 
 
 @dataclass(frozen=True)
+class FinancialStatementConfig:
+    """Financial statement provider configuration."""
+
+    provider: str = "mock"
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Application container configuration."""
 
@@ -53,6 +60,9 @@ class AppConfig:
     news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)
     sec_filings: SecFilingConfig | Mapping[str, str | None] = field(
         default_factory=SecFilingConfig
+    )
+    financials: FinancialStatementConfig | Mapping[str, str] = field(
+        default_factory=FinancialStatementConfig
     )
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
@@ -78,6 +88,12 @@ class AppConfig:
                 self,
                 "sec_filings",
                 SecFilingConfig(**dict(self.sec_filings)),
+            )
+        if isinstance(self.financials, Mapping):
+            object.__setattr__(
+                self,
+                "financials",
+                FinancialStatementConfig(**dict(self.financials)),
             )
 
     def resolved_database_url(self) -> str:

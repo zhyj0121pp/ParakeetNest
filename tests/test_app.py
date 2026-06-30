@@ -8,6 +8,7 @@ from parakeetnest.app import ParakeetNestApp, create_app, create_test_app
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
 from parakeetnest.exceptions import ConfigurationError
+from parakeetnest.financials import MockFinancialStatementProvider
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.news import NewsQuery
 from parakeetnest.sec import EdgarSecFilingProvider, MockSecFilingProvider
@@ -163,6 +164,34 @@ def test_create_app_wires_sec_edgar_provider_when_configured(tmp_path: Path) -> 
         app.close()
 
     assert isinstance(provider, EdgarSecFilingProvider)
+
+
+def test_create_app_wires_financial_statement_context_provider(
+    tmp_path: Path,
+) -> None:
+    """The context pipeline should receive financials through the service."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        provider = app.financial_statement_service._provider_source
+        context = app.context_service.build_context(
+            ContextRequest(question="Review AMD.", symbols=("AMD",))
+        )
+    finally:
+        app.close()
+
+    registrations = {
+        registration.provider_id
+        for registration in app.context_provider_registry.list_registrations()
+    }
+    assert "financial_statements" in registrations
+    assert isinstance(provider, MockFinancialStatementProvider)
+    assert context.financials is not None
+    assert context.financials.source == "financial_statements"
+    assert [item.period_type for item in context.financials.items] == [
+        "annual",
+        "quarterly",
+        "ttm",
+    ]
 
 
 def test_create_app_rejects_sec_edgar_without_user_agent(tmp_path: Path) -> None:

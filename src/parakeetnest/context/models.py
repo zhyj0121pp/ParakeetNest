@@ -90,6 +90,37 @@ class FilingSnapshot:
 
 
 @dataclass(frozen=True)
+class FinancialStatementItem:
+    """Financial statement context for one symbol and fiscal period."""
+
+    symbol: str
+    period_type: str
+    source: str
+    revenue: float | None = None
+    gross_profit: float | None = None
+    operating_income: float | None = None
+    net_income: float | None = None
+    eps: float | None = None
+    cash: float | None = None
+    total_debt: float | None = None
+    total_equity: float | None = None
+    operating_cash_flow: float | None = None
+    free_cash_flow: float | None = None
+    fiscal_year: int | None = None
+    fiscal_quarter: int | None = None
+    currency: str | None = None
+
+
+@dataclass(frozen=True)
+class FinancialStatementSnapshot:
+    """Financial statements available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    items: tuple[FinancialStatementItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class PortfolioPosition:
     """One portfolio position relevant to the requested context."""
 
@@ -154,6 +185,7 @@ class MeetingContext:
     market: MarketSnapshot | None = None
     news: NewsContext | None = None
     filings: FilingSnapshot | None = None
+    financials: FinancialStatementSnapshot | None = None
     portfolio: PortfolioSnapshot | None = None
     macro: MacroSnapshot | None = None
     knowledge_base: KnowledgeBaseSnapshot | None = None

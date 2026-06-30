@@ -8,6 +8,7 @@ from typing import Any
 
 from parakeetnest.context.models import (
     FilingSnapshot,
+    FinancialStatementSnapshot,
     KnowledgeBaseSnapshot,
     MacroSnapshot,
     MarketSnapshot,
@@ -29,6 +30,8 @@ class MeetingContextPromptRenderer:
                 "## Market\n" + self._render_market(context.market),
                 "## News\n" + self._render_news(context.news),
                 "## Filings\n" + self._render_filings(context.filings),
+                "## Financial Statements\n"
+                + self._render_financials(context.financials),
                 "## Portfolio\n" + self._render_portfolio(context.portfolio),
                 "## Macro\n" + self._render_macro(context.macro),
                 "## Knowledge Base\n"
@@ -160,6 +163,45 @@ class MeetingContextPromptRenderer:
                 )
             )
             for item in filings.items
+        )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _render_financials(
+        financials: FinancialStatementSnapshot | None,
+    ) -> str:
+        if financials is None or not financials.items:
+            return "- No financial statements available."
+        lines = [
+            MeetingContextPromptRenderer._render_snapshot_header(
+                financials.source, financials.fetched_at
+            )
+        ]
+        lines.extend(
+            "- "
+            + item.symbol
+            + " "
+            + item.period_type
+            + ": "
+            + MeetingContextPromptRenderer._format_fields(
+                (
+                    ("revenue", item.revenue),
+                    ("gross_profit", item.gross_profit),
+                    ("operating_income", item.operating_income),
+                    ("net_income", item.net_income),
+                    ("eps", item.eps),
+                    ("cash", item.cash),
+                    ("total_debt", item.total_debt),
+                    ("total_equity", item.total_equity),
+                    ("operating_cash_flow", item.operating_cash_flow),
+                    ("free_cash_flow", item.free_cash_flow),
+                    ("fiscal_year", item.fiscal_year),
+                    ("fiscal_quarter", item.fiscal_quarter),
+                    ("currency", item.currency),
+                    ("source", item.source),
+                )
+            )
+            for item in financials.items
         )
         return "\n".join(lines)
 

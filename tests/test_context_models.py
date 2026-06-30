@@ -10,6 +10,8 @@ from parakeetnest.context import (
     ContextRequest,
     FilingItem,
     FilingSnapshot,
+    FinancialStatementItem,
+    FinancialStatementSnapshot,
     KnowledgeBaseSnapshot,
     MacroSnapshot,
     MarketDataPoint,
@@ -81,6 +83,29 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             ),
         ),
     )
+    financials = FinancialStatementSnapshot(
+        source="mock_financials",
+        fetched_at=fetched_at,
+        items=(
+            FinancialStatementItem(
+                symbol="AMD",
+                period_type="annual",
+                source="mock",
+                revenue=100.0,
+                gross_profit=60.0,
+                operating_income=30.0,
+                net_income=20.0,
+                eps=2.5,
+                cash=10.0,
+                total_debt=5.0,
+                total_equity=50.0,
+                operating_cash_flow=25.0,
+                free_cash_flow=18.0,
+                fiscal_year=2026,
+                currency="USD",
+            ),
+        ),
+    )
     portfolio = PortfolioSnapshot(
         source="mock_portfolio",
         fetched_at=fetched_at,
@@ -111,6 +136,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             "mock_market",
             "news",
             "mock_filings",
+            "mock_financials",
             "mock_portfolio",
             "mock_macro",
             "knowledge_base",
@@ -124,6 +150,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         market=market,
         news=news,
         filings=filings,
+        financials=financials,
         portfolio=portfolio,
         macro=macro,
         knowledge_base=knowledge_base,
@@ -133,6 +160,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
     assert context.market == market
     assert context.news == news
     assert context.filings == filings
+    assert context.financials == financials
     assert context.portfolio == portfolio
     assert context.macro == macro
     assert context.knowledge_base == knowledge_base
@@ -175,4 +203,5 @@ def test_snapshot_collection_defaults_are_independent_tuples() -> None:
     assert NewsContext(source="empty").items == ()
     assert NewsSnapshot(source="empty").items == ()
     assert FilingSnapshot(source="empty").items == ()
+    assert FinancialStatementSnapshot(source="empty").items == ()
     assert PortfolioSnapshot(source="empty").positions == ()

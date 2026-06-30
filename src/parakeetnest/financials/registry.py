@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from parakeetnest.financials.mock import MockFinancialStatementProvider
 from parakeetnest.financials.provider import FinancialStatementProvider
 
 
@@ -75,4 +76,15 @@ class FinancialStatementProviderRegistry:
         return name.strip().lower()
 
 
-__all__ = ["FinancialStatementProviderRegistry"]
+def create_financial_statement_provider_registry() -> FinancialStatementProviderRegistry:
+    """Create the default financial statement provider registry."""
+    return FinancialStatementProviderRegistry(
+        providers=[MockFinancialStatementProvider()],
+        default_provider="mock",
+    )
+
+
+__all__ = [
+    "FinancialStatementProviderRegistry",
+    "create_financial_statement_provider_registry",
+]

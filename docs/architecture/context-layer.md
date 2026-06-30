@@ -70,15 +70,17 @@ where the application cannot safely continue.
 - `generated_at` starts from `ContextRequest.as_of`; if absent, the first
   provider metadata timestamp can fill it.
 
-Current sections are `market`, `news`, `filings`, `portfolio`, `macro`, and
-`knowledge_base`.
+Current sections are `market`, `news`, `filings`, `financials`, `portfolio`,
+`macro`, and `knowledge_base`.
 
 ## Provider IDs
 
-The app currently registers these mock Context Layer provider IDs:
+The app currently registers these Context Layer provider IDs:
 
-- `mock_market`
-- `mock_news`
+- `market_data`
+- `news`
+- `sec_filings`
+- `financial_statements`
 - `mock_portfolio`
 - `mock_macro`
 - `mock_knowledge_base`
@@ -100,8 +102,9 @@ added.
 
 ## How to Add a New Provider
 
-1. Add a provider class under `src/parakeetnest/context/providers/` that
-   implements the `ContextProvider` protocol.
+1. Add a provider class under the source layer or
+   `src/parakeetnest/context/providers/` that implements the `ContextProvider`
+   protocol.
 2. Give it a stable `provider_name` and return that name in
    `ContextProviderResult.provider_name`.
 3. Implement `supports(request)` around request shape and feature flags such as
@@ -112,3 +115,18 @@ added.
    provider ID.
 6. Add focused tests for support behavior, partial context contents, merge
    behavior, and config enable/disable behavior.
+
+## Financial Statements
+
+`FinancialStatementContextProvider` lives in
+`src/parakeetnest/financials/context.py` because it adapts the Financial
+Statement Layer into the Context Pipeline. It requests provider-neutral
+financial statement bundles through `FinancialStatementService` for annual,
+quarterly, and trailing-twelve-month periods, then maps those bundles into
+Context Layer `FinancialStatementItem` objects.
+
+The context output is intentionally descriptive only. It includes revenue, gross
+profit, operating income, net income, EPS, cash, total debt, total equity,
+operating cash flow, free cash flow, fiscal period metadata, currency, and
+source. It does not expose provider-specific models, calculate ratios, or make
+investment judgments.

@@ -16,6 +16,7 @@ from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
 from parakeetnest.config import AppConfig
 from parakeetnest.context.providers import (
+    FinancialStatementContextProvider,
     KnowledgeBaseContextProvider,
     MacroContextProvider,
     MarketContextProvider,
@@ -32,6 +33,10 @@ from parakeetnest.database import (
     initialize_database,
 )
 from parakeetnest.exceptions import ConfigurationError
+from parakeetnest.financials import (
+    FinancialStatementService,
+    create_financial_statement_provider_registry,
+)
 from parakeetnest.llm import LLMProvider, MockLLMProvider
 from parakeetnest.market_data import (
     MarketDataService,
@@ -53,6 +58,7 @@ class ParakeetNestApp:
     context_service: ContextService
     news_service: NewsService
     sec_filing_service: SecFilingService
+    financial_statement_service: FinancialStatementService
     llm_provider: LLMProvider
     agent_runtime: AgentRuntime
     committee_orchestrator: CommitteeMeetingOrchestrator
@@ -84,10 +90,12 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
     news_service = _create_news_service(resolved_config)
     sec_filing_service = _create_sec_filing_service(resolved_config)
+    financial_statement_service = _create_financial_statement_service(resolved_config)
     context_provider_registry = _create_context_provider_registry(
         resolved_config,
         news_service,
         sec_filing_service,
+        financial_statement_service,
     )
     context_service = ContextService(
         providers=context_provider_registry.resolve_enabled_providers()
@@ -122,6 +130,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         context_service=context_service,
         news_service=news_service,
         sec_filing_service=sec_filing_service,
+        financial_statement_service=financial_statement_service,
         llm_provider=llm_provider,
         agent_runtime=agent_runtime,
         committee_orchestrator=committee_orchestrator,
@@ -171,6 +180,16 @@ def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
     return SecFilingService(sec_filing_provider)
 
 
+def _create_financial_statement_service(config: AppConfig) -> FinancialStatementService:
+    financial_statement_provider_registry = (
+        create_financial_statement_provider_registry()
+    )
+    financial_statement_provider = financial_statement_provider_registry.get_provider(
+        config.financials.provider
+    )
+    return FinancialStatementService(financial_statement_provider)
+
+
 def _normalize_optional_string(value: str | None) -> str | None:
     if value is None:
         return None
@@ -182,6 +201,7 @@ def _create_context_provider_registry(
     config: AppConfig,
     news_service: NewsService,
     sec_filing_service: SecFilingService,
+    financial_statement_service: FinancialStatementService,
 ) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
     market_data_provider_registry = create_market_data_provider_registry()
@@ -192,6 +212,10 @@ def _create_context_provider_registry(
     registry.register("market_data", MarketContextProvider(market_data_service))
     registry.register("news", NewsContextProvider(news_service))
     registry.register("sec_filings", SecFilingContextProvider(sec_filing_service))
+    registry.register(
+        "financial_statements",
+        FinancialStatementContextProvider(financial_statement_service),
+    )
     registry.register("mock_portfolio", PortfolioContextProvider())
     registry.register("mock_macro", MacroContextProvider())
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())

@@ -11,6 +11,7 @@ from parakeetnest.intelligence.momentum.provider import (
     MomentumInputs,
     MomentumProvider,
 )
+from parakeetnest.intelligence.momentum.service import MomentumService
 
 __all__ = [
     "MockMomentumProvider",
@@ -18,6 +19,7 @@ __all__ = [
     "MomentumInputs",
     "MomentumProvider",
     "MomentumRegime",
+    "MomentumService",
     "MomentumSnapshot",
     "ReversalRisk",
 ]

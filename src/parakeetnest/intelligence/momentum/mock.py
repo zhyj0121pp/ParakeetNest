@@ -1,4 +1,9 @@
-"""Deterministic mock provider for Momentum Layer intelligence."""
+"""Deterministic mock provider for Momentum Layer intelligence.
+
+The mock provider is a network-free test and local-development adapter. It
+implements the same provider contract as future live adapters while returning
+stable provider-neutral inputs.
+"""
 
 from __future__ import annotations
 
@@ -8,9 +13,10 @@ from parakeetnest.intelligence.momentum.provider import MomentumInputs
 
 
 class MockMomentumProvider:
-    """Deterministic network-free provider for tests and local development."""
+    """Return injected or default momentum inputs without external I/O."""
 
     def __init__(self, inputs: dict[str, MomentumInputs] | None = None) -> None:
+        """Initialize the provider with optional symbol-keyed input fixtures."""
         self._inputs = {
             symbol.strip().upper(): value for symbol, value in (inputs or {}).items()
         }

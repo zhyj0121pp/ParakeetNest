@@ -1,4 +1,8 @@
-"""Deterministic momentum calculations."""
+"""Deterministic momentum scoring and classification.
+
+The calculator owns all Momentum Layer business rules and depends only on
+provider-neutral Momentum Layer models.
+"""
 
 from __future__ import annotations
 
@@ -11,10 +15,10 @@ from parakeetnest.intelligence.momentum.provider import MomentumInputs
 
 
 class MomentumCalculator:
-    """Calculate momentum snapshots from normalized momentum inputs."""
+    """Calculate momentum snapshots from provider-neutral inputs."""
 
     def calculate(self, inputs: MomentumInputs) -> MomentumSnapshot:
-        """Return a deterministic momentum snapshot."""
+        """Return a deterministic snapshot with score, regime, and evidence."""
         momentum_score = self.calculate_score(inputs)
         momentum_regime = self.classify_momentum(momentum_score)
         reversal_risk = self.classify_reversal_risk(inputs)
@@ -61,7 +65,7 @@ class MomentumCalculator:
 
     @classmethod
     def classify_reversal_risk(cls, inputs: MomentumInputs) -> ReversalRisk:
-        """Classify reversal risk from short, medium, and long-term trends."""
+        """Classify reversal risk from short-, medium-, and long-term trends."""
         short_term_extension = inputs.price_change_1m - (inputs.price_change_3m / 3)
         medium_term_trend = inputs.price_change_3m
         long_term_trend = inputs.price_change_6m

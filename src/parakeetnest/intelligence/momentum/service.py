@@ -1,4 +1,9 @@
-"""Service boundary for provider-neutral Momentum Layer intelligence."""
+"""Service boundary for provider-neutral Momentum Layer intelligence.
+
+The service is orchestration only: it asks an injected provider for raw inputs,
+passes those inputs to an injected calculator, and returns the calculator's
+snapshot unchanged.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +15,14 @@ from parakeetnest.intelligence.momentum.provider import MomentumProvider
 
 
 class MomentumService:
-    """Public service layer for momentum snapshots."""
+    """Public application boundary for momentum snapshots."""
 
     def __init__(
         self,
         provider: MomentumProvider,
         calculator: MomentumCalculator,
     ) -> None:
-        """Initialize the service with provider and calculator abstractions."""
+        """Initialize the service with explicit provider and calculator dependencies."""
         self._provider = provider
         self._calculator = calculator
 
@@ -27,7 +32,7 @@ class MomentumService:
         *,
         as_of: date | None = None,
     ) -> MomentumSnapshot:
-        """Return a provider-neutral momentum snapshot."""
+        """Return a provider-neutral momentum snapshot for the requested symbol."""
         inputs = self._provider.get_momentum_inputs(symbol, as_of=as_of)
         return self._calculator.calculate(inputs)
 

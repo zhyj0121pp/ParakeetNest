@@ -14,6 +14,9 @@
 | [Epic 010](epic-010-macro-layer.md) | Macro Layer | Completed |
 | [Epic 011](epic-011-economic-regime.md) | Economic Regime Layer | Completed |
 | [Epic 012](epic-012-sector-rotation.md) | Sector Rotation Layer | Completed |
+| [Epic 013](epic-013-risk-layer.md) | Risk Layer | Completed |
+| [Epic 014](epic-014-market-breadth.md) | Market Breadth Layer | Completed |
+| [Epic 015](epic-015-momentum-layer.md) | Momentum Layer | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

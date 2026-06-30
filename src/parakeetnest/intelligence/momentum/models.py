@@ -1,4 +1,10 @@
-"""Provider-neutral Momentum Layer domain models."""
+"""Provider-neutral Momentum Layer domain models.
+
+The models in this module are immutable research snapshots. They intentionally
+avoid provider payloads, API credentials, persistence concerns, recommendation
+actions, and trading behavior so the Momentum Layer can be reused with any data
+adapter that satisfies the provider contract.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +14,7 @@ from enum import Enum
 
 
 class MomentumRegime(str, Enum):
-    """Provider-independent momentum regime classifications."""
+    """Provider-independent momentum regimes derived from normalized scores."""
 
     STRONG_UPTREND = "strong_uptrend"
     UPTREND = "uptrend"
@@ -18,7 +24,7 @@ class MomentumRegime(str, Enum):
 
 
 class ReversalRisk(str, Enum):
-    """Provider-neutral reversal risk levels."""
+    """Provider-neutral risk levels for short-term momentum reversals."""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -27,7 +33,12 @@ class ReversalRisk(str, Enum):
 
 @dataclass(frozen=True)
 class MomentumSnapshot:
-    """Point-in-time provider-neutral momentum snapshot."""
+    """Point-in-time momentum assessment for one investment symbol.
+
+    Raw price-change, relative-strength, and trend-strength fields are preserved
+    beside calculator-owned outputs so callers can inspect both the evidence and
+    the deterministic classification without depending on a concrete provider.
+    """
 
     symbol: str
     as_of: date

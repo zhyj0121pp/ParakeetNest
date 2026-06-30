@@ -1,4 +1,9 @@
-"""Provider abstractions for Momentum Layer intelligence."""
+"""Provider abstractions for Momentum Layer intelligence.
+
+Providers own data access and normalization only. They return raw
+provider-neutral inputs that the deterministic calculator can score without
+knowing where the data came from.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +14,7 @@ from typing import Protocol
 
 @dataclass(frozen=True)
 class MomentumInputs:
-    """Raw provider-neutral momentum inputs for a single symbol."""
+    """Raw normalized momentum facts for a single symbol and date."""
 
     symbol: str
     as_of: date
@@ -30,7 +35,7 @@ class MomentumInputs:
 
 
 class MomentumProvider(Protocol):
-    """Provider-neutral contract for raw momentum inputs."""
+    """Provider-neutral contract for retrieving raw momentum inputs."""
 
     def get_momentum_inputs(
         self,
@@ -38,7 +43,7 @@ class MomentumProvider(Protocol):
         *,
         as_of: date | None = None,
     ) -> MomentumInputs:
-        """Return raw momentum inputs for a symbol."""
+        """Return raw momentum inputs for a symbol and optional date."""
 
 
 __all__ = ["MomentumInputs", "MomentumProvider"]

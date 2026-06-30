@@ -229,16 +229,20 @@ Tests remain network-free by default.
 
 ## Recommended Next Epics
 
-Epic 8 should add the Macro Layer using the same provider, registry, service,
-context provider, and bootstrap pattern. It should introduce provider-neutral
-indicator, series, release, and observation models.
+Epic 8 should add the Financial Statement Layer using the same provider,
+registry, service, context provider, and bootstrap pattern. It should introduce
+provider-neutral income statement, balance sheet, cash flow, period, metric, and
+source models so Xixi can compare reported fundamentals against market, news,
+and filing context.
 
-Epic 9 should add the Portfolio Layer as read-only context for accounts,
-positions, allocation, cash, exposure, and realized/unrealized risk. It must not
-introduce trading execution.
+Epic 9 should add the Economic Data / Macro Layer. It should introduce
+provider-neutral indicator, series, release, and observation models while
+keeping economic data fetching out of committee and context assembly internals.
 
-Epic 10 should add the Calendar Layer for earnings, dividends, SEC filing
-events, economic releases, and committee scheduling context.
+Epic 10 should be selected during planning between the Insider Trading Layer and
+the Calendar Layer. Insider trading would add provider-neutral ownership and
+transaction context; Calendar would add earnings, dividends, SEC filing events,
+economic releases, and committee scheduling context.
 
 Cross-cutting follow-up work should include a shared data-source error taxonomy,
 context provider error objects, optional source caching, and filing content

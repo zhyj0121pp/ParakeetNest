@@ -14,6 +14,10 @@ from parakeetnest.committee.agent_profiles.models import (
     AgentProfile,
     AgentRole,
 )
+from parakeetnest.committee.agent_profiles.prompt_builder import (
+    AgentPromptBuilder,
+    DefaultAgentPromptBuilder,
+)
 from parakeetnest.committee.agent_profiles.registry import (
     AgentRegistry,
     DuplicateAgentProfileError,
@@ -27,11 +31,13 @@ __all__ = [
     "AgentMemoryPolicy",
     "AgentOutputSchema",
     "AgentProfile",
+    "AgentPromptBuilder",
     "AgentRegistry",
     "AgentRole",
     "CHAIRMAN_PROFILE",
     "DEFAULT_AGENT_PROFILES",
     "DONGDONG_PROFILE",
+    "DefaultAgentPromptBuilder",
     "DuplicateAgentProfileError",
     "InMemoryAgentRegistry",
     "UnknownAgentProfileError",

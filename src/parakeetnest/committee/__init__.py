@@ -9,6 +9,7 @@ from parakeetnest.committee.agents import (
 from parakeetnest.committee.base import CommitteeAgent, CommitteeMember
 from parakeetnest.committee.chairman import Chairman
 from parakeetnest.committee.dongdong import Dongdong
+from parakeetnest.committee.judgment import CommitteeJudgmentService
 from parakeetnest.committee.models import (
     AgentResult,
     ChairmanSummary,
@@ -71,6 +72,7 @@ __all__ = [
     "ChairmanAgent",
     "ChairmanSummary",
     "CommitteeAgent",
+    "CommitteeJudgmentService",
     "CommitteeMemberProfile",
     "CommitteeMember",
     "CommitteeMeetingResult",

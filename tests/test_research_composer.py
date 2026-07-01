@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from parakeetnest.research import (
     DailyInvestmentReportComposer,
     InvestmentResearchReport,
+    ReportMode,
     ResearchCatalyst,
     ResearchRisk,
     ResearchTickerReport,
@@ -30,6 +31,7 @@ class FakeResearchService:
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
+        mode: ReportMode | str = ReportMode.MORNING,
     ) -> InvestmentResearchReport:
         self.calls.append(
             {
@@ -37,6 +39,7 @@ class FakeResearchService:
                 "account_id": account_id,
                 "as_of_date": as_of_date,
                 "generated_at": generated_at,
+                "mode": mode,
             }
         )
         return self.report
@@ -69,6 +72,7 @@ def test_composer_generates_report_and_renders_plain_text_body() -> None:
             "account_id": None,
             "as_of_date": None,
             "generated_at": None,
+            "mode": ReportMode.MORNING,
         }
     ]
     assert renderer.calls == [report]
@@ -87,6 +91,7 @@ def test_composer_passes_account_id_as_of_date_and_generated_at_through() -> Non
         account_id="main",
         as_of_date=AS_OF_DATE,
         generated_at=GENERATED_AT,
+        mode=ReportMode.EVENING,
     )
 
     assert returned_report is report
@@ -96,6 +101,7 @@ def test_composer_passes_account_id_as_of_date_and_generated_at_through() -> Non
             "account_id": "main",
             "as_of_date": AS_OF_DATE,
             "generated_at": GENERATED_AT,
+            "mode": ReportMode.EVENING,
         }
     ]
 
@@ -104,7 +110,8 @@ def test_default_composer_can_generate_and_render_report_body() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
     assert body.startswith("Header\n")
-    assert "Investment Research Report\n" in body
+    assert "Morning Investment Brief\n" in body
+    assert "Report Mode: morning" in body
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: TSLA" in body
     assert "Recommendations" not in body
@@ -114,12 +121,13 @@ def test_default_composer_can_generate_and_render_report_body() -> None:
 def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
-    assert "Market Summary" in body
-    assert "Portfolio Review" in body
-    assert "Watchlist Review" in body
-    assert "Dongdong's Opinion (Chief Growth Officer)" in body
-    assert "Xixi's Opinion (Chief Investment Analyst)" in body
-    assert "Youyou's Opinion (Chief Risk Officer)" in body
+    assert "Market Setup" in body
+    assert "Portfolio Watch" in body
+    assert "Watchlist Focus" in body
+    assert "Today’s Focus" in body
+    assert "Dongdong’s Opportunity View (Chief Growth Officer)" in body
+    assert "Xixi’s Fundamental View (Chief Investment Analyst)" in body
+    assert "Youyou’s Risk View (Chief Risk Officer)" in body
     assert "Committee Consensus" in body
     assert "Confidence" in body
     assert "Key Risks" in body

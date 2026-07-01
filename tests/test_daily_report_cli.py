@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from parakeetnest.cli import daily_report
+from parakeetnest.research import ReportMode
 
 
 class RecordingComposer:
@@ -21,12 +22,14 @@ class RecordingComposer:
         *,
         account_id: str | None = None,
         as_of_date: date | None = None,
+        mode: ReportMode | str = ReportMode.MORNING,
     ) -> str:
         self.calls.append(
             {
                 "tickers": tickers,
                 "account_id": account_id,
                 "as_of_date": as_of_date,
+                "mode": mode,
             }
         )
         return self.body
@@ -106,6 +109,61 @@ def test_default_output_path_works(
     assert (tmp_path / "reports" / "daily-report.md").read_text(
         encoding="utf-8"
     ) == "daily report body\n"
+    assert composer.calls[0]["mode"] is ReportMode.MORNING
+
+
+def test_cli_accepts_morning_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer()
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+    output_path = tmp_path / "morning.md"
+
+    exit_code = daily_report.main(
+        ["--mode", "morning", "--tickers", "NVDA", "--output", str(output_path)]
+    )
+
+    assert exit_code == 0
+    assert composer.calls[0]["mode"] is ReportMode.MORNING
+
+
+def test_cli_accepts_evening_mode(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer()
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+    output_path = tmp_path / "evening.md"
+
+    exit_code = daily_report.main(
+        ["--mode", "evening", "--tickers", "NVDA", "--output", str(output_path)]
+    )
+
+    assert exit_code == 0
+    assert composer.calls[0]["mode"] is ReportMode.EVENING
+
+
+def test_invalid_mode_returns_clear_error(
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        daily_report.main(["--mode", "midday", "--tickers", "NVDA"])
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "invalid choice: 'midday'" in captured.err
 
 
 def test_custom_output_path_works(
@@ -163,6 +221,7 @@ def test_ticker_arguments_are_passed_through(
             "tickers": ("NVDA", "TSLA", "AAPL"),
             "account_id": "main",
             "as_of_date": date(2026, 7, 1),
+            "mode": ReportMode.MORNING,
         }
     ]
 
@@ -197,10 +256,12 @@ def test_cli_runs_without_tickers_when_watchlist_seed_exists(tmp_path: Path) -> 
 
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
+    assert "Morning Investment Brief" in body
+    assert "Report Mode: morning" in body
     assert "Tickers: NVDA" in body
     assert "Factual Ticker Context" in body
     assert "Track AI accelerator demand. Theme: AI infrastructure." in body
-    assert "Watchlist Review" in body
+    assert "Watchlist Focus" in body
     assert "Watchlist review found 1 covered watchlist item(s)." in body
     assert "No watchlist service connected." not in body
 
@@ -238,6 +299,30 @@ def test_cli_explicit_tickers_override_watchlist_seed(tmp_path: Path) -> None:
     assert "Tickers: TSLA" in body
     assert "Tickers: NVDA" not in body
     assert "TSLA is included for research" in body
+
+
+def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
+    output_path = tmp_path / "evening-review.md"
+
+    exit_code = daily_report.main(
+        [
+            "--mode",
+            "evening",
+            "--tickers",
+            "NVDA",
+            "--database",
+            str(tmp_path / "daily.sqlite3"),
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    body = output_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert "Evening Investment Review" in body
+    assert "Report Mode: evening" in body
+    assert "What Changed" in body
+    assert "Tomorrow’s Focus" in body
 
 
 def test_watchlist_service_is_passed_into_daily_report_generation(
@@ -283,12 +368,13 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
 
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
-    assert "Market Summary" in body
-    assert "Portfolio Review" in body
-    assert "Watchlist Review" in body
-    assert "Dongdong's Opinion" in body
-    assert "Xixi's Opinion" in body
-    assert "Youyou's Opinion" in body
+    assert "Market Setup" in body
+    assert "Portfolio Watch" in body
+    assert "Watchlist Focus" in body
+    assert "Today’s Focus" in body
+    assert "Dongdong’s Opportunity View" in body
+    assert "Xixi’s Fundamental View" in body
+    assert "Youyou’s Risk View" in body
     assert "Committee Consensus" in body
     assert "Confidence" in body
     assert "Key Risks" in body

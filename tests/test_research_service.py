@@ -15,6 +15,7 @@ from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
 from parakeetnest.research import (
     InvestmentResearchService,
+    ReportMode,
 )
 from parakeetnest.watchlist import WatchlistInsight
 
@@ -153,7 +154,11 @@ def test_generate_report_supports_watchlist_only_tickers() -> None:
 def test_generate_report_uses_explicit_research_gap_when_no_context_connected() -> None:
     service = InvestmentResearchService()
 
-    report = service.generate_report(("TSLA",), generated_at=AS_OF)
+    report = service.generate_report(
+        ("TSLA",),
+        generated_at=AS_OF,
+        mode=ReportMode.EVENING,
+    )
 
     ticker_report = report.ticker_reports[0]
     assert ticker_report.summary == (
@@ -162,6 +167,8 @@ def test_generate_report_uses_explicit_research_gap_when_no_context_connected() 
     assert not hasattr(ticker_report, "recommendation")
     assert report.committee_consensus.final_action == "watch"
     assert report.committee_consensus.confidence == "low"
+    assert report.mode is ReportMode.EVENING
+    assert report.title == "Evening Investment Review"
     assert ticker_report.findings[0].source == "research_service"
     assert ticker_report.evidence_notes == ()
     assert "No portfolio service connected." in report.evidence_notes

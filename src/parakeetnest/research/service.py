@@ -16,6 +16,7 @@ from parakeetnest.committee.prompting import (
 )
 from parakeetnest.research.models import (
     InvestmentResearchReport,
+    ReportMode,
     ResearchCatalyst,
     ResearchFinding,
     ResearchRisk,
@@ -85,11 +86,13 @@ class InvestmentResearchService:
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
+        mode: ReportMode | str = ReportMode.MORNING,
     ) -> InvestmentResearchReport:
         """Generate a research report for the requested tickers."""
         normalized_tickers = _normalize_tickers(tickers)
         if not normalized_tickers:
             raise ValueError("at least one ticker is required")
+        report_mode = ReportMode.from_value(mode)
 
         portfolio_snapshot = self._get_portfolio_snapshot(account_id)
         dependency_notes = _dependency_notes(
@@ -145,6 +148,7 @@ class InvestmentResearchService:
         committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
         return InvestmentResearchReport(
             ticker_reports=ticker_reports,
+            mode=report_mode,
             generated_at=generated_at or datetime.now(UTC),
             market_summary=market_summary,
             portfolio_review=portfolio_review,

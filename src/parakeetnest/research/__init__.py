@@ -19,6 +19,7 @@ from parakeetnest.research.daily_delivery import (
 )
 from parakeetnest.research.models import (
     InvestmentResearchReport,
+    ReportMode,
     ResearchCatalyst,
     ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
@@ -56,6 +57,7 @@ __all__ = [
     "ReportDeliveryService",
     "ReportDeliveryStatus",
     "ReportRecipient",
+    "ReportMode",
     "ResearchCatalyst",
     "ResearchCommitteeConsensus",
     "ResearchCommitteeOpinion",

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from parakeetnest.app import create_app
 from parakeetnest.config import AppConfig, get_settings
-from parakeetnest.research import DailyInvestmentReportComposer
+from parakeetnest.research import DailyInvestmentReportComposer, ReportMode
 from parakeetnest.research.service import InvestmentResearchService
 
 
@@ -21,6 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m parakeetnest.cli.daily_report",
         description="Generate a local advisory daily investment report.",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=tuple(mode.value for mode in ReportMode),
+        default=ReportMode.MORNING.value,
+        help="Report mode. Defaults to morning.",
     )
     parser.add_argument(
         "--tickers",
@@ -63,6 +69,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Generate the daily investment report and write it to disk."""
     parser = build_parser()
     args = parser.parse_args(argv)
+    report_mode = ReportMode.from_value(args.mode)
     explicit_tickers = _normalize_tickers(args.tickers or ())
     if args.tickers is not None and not explicit_tickers:
         parser.error("at least one ticker is required")
@@ -79,6 +86,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_path=args.output,
             account_id=args.account_id,
             as_of_date=args.as_of_date,
+            mode=report_mode,
             composer=composer,
         )
     except ValueError as exc:
@@ -96,6 +104,7 @@ def write_daily_report(
     output_path: Path = DEFAULT_OUTPUT_PATH,
     account_id: str | None = None,
     as_of_date: date | None = None,
+    mode: ReportMode | str = ReportMode.MORNING,
     composer: DailyInvestmentReportComposer | None = None,
 ) -> Path:
     """Generate a daily report body and write it to a local file."""
@@ -104,6 +113,7 @@ def write_daily_report(
         tickers,
         account_id=account_id,
         as_of_date=as_of_date,
+        mode=mode,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(body, encoding="utf-8")

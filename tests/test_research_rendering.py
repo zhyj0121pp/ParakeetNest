@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from parakeetnest.research import (
     InvestmentResearchReport,
     InvestmentResearchReportRenderer,
+    ReportMode,
     ResearchCatalyst,
     ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
@@ -30,20 +31,21 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
     assert body.endswith("\n")
     assert "# " not in body
     assert body.startswith("Header\n")
-    assert "Investment Research Report\n" in body
+    assert "Morning Investment Brief\n" in body
+    assert "Report Mode: morning" in body
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: NVDA, AAPL" in body
-    assert "Market Summary" in body
-    assert "Portfolio Review" in body
-    assert "Watchlist Review" in body
-    assert "Executive Summary" in body
+    assert "Market Setup" in body
+    assert "Portfolio Watch" in body
+    assert "Watchlist Focus" in body
+    assert "Today’s Focus" in body
     assert "- Coverage: 2 ticker(s)." in body
     assert "- Committee view: HOLD (medium confidence)." in body
     assert "Factual Ticker Context" in body
     assert "Recommendations" not in body
     assert "Key Risks" in body
     assert "Upcoming Catalysts" in body
-    assert "Dongdong's Opinion (Chief Growth Officer)" in body
+    assert "Dongdong’s Opportunity View (Chief Growth Officer)" in body
     assert "- Stance: bullish" in body
     assert "- Reasoning: Upside is supported by identifiable catalysts." in body
     assert "- Evidence:" in body
@@ -66,6 +68,22 @@ def test_renderer_includes_committee_consensus_contract_details() -> None:
     assert "- Final Risk Posture: Balanced and advisory only." in body
     assert "- Rationale: Committee weighed evidence, risks, and catalysts." in body
     assert "Today's Suggested Actions" in body
+
+
+def test_renderer_supports_evening_review_mode() -> None:
+    report = _sample_report(mode=ReportMode.EVENING)
+    body = InvestmentResearchReportRenderer().render(report)
+
+    assert "Evening Investment Review\n" in body
+    assert "Report Mode: evening" in body
+    assert "Market Recap" in body
+    assert "Portfolio Review" in body
+    assert "Watchlist Review" in body
+    assert "What Changed" in body
+    assert "Dongdong’s Opportunity Review (Chief Growth Officer)" in body
+    assert "Tomorrow’s Focus" in body
+    assert "Suggested Follow-ups" in body
+    assert "Today's Suggested Actions" not in body
 
 
 def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
@@ -142,7 +160,9 @@ def test_renderer_handles_empty_report_gracefully() -> None:
     assert "    - No tickers requested." in body
 
 
-def _sample_report() -> InvestmentResearchReport:
+def _sample_report(
+    mode: ReportMode | str = ReportMode.MORNING,
+) -> InvestmentResearchReport:
     nvda = ResearchTickerReport(
         ticker="NVDA",
         summary="NVDA is both a portfolio holding and watchlist research item.",
@@ -181,6 +201,7 @@ def _sample_report() -> InvestmentResearchReport:
     )
     return InvestmentResearchReport(
         ticker_reports=(nvda, aapl),
+        mode=mode,
         generated_at=GENERATED_AT,
         committee_opinions=(
             ResearchCommitteeOpinion(

@@ -8,6 +8,7 @@ from typing import Any
 
 from parakeetnest.research.models import (
     InvestmentResearchReport,
+    ReportMode,
     ResearchCatalyst,
     ResearchFinding,
     ResearchRisk,
@@ -20,14 +21,28 @@ class InvestmentResearchReportRenderer:
 
     def render(self, report: InvestmentResearchReport) -> str:
         """Return a plain-text report suitable for an email body."""
-        sections = [
+        if report.mode is ReportMode.EVENING:
+            sections = self._render_evening_sections(report)
+        else:
+            sections = self._render_morning_sections(report)
+        return "\n\n".join(section.rstrip() for section in sections).rstrip() + "\n"
+
+    def _render_morning_sections(self, report: InvestmentResearchReport) -> list[str]:
+        return [
             self._render_header(report),
-            self._render_market_summary(report),
-            self._render_portfolio_review(report),
-            self._render_watchlist_review(report),
-            self._render_executive_summary(report),
+            self._render_market_summary(report, label="Market Setup"),
+            self._render_portfolio_review(report, label="Portfolio Watch"),
+            self._render_watchlist_review(report, label="Watchlist Focus"),
+            self._render_focus(report, label="Today’s Focus"),
             self._render_ticker_reports(report.ticker_reports),
-            self._render_committee_opinions(report),
+            self._render_committee_opinions(
+                report,
+                labels={
+                    "dongdong": "Dongdong’s Opportunity View",
+                    "xixi": "Xixi’s Fundamental View",
+                    "youyou": "Youyou’s Risk View",
+                },
+            ),
             self._render_committee_consensus(report),
             self._render_confidence(report),
             self._render_key_risks(report.ticker_reports),
@@ -35,7 +50,31 @@ class InvestmentResearchReportRenderer:
             self._render_todays_suggested_actions(report),
             self._render_evidence_notes(report),
         ]
-        return "\n\n".join(section.rstrip() for section in sections).rstrip() + "\n"
+
+    def _render_evening_sections(self, report: InvestmentResearchReport) -> list[str]:
+        sections = [
+            self._render_header(report),
+            self._render_market_summary(report, label="Market Recap"),
+            self._render_portfolio_review(report, label="Portfolio Review"),
+            self._render_watchlist_review(report, label="Watchlist Review"),
+            self._render_what_changed(report),
+            self._render_ticker_reports(report.ticker_reports),
+            self._render_committee_opinions(
+                report,
+                labels={
+                    "dongdong": "Dongdong’s Opportunity Review",
+                    "xixi": "Xixi’s Fundamental Review",
+                    "youyou": "Youyou’s Risk Review",
+                },
+            ),
+            self._render_committee_consensus(report),
+            self._render_confidence(report),
+            self._render_key_risks(report.ticker_reports),
+            self._render_tomorrows_focus(report),
+            self._render_suggested_followups(report),
+            self._render_evidence_notes(report),
+        ]
+        return sections
 
     def _render_header(self, report: InvestmentResearchReport) -> str:
         tickers = ", ".join(report.tickers()) or "None"
@@ -43,22 +82,38 @@ class InvestmentResearchReportRenderer:
             [
                 "Header",
                 report.title,
+                f"Report Mode: {report.mode.value}",
                 f"Generated At: {report.generated_at.isoformat()}",
                 f"Tickers: {tickers}",
             ]
         )
 
-    def _render_market_summary(self, report: InvestmentResearchReport) -> str:
-        return "\n".join(["Market Summary", f"- {report.market_summary}"])
+    def _render_market_summary(
+        self,
+        report: InvestmentResearchReport,
+        *,
+        label: str,
+    ) -> str:
+        return "\n".join([label, f"- {report.market_summary}"])
 
-    def _render_portfolio_review(self, report: InvestmentResearchReport) -> str:
-        return "\n".join(["Portfolio Review", f"- {report.portfolio_review}"])
+    def _render_portfolio_review(
+        self,
+        report: InvestmentResearchReport,
+        *,
+        label: str,
+    ) -> str:
+        return "\n".join([label, f"- {report.portfolio_review}"])
 
-    def _render_watchlist_review(self, report: InvestmentResearchReport) -> str:
-        return "\n".join(["Watchlist Review", f"- {report.watchlist_review}"])
+    def _render_watchlist_review(
+        self,
+        report: InvestmentResearchReport,
+        *,
+        label: str,
+    ) -> str:
+        return "\n".join([label, f"- {report.watchlist_review}"])
 
-    def _render_executive_summary(self, report: InvestmentResearchReport) -> str:
-        lines = ["Executive Summary"]
+    def _render_focus(self, report: InvestmentResearchReport, *, label: str) -> str:
+        lines = [label]
         if not report.ticker_reports:
             lines.append("- No ticker reports were generated.")
             return "\n".join(lines)
@@ -76,12 +131,32 @@ class InvestmentResearchReportRenderer:
             )
         return "\n".join(lines)
 
-    def _render_committee_opinions(self, report: InvestmentResearchReport) -> str:
-        lines = ["Committee Opinions"]
+    def _render_what_changed(self, report: InvestmentResearchReport) -> str:
+        lines = ["What Changed"]
+        if not report.ticker_reports:
+            lines.append("- No ticker reports were generated.")
+            return "\n".join(lines)
+        for ticker_report in report.ticker_reports:
+            lines.append(f"- {ticker_report.ticker}: {ticker_report.summary}")
+            for finding in ticker_report.findings:
+                lines.append(f"  - {finding.summary} (source: {finding.source})")
+        return "\n".join(lines)
+
+    def _render_committee_opinions(
+        self,
+        report: InvestmentResearchReport,
+        *,
+        labels: dict[str, str],
+    ) -> str:
+        lines = ["Committee Judgment"]
         for opinion in report.committee_opinions:
+            section_label = labels.get(
+                opinion.persona_id,
+                f"{opinion.display_name}'s Opinion",
+            )
             lines.extend(
                 [
-                    f"{opinion.display_name}'s Opinion ({opinion.role_title})",
+                    f"{section_label} ({opinion.role_title})",
                     f"- Stance: {opinion.stance}",
                     f"- Reasoning: {opinion.reasoning_summary}",
                     "- Evidence:",
@@ -164,6 +239,25 @@ class InvestmentResearchReportRenderer:
         )
         if len(lines) == 1:
             lines.append("- No suggested actions.")
+        return "\n".join(lines)
+
+    def _render_tomorrows_focus(self, report: InvestmentResearchReport) -> str:
+        lines = ["Tomorrow’s Focus"]
+        for ticker_report in report.ticker_reports:
+            lines.append(f"- {ticker_report.ticker}")
+            lines.extend(self._render_catalyst_items(ticker_report.catalysts))
+        if len(lines) == 1:
+            lines.append("- No tomorrow focus items.")
+        return "\n".join(lines)
+
+    def _render_suggested_followups(self, report: InvestmentResearchReport) -> str:
+        lines = ["Suggested Follow-ups"]
+        lines.extend(
+            f"- {action}"
+            for action in report.committee_consensus.todays_suggested_actions
+        )
+        if len(lines) == 1:
+            lines.append("- No suggested follow-ups.")
         return "\n".join(lines)
 
     def _render_evidence_notes(self, report: InvestmentResearchReport) -> str:

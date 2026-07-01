@@ -8,6 +8,7 @@ import pytest
 
 from parakeetnest.research import (
     InvestmentResearchReport,
+    ReportMode,
     ResearchCatalyst,
     ResearchCommitteeConsensus,
     ResearchRisk,
@@ -74,3 +75,29 @@ def test_report_generated_timestamp_becomes_timezone_aware() -> None:
 
     assert report.generated_at.tzinfo is not None
     assert report.tickers() == ("AAPL",)
+    assert report.mode is ReportMode.MORNING
+    assert report.title == "Morning Investment Brief"
+
+
+def test_report_mode_sets_evening_title() -> None:
+    report = InvestmentResearchReport(
+        ticker_reports=(
+            ResearchTickerReport(
+                ticker="NVDA",
+                summary="Watchlist item.",
+                bull_case=("AI demand.",),
+                bear_case=("Valuation risk.",),
+                risks=(ResearchRisk("Valuation risk."),),
+                catalysts=(ResearchCatalyst("Earnings update."),),
+            ),
+        ),
+        mode="evening",
+    )
+
+    assert report.mode is ReportMode.EVENING
+    assert report.title == "Evening Investment Review"
+
+
+def test_invalid_report_mode_returns_clear_error() -> None:
+    with pytest.raises(ValueError, match="report mode must be morning or evening"):
+        InvestmentResearchReport(ticker_reports=(), mode="midday")

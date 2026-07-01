@@ -4,6 +4,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from enum import Enum
+
+
+class ReportMode(str, Enum):
+    """Advisory daily report mode."""
+
+    MORNING = "morning"
+    EVENING = "evening"
+
+    @classmethod
+    def from_value(cls, value: "ReportMode | str") -> "ReportMode":
+        """Normalize a report mode value."""
+        if isinstance(value, cls):
+            return value
+        normalized = str(value).strip().lower()
+        try:
+            return cls(normalized)
+        except ValueError as exc:
+            raise ValueError("report mode must be morning or evening") from exc
+
+    @property
+    def title(self) -> str:
+        """Return the reader-facing report title."""
+        if self is ReportMode.EVENING:
+            return "Evening Investment Review"
+        return "Morning Investment Brief"
 
 
 @dataclass(frozen=True)
@@ -237,8 +263,9 @@ class InvestmentResearchReport:
     """Top-level daily investment research report payload."""
 
     ticker_reports: tuple[ResearchTickerReport, ...]
+    mode: ReportMode | str = ReportMode.MORNING
     generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    title: str = "Investment Research Report"
+    title: str | None = None
     market_summary: str = "Market context is limited to connected research inputs."
     portfolio_review: str = "Portfolio review depends on connected portfolio context."
     watchlist_review: str = "Watchlist review depends on connected watchlist context."
@@ -260,13 +287,19 @@ class InvestmentResearchReport:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "ticker_reports", tuple(self.ticker_reports))
+        mode = ReportMode.from_value(self.mode)
+        object.__setattr__(self, "mode", mode)
         if self.generated_at.tzinfo is None:
             object.__setattr__(
                 self,
                 "generated_at",
                 self.generated_at.replace(tzinfo=UTC),
             )
-        object.__setattr__(self, "title", _required_text(self.title, "title"))
+        object.__setattr__(
+            self,
+            "title",
+            _required_text(self.title or mode.title, "title"),
+        )
         object.__setattr__(
             self,
             "market_summary",
@@ -331,6 +364,7 @@ def _normalize_text_tuple(values: tuple[str, ...]) -> tuple[str, ...]:
 
 __all__ = [
     "InvestmentResearchReport",
+    "ReportMode",
     "ResearchCatalyst",
     "ResearchCommitteeConsensus",
     "ResearchCommitteeOpinion",

@@ -8,5 +8,5 @@ __pycache__/
 
 reports/
 
-data/
+data/*
 !data/.gitkeep

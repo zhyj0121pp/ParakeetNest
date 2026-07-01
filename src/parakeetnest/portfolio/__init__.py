@@ -16,6 +16,10 @@ from parakeetnest.portfolio.exceptions import (
     PortfolioProviderError,
 )
 from parakeetnest.portfolio.context_provider import PortfolioContextProvider
+from parakeetnest.portfolio.orchestrator import (
+    PortfolioCommitteeOrchestrator,
+    PortfolioCommitteeResult,
+)
 from parakeetnest.portfolio.agents import (
     MACRO_STRATEGIST_PROFILE,
     PORTFOLIO_COMMITTEE_AGENT_PROFILES,
@@ -38,6 +42,8 @@ __all__ = [
     "PortfolioAccountNotFoundError",
     "PortfolioAssetType",
     "PortfolioCashBalance",
+    "PortfolioCommitteeOrchestrator",
+    "PortfolioCommitteeResult",
     "PortfolioContextProvider",
     "PortfolioDataUnavailableError",
     "PortfolioExposure",

@@ -32,6 +32,7 @@ from parakeetnest.llm import (
     COMMITTEE_OPINION_SCHEMA,
     LLMProvider,
     OutputParser,
+    PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
 )
 from parakeetnest.llm.models import LLMResponse
 from parakeetnest.llm.models import JSONSchema
@@ -215,6 +216,9 @@ class AgentRuntime:
             model=self.model,
             response_schemas={
                 "committee_opinion": COMMITTEE_OPINION_SCHEMA,
+                "portfolio_committee_observation": (
+                    PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA
+                ),
                 "chairman_summary": CHAIRMAN_SUMMARY_SCHEMA,
             },
         )
@@ -223,6 +227,8 @@ class AgentRuntime:
     def _response_schema(profile: AgentProfile) -> JSONSchema:
         if profile.output_schema.schema_id == "chairman_summary":
             return CHAIRMAN_SUMMARY_SCHEMA
+        if profile.output_schema.schema_id == "portfolio_committee_observation":
+            return PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA
         return COMMITTEE_OPINION_SCHEMA
 
     @staticmethod

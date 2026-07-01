@@ -42,6 +42,33 @@ COMMITTEE_OPINION_SCHEMA: JSONSchema = {
     },
 }
 
+PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA: JSONSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "agent_name",
+        "role",
+        "portfolio_view",
+        "advisory_action",
+        "confidence",
+        "horizon",
+        "evidence",
+        "risks",
+        "catalysts",
+    ],
+    "properties": {
+        "agent_name": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "portfolio_view": {"type": "string", "minLength": 1},
+        "advisory_action": {"type": "string", "minLength": 1},
+        "confidence": {"type": "string", "enum": [level.value for level in ConfidenceLevel]},
+        "horizon": {"type": "string", "enum": [horizon.value for horizon in InvestmentHorizon]},
+        "evidence": {"type": "array", "items": EVIDENCE_ITEM_SCHEMA},
+        "risks": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "catalysts": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    },
+}
+
 CHAIRMAN_SUMMARY_SCHEMA: JSONSchema = {
     "type": "object",
     "additionalProperties": False,
@@ -103,6 +130,7 @@ DAILY_REPORT_SCHEMA: JSONSchema = {
 
 SCHEMAS: dict[str, JSONSchema] = {
     "CommitteeOpinion": COMMITTEE_OPINION_SCHEMA,
+    "PortfolioCommitteeObservation": PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
     "ChairmanSummary": CHAIRMAN_SUMMARY_SCHEMA,
     "DailyReport": DAILY_REPORT_SCHEMA,
 }

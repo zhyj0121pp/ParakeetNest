@@ -8,6 +8,9 @@ from parakeetnest.committee.memory.models import (
     MemorySearchResult,
     MemoryType,
 )
+from parakeetnest.committee.memory.in_memory_repository import (
+    InMemoryCommitteeMemoryRepository,
+)
 from parakeetnest.committee.memory.repository import (
     CommitteeMemoryRepository,
     validate_memory_id,
@@ -17,6 +20,7 @@ from parakeetnest.committee.memory.repository import (
 __all__ = [
     "CommitteeMemory",
     "CommitteeMemoryRepository",
+    "InMemoryCommitteeMemoryRepository",
     "MemoryImportance",
     "MemoryQuery",
     "MemoryScope",

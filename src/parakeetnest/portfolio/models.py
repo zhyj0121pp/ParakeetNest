@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
 
 
@@ -114,14 +115,24 @@ class PortfolioAllocation:
     """Portfolio allocation percentage for an asset, sector, or other bucket."""
 
     category: str
-    value: float
-    percent: float
+    value: Decimal
+    percent: Decimal
 
     def __post_init__(self) -> None:
         """Normalize allocation fields."""
         object.__setattr__(self, "category", self.category.strip())
-        object.__setattr__(self, "value", float(self.value))
-        object.__setattr__(self, "percent", float(self.percent))
+        object.__setattr__(self, "value", _decimal(self.value))
+        object.__setattr__(self, "percent", _decimal(self.percent))
+
+    @property
+    def label(self) -> str:
+        """Return the allocation label."""
+        return self.category
+
+    @property
+    def weight(self) -> Decimal:
+        """Return the allocation weight as a fraction of total equity."""
+        return self.percent
 
 
 @dataclass(frozen=True)
@@ -146,24 +157,54 @@ class PortfolioRiskSummary:
     concentration_score: float = 0.0
     largest_position_symbol: str | None = None
     largest_position_weight: float = 0.0
-    cash_weight: float = 0.0
+    cash_weight: Decimal = Decimal("0")
     notes: tuple[str, ...] = field(default_factory=tuple)
+    holding_count: int = 0
+    largest_holding_symbol: str | None = None
+    largest_holding_weight: Decimal = Decimal("0")
+    top_5_concentration: Decimal = Decimal("0")
+    sector_count: int = 0
 
     def __post_init__(self) -> None:
         """Normalize compact risk summary fields."""
         object.__setattr__(self, "concentration_score", float(self.concentration_score))
+        largest_symbol = self.largest_holding_symbol or self.largest_position_symbol
         if self.largest_position_symbol is not None:
             object.__setattr__(
                 self,
                 "largest_position_symbol",
                 self.largest_position_symbol.strip().upper() or None,
             )
+        if largest_symbol is not None:
+            object.__setattr__(
+                self,
+                "largest_position_symbol",
+                largest_symbol.strip().upper() or None,
+            )
+            object.__setattr__(
+                self,
+                "largest_holding_symbol",
+                largest_symbol.strip().upper() or None,
+            )
+        largest_weight = (
+            self.largest_holding_weight
+            if self.largest_holding_weight != Decimal("0")
+            else self.largest_position_weight
+        )
         object.__setattr__(
             self,
             "largest_position_weight",
-            float(self.largest_position_weight),
+            float(largest_weight),
         )
-        object.__setattr__(self, "cash_weight", float(self.cash_weight))
+        object.__setattr__(self, "largest_holding_weight", _decimal(largest_weight))
+        object.__setattr__(self, "cash_weight", _decimal(self.cash_weight))
+        object.__setattr__(
+            self,
+            "top_5_concentration",
+            _decimal(self.top_5_concentration),
+        )
+        object.__setattr__(self, "holding_count", int(self.holding_count))
+        object.__setattr__(self, "sector_count", int(self.sector_count))
         object.__setattr__(
             self,
             "notes",
@@ -253,6 +294,15 @@ def _safe_percent(numerator: float, denominator: float) -> float:
     if denominator == 0:
         return 0.0
     return float(numerator) / float(denominator)
+
+
+def _decimal(value: Decimal | float | int | str) -> Decimal:
+    """Return a Decimal while preserving explicit float inputs."""
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, float):
+        return Decimal.from_float(value)
+    return Decimal(str(value))
 
 
 __all__ = [

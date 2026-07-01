@@ -61,6 +61,24 @@ class MockLLMProvider(LLMProvider):
         response_schema = request.response_schema or {}
         required = set(response_schema.get("required", ()))
         evidence = [{"summary": "Deterministic mock response.", "source": "MockLLMProvider"}]
+        if "portfolio_view" in required:
+            return json.dumps(
+                {
+                    "agent_name": request.metadata.get("agent_name", "Mock Agent"),
+                    "role": request.metadata.get("role", "Portfolio Committee Member"),
+                    "portfolio_view": (
+                        "Mock portfolio committee observation generated for local "
+                        "development."
+                    ),
+                    "advisory_action": "monitor",
+                    "confidence": "medium",
+                    "horizon": "3_months",
+                    "evidence": evidence,
+                    "risks": ["Mock output is advisory research only."],
+                    "catalysts": ["Replace mock inputs with richer research context later."],
+                },
+                sort_keys=True,
+            )
         if "rationale" in required:
             return json.dumps(
                 {

@@ -7,8 +7,14 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from parakeetnest.app import create_app
 from parakeetnest.config import AppConfig
+
+
+def create_app(config: AppConfig | None = None):
+    """Lazily create the application container for the meeting CLI."""
+    from parakeetnest.app import create_app as create_parakeetnest_app
+
+    return create_parakeetnest_app(config)
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -6,6 +6,17 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from parakeetnest.committee.agent_profiles import (
+    AgentContextRequirement,
+    AgentMemoryPolicy,
+    AgentOutputSchema,
+    AgentProfile,
+    AgentRegistry,
+    AgentRole,
+    CommitteePromptInput,
+    DefaultAgentPromptBuilder,
+    create_default_agent_registry,
+)
 from parakeetnest.committee.base import CommitteeAgent
 from parakeetnest.committee.agent_runtime import (
     AgentRequest,
@@ -29,18 +40,23 @@ PROMPT_DIR = Path(__file__).parent / "prompts"
 
 @dataclass(frozen=True)
 class PromptRenderer:
-    """Render prompt markdown and meeting context into one model prompt."""
+    """Compatibility adapter for legacy committee prompt rendering."""
 
     prompt_dir: Path = PROMPT_DIR
     system_filename: str = "system.md"
     context_renderer: MeetingContextPromptRenderer = field(
         default_factory=MeetingContextPromptRenderer
     )
+    agent_registry: AgentRegistry = field(default_factory=create_default_agent_registry)
+    prompt_builder: DefaultAgentPromptBuilder = field(
+        default_factory=DefaultAgentPromptBuilder
+    )
 
     def render(self, agent: CommitteeAgent, context: MeetingContext) -> str:
         """Return the final prompt string for one agent turn."""
+        profile = self.resolve_profile(agent)
         system_prompt = self._load_markdown(self.system_filename)
-        agent_prompt = self._load_markdown(agent.prompt_filename)
+        agent_prompt = self._load_agent_prompt(profile)
         rendered_context = self.context_renderer.render(context.research_context)
         rendered_investment_intelligence_context = (
             context.rendered_investment_intelligence_context
@@ -48,34 +64,35 @@ class PromptRenderer:
         )
         previous_results = self._format_previous_results(context)
         original_request = self._format_original_request(context)
-        return "\n".join(
-            (
-                "System prompt:",
-                system_prompt,
-                "",
-                "Agent prompt:",
-                agent_prompt,
-                "",
-                f"Meeting ID: {context.meeting_id}",
-                f"Ticker: {context.ticker}",
-                f"Question: {context.question}",
-                "",
-                "Original user request:",
-                original_request,
-                "",
-                "Meeting context:",
-                rendered_context,
-                "",
-                "Investment intelligence context:",
-                rendered_investment_intelligence_context,
-                "",
-                "Previous agent results:",
-                previous_results,
+        return self.prompt_builder.build_committee_prompt(
+            CommitteePromptInput(
+                profile=profile,
+                system_prompt=system_prompt,
+                agent_prompt=agent_prompt,
+                meeting_id=context.meeting_id,
+                ticker=context.ticker,
+                question=context.question,
+                original_request=original_request,
+                meeting_context=rendered_context,
+                investment_intelligence_context=(
+                    rendered_investment_intelligence_context
+                ),
+                previous_agent_results=previous_results,
             )
         )
 
+    def resolve_profile(self, agent: CommitteeAgent) -> AgentProfile:
+        """Return the registry profile for an agent, with legacy stub support."""
+        agent_id = self._agent_id(agent)
+        if self.agent_registry.exists(agent_id):
+            return self.agent_registry.get(agent_id)
+        return self._legacy_profile(agent, agent_id)
+
     def _load_markdown(self, filename: str) -> str:
         return (self.prompt_dir / filename).read_text(encoding="utf-8").strip()
+
+    def _load_agent_prompt(self, profile: AgentProfile) -> str:
+        return self._load_markdown(Path(profile.prompt_source).name)
 
     @staticmethod
     def _format_previous_results(context: MeetingContext) -> str:
@@ -103,6 +120,35 @@ class PromptRenderer:
             lines.append(f"- Portfolio Context Notes: {request.portfolio_context_notes}")
         return "\n".join(lines)
 
+    @staticmethod
+    def _agent_id(agent: CommitteeAgent) -> str:
+        normalized = "".join(
+            character.lower() if character.isalnum() else "_"
+            for character in agent.name.strip()
+        )
+        return "_".join(part for part in normalized.split("_") if part)
+
+    @staticmethod
+    def _legacy_profile(agent: CommitteeAgent, agent_id: str) -> AgentProfile:
+        schema_id = (
+            "chairman_summary" if _is_chairman_agent(agent) else "committee_opinion"
+        )
+        role = (
+            AgentRole.CHAIRMAN
+            if _is_chairman_agent(agent)
+            else AgentRole.FUNDAMENTAL_ANALYST
+        )
+        return AgentProfile(
+            agent_id=agent_id,
+            name=agent.name,
+            role=role,
+            mandate=agent.role,
+            prompt_source=f"committee/prompts/{agent.prompt_filename}",
+            context_requirement=AgentContextRequirement(),
+            memory_policy=AgentMemoryPolicy(),
+            output_schema=AgentOutputSchema(schema_id=schema_id, required_fields=()),
+        )
+
 
 @dataclass
 class AgentRuntime:
@@ -116,11 +162,12 @@ class AgentRuntime:
 
     def run(self, agent: CommitteeAgent, context: MeetingContext) -> AgentResult:
         """Render, complete, parse, and return a persistable agent result."""
-        response_schema = self._response_schema(agent)
-        output_schema_id = self._output_schema_id(agent)
+        profile = self.prompt_renderer.resolve_profile(agent)
+        response_schema = self._response_schema(profile)
+        output_schema_id = profile.output_schema.schema_id
         request = AgentRequest(
             request_id=self._request_id(agent, context),
-            agent_id=self._agent_id(agent),
+            agent_id=profile.agent_id,
             prompt=self.prompt_renderer.render(agent, context),
             output_schema_id=output_schema_id,
             metadata={
@@ -162,16 +209,10 @@ class AgentRuntime:
         )
 
     @staticmethod
-    def _response_schema(agent: CommitteeAgent) -> JSONSchema:
-        if "chair" in agent.name.lower() or "chair" in agent.role.lower():
+    def _response_schema(profile: AgentProfile) -> JSONSchema:
+        if profile.output_schema.schema_id == "chairman_summary":
             return CHAIRMAN_SUMMARY_SCHEMA
         return COMMITTEE_OPINION_SCHEMA
-
-    @classmethod
-    def _output_schema_id(cls, agent: CommitteeAgent) -> str:
-        if cls._response_schema(agent) == CHAIRMAN_SUMMARY_SCHEMA:
-            return "chairman_summary"
-        return "committee_opinion"
 
     @staticmethod
     def _agent_id(agent: CommitteeAgent) -> str:
@@ -184,3 +225,7 @@ class AgentRuntime:
     @classmethod
     def _request_id(cls, agent: CommitteeAgent, context: MeetingContext) -> str:
         return f"meeting_{context.meeting_id}_{cls._agent_id(agent)}"
+
+
+def _is_chairman_agent(agent: CommitteeAgent) -> bool:
+    return "chair" in agent.name.lower() or "chair" in agent.role.lower()

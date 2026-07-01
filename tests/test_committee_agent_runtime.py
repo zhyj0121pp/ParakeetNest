@@ -5,9 +5,21 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from parakeetnest.committee import AgentResult, AgentRuntime, MeetingContext, PromptRenderer
+from parakeetnest.committee import (
+    AgentResult,
+    AgentRuntime,
+    ChairmanAgent,
+    DongdongAgent,
+    MeetingContext,
+    PromptRenderer,
+    XixiAgent,
+    YoyoAgent,
+)
+from parakeetnest.committee.agent_profiles import XIXI_PROFILE
+from parakeetnest.committee.runtime import PROMPT_DIR
 from parakeetnest.context import ContextRequest
 from parakeetnest.context import MeetingContext as ResearchMeetingContext
+from parakeetnest.context.rendering import MeetingContextPromptRenderer
 from parakeetnest.llm import (
     COMMITTEE_OPINION_SCHEMA,
     LLMRequest,
@@ -21,6 +33,26 @@ class RuntimeAgentStub:
     name: str = "Test Analyst"
     role: str = "Test Role"
     prompt_filename: str = "xixi.md"
+
+
+class TrackingAgentRegistry:
+    def __init__(self) -> None:
+        self.exists_calls: list[str] = []
+        self.get_calls: list[str] = []
+
+    def exists(self, agent_id: str) -> bool:
+        self.exists_calls.append(agent_id)
+        return agent_id == XIXI_PROFILE.agent_id
+
+    def get(self, agent_id: str):
+        self.get_calls.append(agent_id)
+        return XIXI_PROFILE
+
+    def list(self):
+        return (XIXI_PROFILE,)
+
+    def register(self, profile) -> None:
+        raise NotImplementedError
 
 
 def _context(*previous_agent_results: AgentResult) -> MeetingContext:
@@ -70,6 +102,51 @@ def _opinion() -> str:
     )
 
 
+def _legacy_prompt(agent: RuntimeAgentStub, context: MeetingContext) -> str:
+    system_prompt = (PROMPT_DIR / "system.md").read_text(encoding="utf-8").strip()
+    agent_prompt = (PROMPT_DIR / agent.prompt_filename).read_text(
+        encoding="utf-8"
+    ).strip()
+    rendered_context = MeetingContextPromptRenderer().render(context.research_context)
+    rendered_investment_intelligence_context = (
+        context.rendered_investment_intelligence_context
+        or "- No investment intelligence context available."
+    )
+    previous_results = (
+        "- None"
+        if not context.previous_agent_results
+        else "\n".join(
+            f"- {result.agent_name} ({result.role}): {result.content}"
+            for result in context.previous_agent_results
+        )
+    )
+    return "\n".join(
+        (
+            "System prompt:",
+            system_prompt,
+            "",
+            "Agent prompt:",
+            agent_prompt,
+            "",
+            f"Meeting ID: {context.meeting_id}",
+            f"Ticker: {context.ticker}",
+            f"Question: {context.question}",
+            "",
+            "Original user request:",
+            context.question,
+            "",
+            "Meeting context:",
+            rendered_context,
+            "",
+            "Investment intelligence context:",
+            rendered_investment_intelligence_context,
+            "",
+            "Previous agent results:",
+            previous_results,
+        )
+    )
+
+
 def test_prompt_renderer_includes_system_prompt() -> None:
     prompt = PromptRenderer().render(RuntimeAgentStub(), _context())
 
@@ -111,6 +188,28 @@ def test_prompt_renderer_includes_rendered_investment_intelligence_context() -> 
     assert "Investment intelligence context:" in prompt
     assert "# Investment Intelligence Context" in prompt
     assert "- Overall Level: moderate" in prompt
+
+
+def test_prompt_renderer_delegates_profile_lookup_to_agent_registry() -> None:
+    registry = TrackingAgentRegistry()
+
+    PromptRenderer(agent_registry=registry).render(XixiAgent(), _context())
+
+    assert registry.exists_calls == ["xixi"]
+    assert registry.get_calls == ["xixi"]
+
+
+def test_prompt_renderer_preserves_legacy_prompt_text_for_default_agents() -> None:
+    context = _context(
+        AgentResult(
+            agent_name="Dongdong",
+            role="Chief Opportunity Hunter",
+            content='{"viewpoint": "Margins may compress."}',
+        )
+    )
+
+    for agent in (XixiAgent(), DongdongAgent(), YoyoAgent(), ChairmanAgent()):
+        assert PromptRenderer().render(agent, context) == _legacy_prompt(agent, context)
 
 
 def test_agent_runtime_calls_llm_provider_once() -> None:

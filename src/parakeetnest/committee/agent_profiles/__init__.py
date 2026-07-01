@@ -16,6 +16,7 @@ from parakeetnest.committee.agent_profiles.models import (
 )
 from parakeetnest.committee.agent_profiles.prompt_builder import (
     AgentPromptBuilder,
+    CommitteePromptInput,
     DefaultAgentPromptBuilder,
 )
 from parakeetnest.committee.agent_profiles.registry import (
@@ -35,6 +36,7 @@ __all__ = [
     "AgentRegistry",
     "AgentRole",
     "CHAIRMAN_PROFILE",
+    "CommitteePromptInput",
     "DEFAULT_AGENT_PROFILES",
     "DONGDONG_PROFILE",
     "DefaultAgentPromptBuilder",

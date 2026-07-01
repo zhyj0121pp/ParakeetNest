@@ -2,16 +2,36 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from parakeetnest.committee.agent_profiles.models import AgentProfile
 
 
+@dataclass(frozen=True)
+class CommitteePromptInput:
+    """Prompt-ready data for one committee agent turn."""
+
+    profile: AgentProfile
+    system_prompt: str
+    agent_prompt: str
+    meeting_id: int
+    ticker: str
+    question: str
+    original_request: str
+    meeting_context: str
+    investment_intelligence_context: str
+    previous_agent_results: str
+
+
 class AgentPromptBuilder(Protocol):
-    """Build a provider-neutral system prompt from agent profile metadata."""
+    """Build provider-neutral prompts from agent profile metadata."""
 
     def build(self, profile: AgentProfile) -> str:
         """Return a plain string system prompt for the supplied profile."""
+
+    def build_committee_prompt(self, prompt_input: CommitteePromptInput) -> str:
+        """Return a plain string runtime prompt for one committee agent turn."""
 
 
 class DefaultAgentPromptBuilder:
@@ -54,5 +74,33 @@ class DefaultAgentPromptBuilder:
             return ("- None",)
         return tuple(f"- {value}" for value in values)
 
+    def build_committee_prompt(self, prompt_input: CommitteePromptInput) -> str:
+        """Return the compatibility committee runtime prompt for one agent turn."""
+        return "\n".join(
+            (
+                "System prompt:",
+                prompt_input.system_prompt,
+                "",
+                "Agent prompt:",
+                prompt_input.agent_prompt,
+                "",
+                f"Meeting ID: {prompt_input.meeting_id}",
+                f"Ticker: {prompt_input.ticker}",
+                f"Question: {prompt_input.question}",
+                "",
+                "Original user request:",
+                prompt_input.original_request,
+                "",
+                "Meeting context:",
+                prompt_input.meeting_context,
+                "",
+                "Investment intelligence context:",
+                prompt_input.investment_intelligence_context,
+                "",
+                "Previous agent results:",
+                prompt_input.previous_agent_results,
+            )
+        )
 
-__all__ = ["AgentPromptBuilder", "DefaultAgentPromptBuilder"]
+
+__all__ = ["AgentPromptBuilder", "CommitteePromptInput", "DefaultAgentPromptBuilder"]

@@ -90,10 +90,10 @@ class AgentResponse:
 
     def __post_init__(self) -> None:
         agent_id = _normalize_agent_id(self.agent_id)
-        content = self.content.strip()
+        content = self.content
         output_schema_id = self.output_schema_id.strip()
 
-        if not content:
+        if not content.strip():
             raise ValueError("content is required")
         if not output_schema_id:
             raise ValueError("output_schema_id is required")

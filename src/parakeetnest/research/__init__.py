@@ -13,6 +13,10 @@ from parakeetnest.research.delivery import (
     ReportDeliveryStatus,
     ReportRecipient,
 )
+from parakeetnest.research.daily_delivery import (
+    DailyReportDeliveryRequest,
+    DailyReportDeliveryService,
+)
 from parakeetnest.research.models import (
     ConfidenceLevel,
     InvestmentResearchReport,
@@ -32,6 +36,8 @@ from parakeetnest.research.service import InvestmentResearchService
 __all__ = [
     "ConfidenceLevel",
     "DailyInvestmentReportComposer",
+    "DailyReportDeliveryRequest",
+    "DailyReportDeliveryService",
     "InvestmentResearchReport",
     "InvestmentResearchReportRenderer",
     "InvestmentResearchService",

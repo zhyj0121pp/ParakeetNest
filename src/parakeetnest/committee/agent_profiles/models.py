@@ -22,6 +22,10 @@ class AgentRole(StrEnum):
     OPPORTUNITY_HUNTER = "opportunity_hunter"
     RISK_OFFICER = "risk_officer"
     CHAIRMAN = "chairman"
+    PORTFOLIO_MANAGER = "portfolio_manager"
+    PORTFOLIO_RISK_MANAGER = "portfolio_risk_manager"
+    SECTOR_ANALYST = "sector_analyst"
+    MACRO_STRATEGIST = "macro_strategist"
 
 
 @dataclass(frozen=True)

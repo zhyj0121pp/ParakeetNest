@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from parakeetnest.committee import (
     AgentResult,
@@ -16,6 +17,16 @@ from parakeetnest.committee import (
     YoyoAgent,
 )
 from parakeetnest.committee.agent_profiles import XIXI_PROFILE
+from parakeetnest.committee.memory import (
+    CommitteeMemory,
+    CommitteeMemoryService,
+    InMemoryCommitteeMemoryRepository,
+    MemoryImportance,
+    MemoryQuery,
+    MemoryScope,
+    MemorySearchResult,
+    MemoryType,
+)
 from parakeetnest.committee.runtime import PROMPT_DIR
 from parakeetnest.context import ContextRequest
 from parakeetnest.context import MeetingContext as ResearchMeetingContext
@@ -52,6 +63,16 @@ class TrackingAgentRegistry:
 
     def register(self, profile) -> None:
         raise NotImplementedError
+
+
+class RecordingMemoryService:
+    def __init__(self, results: tuple[MemorySearchResult, ...] = ()) -> None:
+        self.results = results
+        self.queries: list[MemoryQuery] = []
+
+    def search(self, query: MemoryQuery) -> tuple[MemorySearchResult, ...]:
+        self.queries.append(query)
+        return self.results
 
 
 def _context(*previous_agent_results: AgentResult) -> MeetingContext:
@@ -98,6 +119,28 @@ def _opinion() -> str:
             "risks": ["Valuation risk."],
             "catalysts": ["Earnings update."],
         }
+    )
+
+
+def _memory(
+    memory_id: str,
+    content: str,
+    *,
+    memory_type: MemoryType = MemoryType.MEETING_SUMMARY,
+    importance: MemoryImportance = MemoryImportance.HIGH,
+    agent_id: str | None = None,
+    ticker: str = "NVDA",
+) -> CommitteeMemory:
+    return CommitteeMemory(
+        memory_id=memory_id,
+        scope=MemoryScope.AGENT if agent_id else MemoryScope.COMMITTEE,
+        memory_type=memory_type,
+        importance=importance,
+        content=content,
+        created_at=datetime(2026, 7, 1, 12, 0, tzinfo=UTC),
+        meeting_id="1",
+        agent_id=agent_id,
+        ticker=ticker,
     )
 
 
@@ -210,6 +253,86 @@ def test_prompt_renderer_preserves_legacy_prompt_text_for_default_agents() -> No
         assert PromptRenderer().render(agent, context) == _legacy_prompt(agent, context)
 
 
+def test_prompt_renderer_queries_memory_service_with_runtime_filters() -> None:
+    memory_service = RecordingMemoryService()
+
+    prompt = PromptRenderer().render(
+        RuntimeAgentStub(),
+        _context(),
+        memory_service=memory_service,
+    )
+
+    assert "Relevant Committee Memories:" not in prompt
+    assert memory_service.queries == [
+        MemoryQuery(
+            meeting_id="1",
+            ticker="NVDA",
+            importance_at_least=MemoryImportance.MEDIUM,
+            limit=10,
+        ),
+        MemoryQuery(
+            meeting_id="1",
+            agent_id="xixi",
+            ticker="NVDA",
+            importance_at_least=MemoryImportance.MEDIUM,
+            limit=10,
+        ),
+    ]
+
+
+def test_prompt_renderer_includes_memory_block_when_relevant_memories_exist() -> None:
+    repository = InMemoryCommitteeMemoryRepository()
+    memory_service = CommitteeMemoryService(repository)
+    repository.save(
+        _memory(
+            "memory-1",
+            "Previous committee preferred HOLD until earnings.",
+        )
+    )
+    repository.save(
+        _memory(
+            "memory-2",
+            "Xixi noted margin resilience.",
+            memory_type=MemoryType.AGENT_OBSERVATION,
+            importance=MemoryImportance.MEDIUM,
+            agent_id="xixi",
+        )
+    )
+
+    prompt = PromptRenderer().render(
+        RuntimeAgentStub(),
+        _context(),
+        memory_service=memory_service,
+    )
+
+    assert "Relevant Committee Memories:" in prompt
+    assert (
+        "- [HIGH][MEETING_SUMMARY] Previous committee preferred HOLD until earnings."
+        in prompt
+    )
+    assert (
+        "- [MEDIUM][AGENT_OBSERVATION][xixi] Xixi noted margin resilience."
+        in prompt
+    )
+
+
+def test_prompt_renderer_omits_memory_block_when_no_memories_match() -> None:
+    repository = InMemoryCommitteeMemoryRepository()
+    memory_service = CommitteeMemoryService(repository)
+    repository.save(
+        _memory("memory-1", "AAPL memory should not match.", ticker="AAPL")
+    )
+
+    prompt = PromptRenderer().render(
+        RuntimeAgentStub(),
+        _context(),
+        memory_service=memory_service,
+    )
+
+    assert "Relevant Committee Memories:" not in prompt
+    assert "AAPL memory should not match." not in prompt
+
+
 def test_agent_runtime_calls_llm_provider_once() -> None:
     provider = MockLLMProvider(responses=(_opinion(),))
     runtime = AgentRuntime(llm_provider=provider)
@@ -220,6 +343,41 @@ def test_agent_runtime_calls_llm_provider_once() -> None:
     assert provider.requests[0].metadata["agent_name"] == "Test Analyst"
     assert result.agent_name == "Test Analyst"
     assert json.loads(result.content)["viewpoint"] == "Constructive but uncertain."
+
+
+def test_agent_runtime_works_without_memory_service() -> None:
+    provider = MockLLMProvider(responses=(_opinion(),))
+    runtime = AgentRuntime(llm_provider=provider, memory_service=None)
+
+    runtime.run(RuntimeAgentStub(), _context())
+
+    assert "Relevant Committee Memories:" not in provider.requests[0].prompt
+
+
+def test_agent_runtime_includes_memory_context_from_memory_service() -> None:
+    provider = MockLLMProvider(responses=(_opinion(),))
+    memory_service = RecordingMemoryService(
+        results=(
+            MemorySearchResult(
+                memory=_memory(
+                    "memory-1",
+                    "Runtime should remember prior risk review.",
+                    memory_type=MemoryType.RISK_FLAG,
+                    importance=MemoryImportance.HIGH,
+                ),
+                relevance_score=1.0,
+            ),
+        )
+    )
+    runtime = AgentRuntime(
+        llm_provider=provider,
+        memory_service=memory_service,
+    )
+
+    runtime.run(RuntimeAgentStub(), _context())
+
+    assert "Relevant Committee Memories:" in provider.requests[0].prompt
+    assert "Runtime should remember prior risk review." in provider.requests[0].prompt
 
 
 def test_agent_runtime_preserves_direct_provider_committee_output() -> None:

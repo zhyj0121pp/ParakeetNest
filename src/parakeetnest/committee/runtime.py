@@ -20,6 +20,12 @@ from parakeetnest.committee.agent_runtime import (
     DefaultAgentRuntime,
 )
 from parakeetnest.committee.models import AgentResult, MeetingContext
+from parakeetnest.committee.memory import (
+    CommitteeMemoryService,
+    MemoryImportance,
+    MemoryQuery,
+    MemorySearchResult,
+)
 from parakeetnest.context.rendering import MeetingContextPromptRenderer
 from parakeetnest.llm import (
     CHAIRMAN_SUMMARY_SCHEMA,
@@ -48,7 +54,12 @@ class PromptRenderer:
         default_factory=DefaultAgentPromptBuilder
     )
 
-    def render(self, agent: CommitteeAgent, context: MeetingContext) -> str:
+    def render(
+        self,
+        agent: CommitteeAgent,
+        context: MeetingContext,
+        memory_service: CommitteeMemoryService | None = None,
+    ) -> str:
         """Return the final prompt string for one agent turn."""
         profile = self.resolve_profile(agent)
         system_prompt = self._load_markdown(self.system_filename)
@@ -60,6 +71,11 @@ class PromptRenderer:
         )
         previous_results = self._format_previous_results(context)
         original_request = self._format_original_request(context)
+        memory_context = self._render_memory_context(
+            memory_service=memory_service,
+            context=context,
+            agent_id=profile.agent_id,
+        )
         return self.prompt_builder.build_committee_prompt(
             CommitteePromptInput(
                 profile=profile,
@@ -74,6 +90,7 @@ class PromptRenderer:
                     rendered_investment_intelligence_context
                 ),
                 previous_agent_results=previous_results,
+                memory_context=memory_context,
             )
         )
 
@@ -113,6 +130,29 @@ class PromptRenderer:
             lines.append(f"- Portfolio Context Notes: {request.portfolio_context_notes}")
         return "\n".join(lines)
 
+    @staticmethod
+    def _render_memory_context(
+        *,
+        memory_service: CommitteeMemoryService | None,
+        context: MeetingContext,
+        agent_id: str,
+    ) -> str | None:
+        if memory_service is None:
+            return None
+
+        query_kwargs = {
+            "meeting_id": str(context.meeting_id) if context.meeting_id else None,
+            "ticker": context.ticker or None,
+            "importance_at_least": MemoryImportance.MEDIUM,
+            "limit": 10,
+        }
+        general_results = memory_service.search(MemoryQuery(**query_kwargs))
+        agent_results = memory_service.search(
+            MemoryQuery(agent_id=agent_id, **query_kwargs)
+        )
+        results = _dedupe_memory_results(general_results + agent_results, limit=10)
+        return _format_memory_search_results(results)
+
 
 @dataclass
 class AgentRuntime:
@@ -123,6 +163,7 @@ class AgentRuntime:
     prompt_renderer: PromptRenderer = field(default_factory=PromptRenderer)
     parser: OutputParser = field(default_factory=OutputParser)
     execution_runtime: PreparedAgentRuntime | None = None
+    memory_service: CommitteeMemoryService | None = None
 
     def run(self, agent: CommitteeAgent, context: MeetingContext) -> AgentResult:
         """Render, complete, parse, and return a persistable agent result."""
@@ -132,7 +173,11 @@ class AgentRuntime:
         request = AgentRequest(
             request_id=self._request_id(profile, context),
             agent_id=profile.agent_id,
-            prompt=self.prompt_renderer.render(agent, context),
+            prompt=self.prompt_renderer.render(
+                agent,
+                context,
+                memory_service=self.memory_service,
+            ),
             output_schema_id=output_schema_id,
             metadata={
                 "meeting_id": str(context.meeting_id),
@@ -181,3 +226,38 @@ class AgentRuntime:
     @staticmethod
     def _request_id(profile: AgentProfile, context: MeetingContext) -> str:
         return f"meeting_{context.meeting_id}_{profile.agent_id}"
+
+
+def _format_memory_search_results(
+    results: tuple[MemorySearchResult, ...],
+) -> str | None:
+    if not results:
+        return None
+
+    lines = ["Relevant Committee Memories:"]
+    for result in results:
+        memory = result.memory
+        labels = [memory.importance.name, memory.memory_type.name]
+        if memory.agent_id is not None:
+            labels.append(memory.agent_id)
+        label_text = "".join(f"[{label}]" for label in labels)
+        lines.append(f"- {label_text} {memory.content}")
+    return "\n".join(lines)
+
+
+def _dedupe_memory_results(
+    results: tuple[MemorySearchResult, ...],
+    *,
+    limit: int,
+) -> tuple[MemorySearchResult, ...]:
+    unique: list[MemorySearchResult] = []
+    seen_memory_ids: set[str] = set()
+    for result in results:
+        memory_id = result.memory.memory_id
+        if memory_id in seen_memory_ids:
+            continue
+        unique.append(result)
+        seen_memory_ids.add(memory_id)
+        if len(unique) >= limit:
+            break
+    return tuple(unique)

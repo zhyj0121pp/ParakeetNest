@@ -22,6 +22,7 @@ class CommitteePromptInput:
     meeting_context: str
     investment_intelligence_context: str
     previous_agent_results: str
+    memory_context: str | None = None
 
 
 class AgentPromptBuilder(Protocol):
@@ -76,23 +77,27 @@ class DefaultAgentPromptBuilder:
 
     def build_committee_prompt(self, prompt_input: CommitteePromptInput) -> str:
         """Return the compatibility committee runtime prompt for one agent turn."""
-        return "\n".join(
+        sections = [
+            "System prompt:",
+            prompt_input.system_prompt,
+            "",
+            "Agent prompt:",
+            prompt_input.agent_prompt,
+            "",
+            f"Meeting ID: {prompt_input.meeting_id}",
+            f"Ticker: {prompt_input.ticker}",
+            f"Question: {prompt_input.question}",
+            "",
+            "Original user request:",
+            prompt_input.original_request,
+            "",
+            "Meeting context:",
+            prompt_input.meeting_context,
+        ]
+        if prompt_input.memory_context:
+            sections.extend(("", prompt_input.memory_context))
+        sections.extend(
             (
-                "System prompt:",
-                prompt_input.system_prompt,
-                "",
-                "Agent prompt:",
-                prompt_input.agent_prompt,
-                "",
-                f"Meeting ID: {prompt_input.meeting_id}",
-                f"Ticker: {prompt_input.ticker}",
-                f"Question: {prompt_input.question}",
-                "",
-                "Original user request:",
-                prompt_input.original_request,
-                "",
-                "Meeting context:",
-                prompt_input.meeting_context,
                 "",
                 "Investment intelligence context:",
                 prompt_input.investment_intelligence_context,
@@ -101,6 +106,7 @@ class DefaultAgentPromptBuilder:
                 prompt_input.previous_agent_results,
             )
         )
+        return "\n".join(sections)
 
 
 __all__ = ["AgentPromptBuilder", "CommitteePromptInput", "DefaultAgentPromptBuilder"]

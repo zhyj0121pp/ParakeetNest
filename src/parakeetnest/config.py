@@ -124,6 +124,7 @@ class Settings(BaseSettings):
 
     data_dir: Path = Path("data")
     sqlite_path: Path = Path("data/parakeetnest.sqlite3")
+    watchlist_seed_path: Path | None = None
 
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     robinhood_username: str | None = Field(default=None, repr=False)

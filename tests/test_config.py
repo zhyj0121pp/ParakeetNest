@@ -20,12 +20,14 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     monkeypatch.setenv("PARAKEETNEST_ENVIRONMENT", "test")
     monkeypatch.setenv("PARAKEETNEST_LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("PARAKEETNEST_SQLITE_PATH", "tmp/test.sqlite3")
+    monkeypatch.setenv("PARAKEETNEST_WATCHLIST_SEED_PATH", "tmp/watchlist.json")
 
     settings = Settings(_env_file=None)
 
     assert settings.environment == "test"
     assert settings.log_level == "DEBUG"
     assert settings.sqlite_path == Path("tmp/test.sqlite3")
+    assert settings.watchlist_seed_path == Path("tmp/watchlist.json")
 
 
 def test_settings_load_from_env_file(tmp_path: Path) -> None:

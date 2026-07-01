@@ -18,6 +18,7 @@ that future work should follow.
 - [ADR 003: Investment Intelligence Layer Pattern](../architecture/ADR-003-investment-intelligence-pattern.md)
 - [ADR 004: Agent-First Committee Architecture](../architecture/ADR-004-agent-first-committee-architecture.md)
 - [ADR 005: Stable Committee Personality Architecture](ADR-005-stable-committee-personality-architecture.md)
+- [ADR 006: Committee-Owned Investment Judgments](ADR-006-committee-owned-investment-judgments.md)
 
 ## ADR Template
 

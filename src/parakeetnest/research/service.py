@@ -18,13 +18,11 @@ from parakeetnest.committee.prompting import (
     PersonaDrivenCommitteePromptBuilder,
 )
 from parakeetnest.research.models import (
-    ConfidenceLevel,
     InvestmentResearchReport,
-    RecommendationType,
     ResearchCatalyst,
+    ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
     ResearchFinding,
-    ResearchRecommendation,
     ResearchRisk,
     ResearchTickerReport,
 )
@@ -99,6 +97,11 @@ class InvestmentResearchService:
             raise ValueError("at least one ticker is required")
 
         portfolio_snapshot = self._get_portfolio_snapshot(account_id)
+        dependency_notes = _dependency_notes(
+            has_portfolio=self._portfolio_service is not None,
+            has_watchlist=self._watchlist_service is not None,
+            has_intelligence=self._intelligence_service is not None,
+        )
         ticker_reports = tuple(
             self._build_ticker_report(
                 _TickerInputs(
@@ -109,11 +112,7 @@ class InvestmentResearchService:
                         ticker,
                         as_of_date=as_of_date,
                     ),
-                    evidence_notes=_dependency_notes(
-                        has_portfolio=self._portfolio_service is not None,
-                        has_watchlist=self._watchlist_service is not None,
-                        has_intelligence=self._intelligence_service is not None,
-                    ),
+                    evidence_notes=dependency_notes,
                 )
             )
             for ticker in normalized_tickers
@@ -124,9 +123,12 @@ class InvestmentResearchService:
             for summary in ticker_report.source_summaries
         )
         evidence_notes = _unique(
+            dependency_notes
+            + tuple(
             note
             for ticker_report in ticker_reports
             for note in ticker_report.evidence_notes
+            )
         )
         market_summary = _market_summary(ticker_reports)
         portfolio_review = _portfolio_review(
@@ -157,7 +159,6 @@ class InvestmentResearchService:
                 ticker_reports,
             ),
             committee_consensus=_committee_consensus(ticker_reports),
-            todays_suggested_actions=_todays_suggested_actions(ticker_reports),
             source_summaries=source_summaries,
             evidence_notes=evidence_notes,
         )
@@ -168,17 +169,6 @@ class InvestmentResearchService:
         catalysts = _build_catalysts(inputs)
         bull_case = _build_bull_case(inputs)
         bear_case = _build_bear_case(inputs, risks)
-        evidence = _unique(finding.summary for finding in findings)
-        recommendation = ResearchRecommendation(
-            action=_recommendation_action(inputs),
-            confidence=_confidence(inputs),
-            horizon=self._default_horizon,
-            evidence=evidence
-            or (f"{inputs.ticker} included in requested research list.",),
-            risks=tuple(risk.summary for risk in risks),
-            catalysts=tuple(catalyst.summary for catalyst in catalysts),
-            rationale=_recommendation_rationale(inputs),
-        )
         return ResearchTickerReport(
             ticker=inputs.ticker,
             summary=_summary(inputs),
@@ -186,10 +176,9 @@ class InvestmentResearchService:
             bear_case=bear_case,
             risks=risks,
             catalysts=catalysts,
-            recommendation=recommendation,
             findings=findings,
             source_summaries=_source_summaries(inputs),
-            evidence_notes=inputs.evidence_notes,
+            evidence_notes=(),
         )
 
     def _get_portfolio_snapshot(self, account_id: str | None) -> Any | None:
@@ -257,7 +246,7 @@ def _build_findings(inputs: _TickerInputs) -> tuple[ResearchFinding, ...]:
                     "or intelligence context yet."
                 ),
                 source="research_service",
-                evidence_notes=inputs.evidence_notes,
+                evidence_notes=(),
             )
         )
     return tuple(findings)
@@ -294,7 +283,7 @@ def _build_risks(inputs: _TickerInputs) -> tuple[ResearchRisk, ...]:
         risks.append(
             ResearchRisk(
                 summary="Insufficient connected research context is the primary risk.",
-                evidence_notes=inputs.evidence_notes,
+                evidence_notes=(),
             )
         )
     return tuple(risks)
@@ -322,9 +311,9 @@ def _build_catalysts(inputs: _TickerInputs) -> tuple[ResearchCatalyst, ...]:
     if not catalysts:
         catalysts.append(
             ResearchCatalyst(
-                summary="Add thesis, signals, and portfolio context to upgrade the recommendation.",
+                summary="Add thesis, signals, and portfolio context to strengthen evidence.",
                 horizon="next research update",
-                evidence_notes=inputs.evidence_notes,
+                evidence_notes=(),
             )
         )
     return tuple(catalysts)
@@ -372,41 +361,6 @@ def _summary(inputs: _TickerInputs) -> str:
     if inputs.watchlist_insight is not None:
         return inputs.watchlist_insight.summary
     return f"{inputs.ticker} is included for research, but connected context is limited."
-
-
-def _recommendation_action(inputs: _TickerInputs) -> RecommendationType:
-    if inputs.watchlist_insight is not None and inputs.holding is None:
-        return RecommendationType.WATCH
-    if inputs.holding is not None:
-        risk_summary = _risk_summary(inputs.intelligence_context) or ""
-        if "high" in risk_summary.lower() or "extreme" in risk_summary.lower():
-            return RecommendationType.REDUCE
-        return RecommendationType.HOLD
-    return RecommendationType.WATCH
-
-
-def _confidence(inputs: _TickerInputs) -> ConfidenceLevel:
-    source_count = sum(
-        value is not None
-        for value in (
-            inputs.holding,
-            inputs.watchlist_insight,
-            inputs.intelligence_context,
-        )
-    )
-    if source_count >= 3:
-        return ConfidenceLevel.HIGH
-    if source_count == 2:
-        return ConfidenceLevel.MEDIUM
-    return ConfidenceLevel.LOW
-
-
-def _recommendation_rationale(inputs: _TickerInputs) -> str:
-    if inputs.holding is not None and inputs.watchlist_insight is not None:
-        return "Hold until watchlist research produces a stronger add or reduce signal."
-    if inputs.holding is not None:
-        return "Maintain exposure while evidence base is incomplete."
-    return "Monitor until portfolio-grade evidence is available."
 
 
 def _holding_summary(holding: Any) -> str:
@@ -581,35 +535,32 @@ def _committee_stance(
     context: CommitteePromptContext,
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> str:
-    action_values = {
-        ticker_report.recommendation.action
+    elevated_risk = _has_elevated_risk(ticker_reports)
+    limited_context = _committee_confidence(ticker_reports) == "low"
+    has_substantive_catalysts = any(
+        not catalyst.summary.lower().startswith("add thesis")
         for ticker_report in ticker_reports
-    }
-    low_confidence = any(
-        ticker_report.recommendation.confidence is ConfidenceLevel.LOW
+        for catalyst in ticker_report.catalysts
+    )
+    has_holdings = any(
+        any(finding.source == "portfolio" for finding in ticker_report.findings)
         for ticker_report in ticker_reports
-    )
-    has_reduce_or_sell = bool(
-        action_values & {RecommendationType.REDUCE, RecommendationType.SELL}
-    )
-    has_hold_or_buy = bool(
-        action_values & {RecommendationType.BUY, RecommendationType.HOLD}
     )
 
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
-        if has_reduce_or_sell:
+        if elevated_risk:
             return "neutral"
-        if low_confidence and not has_hold_or_buy:
+        if limited_context and not has_substantive_catalysts:
             return "neutral"
-        return "bullish" if context.upcoming_catalysts else "neutral"
+        return "bullish" if has_substantive_catalysts else "neutral"
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
-        if has_reduce_or_sell or low_confidence or context.key_risks:
+        if elevated_risk or limited_context or context.key_risks:
             return "cautious"
         return "neutral"
-    if has_reduce_or_sell:
+    if elevated_risk:
         return "cautious"
-    return "neutral" if low_confidence or not has_hold_or_buy else "bullish"
+    return "neutral" if limited_context or not has_holdings else "bullish"
 
 
 def _committee_reasoning(
@@ -617,8 +568,8 @@ def _committee_reasoning(
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> str:
     tickers = ", ".join(context.tickers)
-    action_summary = _action_mix(ticker_reports)
-    confidence_summary = _confidence_mix(ticker_reports)
+    action_summary = _committee_action_mix(ticker_reports)
+    confidence_summary = _committee_confidence(ticker_reports)
     catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
     risk_summary = _summarize_context_values(context.key_risks)
 
@@ -626,18 +577,18 @@ def _committee_reasoning(
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
         return (
             f"{tickers}: upside depends on identifiable catalysts and durable "
-            f"growth evidence. Current action mix is {action_summary} with "
+            f"growth evidence. Committee action view is {action_summary} with "
             f"{confidence_summary} confidence; catalyst evidence: {catalyst_summary}."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
         return (
             f"{tickers}: capital preservation comes first while the report "
-            f"shows {action_summary} with {confidence_summary} confidence. "
+            f"supports {action_summary} with {confidence_summary} confidence. "
             f"Primary downside evidence: {risk_summary}."
         )
     return (
         f"{tickers}: fundamentals and execution evidence should validate the "
-        f"current {action_summary} action mix before risk is added. "
+        f"committee's {action_summary} action view before risk is added. "
         f"Evidence base: {_summarize_context_values(context.ticker_summaries)}."
     )
 
@@ -690,14 +641,11 @@ def _committee_suggested_action(
     context: CommitteePromptContext,
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> str:
-    actions = "; ".join(
-        f"{ticker_report.ticker} {ticker_report.recommendation.action.value.upper()}"
-        for ticker_report in ticker_reports
-    )
+    actions = _committee_action_mix(ticker_reports)
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
         return (
-            f"Keep {actions} as advisory guidance and prioritize catalyst follow-up "
+            f"Treat {actions} as advisory guidance and prioritize catalyst follow-up "
             "before upgrading exposure."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
@@ -730,41 +678,107 @@ def _summarize_context_values(values: tuple[str, ...], limit: int = 2) -> str:
     return "; ".join(values[:limit])
 
 
-def _committee_consensus(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
-    return (
-        "The committee remains advisory: "
-        f"{_action_mix(ticker_reports)} with confidence {_confidence_mix(ticker_reports)}."
+def _committee_consensus(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> ResearchCommitteeConsensus:
+    action = _committee_final_action(ticker_reports)
+    confidence = _committee_confidence(ticker_reports)
+    horizon = "3-6 months" if confidence != "low" else "next research update"
+    risk_posture = _committee_risk_posture(ticker_reports)
+    return ResearchCommitteeConsensus(
+        final_action=action,
+        confidence=confidence,
+        horizon=horizon,
+        rationale=(
+            "The committee owns this advisory judgment after reviewing factual "
+            f"context across {len(ticker_reports)} ticker(s): "
+            f"{_committee_action_mix(ticker_reports)}."
+        ),
+        final_risk_posture=risk_posture,
+        todays_suggested_actions=_todays_suggested_actions(ticker_reports),
     )
 
 
 def _todays_suggested_actions(
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> tuple[str, ...]:
+    return tuple(_committee_ticker_actions(ticker_reports))
+
+
+def _committee_ticker_actions(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> tuple[str, ...]:
+    confidence = _committee_confidence(ticker_reports)
+    horizon = "3-6 months" if confidence != "low" else "next research update"
     return tuple(
-        f"{ticker_report.ticker}: "
-        f"{ticker_report.recommendation.action.value.upper()} "
-        f"({ticker_report.recommendation.confidence.value} confidence) "
-        f"over {ticker_report.recommendation.horizon}."
+        f"{ticker_report.ticker}: {_committee_action(ticker_report).upper()} "
+        f"({confidence} confidence) over {horizon}; human investor decides."
         for ticker_report in ticker_reports
     )
 
 
-def _action_mix(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+def _committee_action_mix(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
     counts: dict[str, int] = {}
     for ticker_report in ticker_reports:
-        action = ticker_report.recommendation.action.value.upper()
+        action = _committee_action(ticker_report).upper()
         counts[action] = counts.get(action, 0) + 1
     return ", ".join(
         f"{action}: {count}" for action, count in sorted(counts.items())
-    ) or "no recommendations"
+    ) or "no committee actions"
 
 
-def _confidence_mix(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
-    levels = _unique(
-        ticker_report.recommendation.confidence.value
+def _committee_action(ticker_report: ResearchTickerReport) -> str:
+    has_holding = any(finding.source == "portfolio" for finding in ticker_report.findings)
+    if has_holding and _ticker_has_elevated_risk(ticker_report):
+        return "reduce"
+    if has_holding:
+        return "hold"
+    return "watch"
+
+
+def _committee_final_action(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    actions = {_committee_action(ticker_report) for ticker_report in ticker_reports}
+    if "sell" in actions:
+        return "sell"
+    if "reduce" in actions:
+        return "reduce"
+    if "hold" in actions:
+        return "hold"
+    return "watch"
+
+
+def _committee_confidence(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    if not ticker_reports:
+        return "low"
+    source_counts = [
+        len({finding.source for finding in ticker_report.findings if finding.source})
         for ticker_report in ticker_reports
+    ]
+    if min(source_counts) >= 3:
+        return "high"
+    if min(source_counts) >= 2:
+        return "medium"
+    return "low"
+
+
+def _committee_risk_posture(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    if _has_elevated_risk(ticker_reports):
+        return "Cautious; elevated factual risk signals require human review before adding exposure."
+    if _committee_confidence(ticker_reports) == "low":
+        return "Cautious; connected evidence is limited and the report is advisory only."
+    return "Balanced; evidence is sufficient for review but not for autonomous action."
+
+
+def _has_elevated_risk(ticker_reports: tuple[ResearchTickerReport, ...]) -> bool:
+    return any(_ticker_has_elevated_risk(ticker_report) for ticker_report in ticker_reports)
+
+
+def _ticker_has_elevated_risk(ticker_report: ResearchTickerReport) -> bool:
+    risk_text = " ".join(risk.summary.lower() for risk in ticker_report.risks)
+    return any(
+        marker in risk_text
+        for marker in ("high", "extreme", "severe", "concentration", "export controls")
     )
-    return ", ".join(levels) or "none"
 
 
 def _get_ticker(value: str) -> str:

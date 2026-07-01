@@ -10,7 +10,6 @@ from parakeetnest.research.models import (
     InvestmentResearchReport,
     ResearchCatalyst,
     ResearchFinding,
-    ResearchRecommendation,
     ResearchRisk,
     ResearchTickerReport,
 )
@@ -27,11 +26,10 @@ class InvestmentResearchReportRenderer:
             self._render_portfolio_review(report),
             self._render_watchlist_review(report),
             self._render_executive_summary(report),
+            self._render_ticker_reports(report.ticker_reports),
             self._render_committee_opinions(report),
             self._render_committee_consensus(report),
             self._render_confidence(report),
-            self._render_ticker_reports(report.ticker_reports),
-            self._render_recommendations(report.ticker_reports),
             self._render_key_risks(report.ticker_reports),
             self._render_upcoming_catalysts(report.ticker_reports),
             self._render_todays_suggested_actions(report),
@@ -65,22 +63,16 @@ class InvestmentResearchReportRenderer:
             lines.append("- No ticker reports were generated.")
             return "\n".join(lines)
 
-        action_counts: dict[str, int] = {}
-        for ticker_report in report.ticker_reports:
-            action = self._value(ticker_report.recommendation.action).upper()
-            action_counts[action] = action_counts.get(action, 0) + 1
-        action_summary = ", ".join(
-            f"{action}: {count}" for action, count in sorted(action_counts.items())
-        )
         lines.append(f"- Coverage: {len(report.ticker_reports)} ticker(s).")
-        lines.append(f"- Actions: {action_summary}.")
+        lines.append(
+            "- Committee view: "
+            f"{report.committee_consensus.final_action.upper()} "
+            f"({report.committee_consensus.confidence} confidence)."
+        )
         for ticker_report in report.ticker_reports:
-            recommendation = ticker_report.recommendation
             lines.append(
                 "- "
-                f"{ticker_report.ticker}: {self._value(recommendation.action).upper()} "
-                f"({self._value(recommendation.confidence)} confidence) - "
-                f"{ticker_report.summary}"
+                f"{ticker_report.ticker}: {ticker_report.summary}"
             )
         return "\n".join(lines)
 
@@ -103,63 +95,38 @@ class InvestmentResearchReportRenderer:
         return "\n".join(lines)
 
     def _render_committee_consensus(self, report: InvestmentResearchReport) -> str:
-        return "\n".join(["Committee Consensus", f"- {report.committee_consensus}"])
+        consensus = report.committee_consensus
+        return "\n".join(
+            [
+                "Committee Consensus",
+                f"- Final Action: {consensus.final_action.upper()}",
+                f"- Horizon: {consensus.horizon}",
+                f"- Final Risk Posture: {consensus.final_risk_posture}",
+                f"- Rationale: {consensus.rationale}",
+            ]
+        )
 
     def _render_confidence(self, report: InvestmentResearchReport) -> str:
-        lines = ["Confidence"]
-        for ticker_report in report.ticker_reports:
-            lines.append(
-                "- "
-                f"{ticker_report.ticker}: "
-                f"{self._value(ticker_report.recommendation.confidence)}"
-            )
-        if len(lines) == 1:
-            lines.append("- No confidence levels.")
-        return "\n".join(lines)
+        return "\n".join(["Confidence", f"- {report.committee_consensus.confidence}"])
 
     def _render_ticker_reports(
         self,
         ticker_reports: Iterable[ResearchTickerReport],
     ) -> str:
-        lines = ["Ticker Reports"]
+        lines = ["Factual Ticker Context"]
         for ticker_report in ticker_reports:
-            recommendation = ticker_report.recommendation
             lines.extend(
                 [
                     f"- {ticker_report.ticker}",
                     f"  Summary: {ticker_report.summary}",
-                    "  Recommendation: "
-                    f"{self._value(recommendation.action).upper()} | "
-                    f"confidence {self._value(recommendation.confidence)} | "
-                    f"horizon {recommendation.horizon}",
                 ]
             )
-            if recommendation.rationale:
-                lines.append(f"  Rationale: {recommendation.rationale}")
             lines.extend(self._render_values("Bull Case", ticker_report.bull_case))
             lines.extend(self._render_values("Bear Case", ticker_report.bear_case))
             lines.extend(self._render_findings(ticker_report.findings))
             lines.extend(self._render_values("Sources", ticker_report.source_summaries))
         if len(lines) == 1:
             lines.append("- No ticker reports.")
-        return "\n".join(lines)
-
-    def _render_recommendations(
-        self,
-        ticker_reports: Iterable[ResearchTickerReport],
-    ) -> str:
-        lines = ["Recommendations"]
-        for ticker_report in ticker_reports:
-            recommendation = ticker_report.recommendation
-            lines.append(
-                "- "
-                f"{ticker_report.ticker}: {self._value(recommendation.action).upper()} "
-                f"| confidence {self._value(recommendation.confidence)} "
-                f"| horizon {recommendation.horizon}"
-            )
-            lines.extend(self._render_recommendation_detail(recommendation))
-        if len(lines) == 1:
-            lines.append("- No recommendations.")
         return "\n".join(lines)
 
     def _render_key_risks(
@@ -191,7 +158,10 @@ class InvestmentResearchReportRenderer:
         report: InvestmentResearchReport,
     ) -> str:
         lines = ["Today's Suggested Actions"]
-        lines.extend(f"- {action}" for action in report.todays_suggested_actions)
+        lines.extend(
+            f"- {action}"
+            for action in report.committee_consensus.todays_suggested_actions
+        )
         if len(lines) == 1:
             lines.append("- No suggested actions.")
         return "\n".join(lines)
@@ -231,18 +201,6 @@ class InvestmentResearchReportRenderer:
         if len(lines) == 1:
             lines.append("- No evidence notes.")
         return "\n".join(lines)
-
-    def _render_recommendation_detail(
-        self,
-        recommendation: ResearchRecommendation,
-    ) -> list[str]:
-        lines: list[str] = []
-        lines.extend(self._render_values("Evidence", recommendation.evidence))
-        lines.extend(self._render_values("Risks", recommendation.risks))
-        lines.extend(self._render_values("Catalysts", recommendation.catalysts))
-        if recommendation.rationale:
-            lines.append(f"  Rationale: {recommendation.rationale}")
-        return lines
 
     def _render_findings(self, findings: Iterable[ResearchFinding]) -> list[str]:
         normalized = tuple(findings)

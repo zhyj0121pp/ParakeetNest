@@ -2,7 +2,7 @@
 
 
 class DailyReportGenerator:
-    """Generate daily portfolio, market, committee, and recommendation reports."""
+    """Generate daily portfolio, market, and committee judgment reports."""
 
     def generate(self) -> str:
         """Return placeholder daily report content."""

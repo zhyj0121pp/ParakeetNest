@@ -7,11 +7,10 @@ from datetime import UTC, datetime
 from parakeetnest.research import (
     InvestmentResearchReport,
     InvestmentResearchReportRenderer,
-    RecommendationType,
     ResearchCatalyst,
+    ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
     ResearchFinding,
-    ResearchRecommendation,
     ResearchRisk,
     ResearchTickerReport,
     render_investment_research_report,
@@ -34,13 +33,16 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
     assert "Investment Research Report\n" in body
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: NVDA, AAPL" in body
+    assert "Market Summary" in body
+    assert "Portfolio Review" in body
+    assert "Watchlist Review" in body
     assert "Executive Summary" in body
     assert "- Coverage: 2 ticker(s)." in body
-    assert "- Actions: HOLD: 1, WATCH: 1." in body
-    assert "Ticker Reports" in body
-    assert "Recommendations" in body
-    assert "Risks" in body
-    assert "Catalysts" in body
+    assert "- Committee view: HOLD (medium confidence)." in body
+    assert "Factual Ticker Context" in body
+    assert "Recommendations" not in body
+    assert "Key Risks" in body
+    assert "Upcoming Catalysts" in body
     assert "Dongdong's Opinion (Chief Growth Officer)" in body
     assert "- Stance: bullish" in body
     assert "- Reasoning: Upside is supported by identifiable catalysts." in body
@@ -49,21 +51,21 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
     assert "- Concern: Export controls." in body
     assert "- Suggested Action: Keep HOLD as advisory guidance." in body
     assert "Evidence Notes" in body
-    assert "NVDA: HOLD | confidence high | horizon 3-6 months" in body
-    assert "AAPL: WATCH | confidence medium | horizon 1-2 quarters" in body
+    assert "- Final Action: HOLD" in body
+    assert "- medium" in body
+    assert "NVDA: HOLD (medium confidence) over 3-6 months; human investor decides." in body
     assert "Every recommendation" not in body
 
 
-def test_renderer_includes_recommendation_contract_details() -> None:
+def test_renderer_includes_committee_consensus_contract_details() -> None:
     body = render_investment_research_report(_sample_report())
 
-    assert "  Evidence:" in body
-    assert "    - Portfolio holding with positive unrealized return." in body
-    assert "  Risks:" in body
-    assert "    - Export controls." in body
-    assert "  Catalysts:" in body
-    assert "    - Datacenter demand." in body
-    assert "  Rationale: Maintain exposure while catalysts remain intact." in body
+    assert "Committee Consensus" in body
+    assert "- Final Action: HOLD" in body
+    assert "- Horizon: 3-6 months" in body
+    assert "- Final Risk Posture: Balanced and advisory only." in body
+    assert "- Rationale: Committee weighed evidence, risks, and catalysts." in body
+    assert "Today's Suggested Actions" in body
 
 
 def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
@@ -71,14 +73,47 @@ def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
 
     assert "  Report Notes:" in body
     assert "    - Research assembled from provider-neutral services." in body
-    assert "  NVDA Notes:" in body
-    assert "    - Existing portfolio holding." in body
     assert "  NVDA Finding Evidence (portfolio):" in body
     assert "    - Position context." in body
     assert "  NVDA Risk Evidence:" in body
     assert "    - Watchlist bear case." in body
     assert "  NVDA Catalyst Evidence:" in body
     assert "    - Watchlist bull case." in body
+
+
+def test_renderer_does_not_spam_identical_missing_service_notes_per_ticker() -> None:
+    report = InvestmentResearchReport(
+        ticker_reports=(
+            ResearchTickerReport(
+                ticker="NVDA",
+                summary="NVDA has limited context.",
+                bull_case=("No connected bull-case evidence yet.",),
+                bear_case=("Insufficient connected research context is the primary risk.",),
+                risks=(ResearchRisk("Insufficient connected research context is the primary risk."),),
+                catalysts=(ResearchCatalyst("Add thesis and signals."),),
+            ),
+            ResearchTickerReport(
+                ticker="TSLA",
+                summary="TSLA has limited context.",
+                bull_case=("No connected bull-case evidence yet.",),
+                bear_case=("Insufficient connected research context is the primary risk.",),
+                risks=(ResearchRisk("Insufficient connected research context is the primary risk."),),
+                catalysts=(ResearchCatalyst("Add thesis and signals."),),
+            ),
+        ),
+        generated_at=GENERATED_AT,
+        evidence_notes=(
+            "No portfolio service connected.",
+            "No watchlist service connected.",
+            "No intelligence service connected.",
+        ),
+    )
+
+    body = InvestmentResearchReportRenderer().render(report)
+
+    assert body.count("No portfolio service connected.") == 1
+    assert body.count("No watchlist service connected.") == 1
+    assert body.count("No intelligence service connected.") == 1
 
 
 def test_renderer_keeps_report_advisory_only() -> None:
@@ -102,7 +137,6 @@ def test_renderer_handles_empty_report_gracefully() -> None:
     assert "Tickers: None" in body
     assert "- No ticker reports were generated." in body
     assert "- No ticker reports." in body
-    assert "- No recommendations." in body
     assert "- No risks." in body
     assert "- No catalysts." in body
     assert "    - No tickers requested." in body
@@ -127,15 +161,6 @@ def _sample_report() -> InvestmentResearchReport:
                 evidence_notes=("Watchlist bull case.",),
             ),
         ),
-        recommendation=ResearchRecommendation(
-            action=RecommendationType.HOLD,
-            confidence="high",
-            horizon="3-6 months",
-            evidence=("Portfolio holding with positive unrealized return.",),
-            risks=("Export controls.",),
-            catalysts=("Datacenter demand.",),
-            rationale="Maintain exposure while catalysts remain intact.",
-        ),
         findings=(
             ResearchFinding(
                 summary="NVDA position value is $1,200.00.",
@@ -153,14 +178,6 @@ def _sample_report() -> InvestmentResearchReport:
         bear_case=("China demand risk.",),
         risks=(ResearchRisk("China demand risk."),),
         catalysts=(ResearchCatalyst("Services growth.", horizon="next quarter"),),
-        recommendation=ResearchRecommendation(
-            action=RecommendationType.WATCH,
-            confidence="medium",
-            horizon="1-2 quarters",
-            evidence=("Watchlist thesis exists.",),
-            risks=("China demand risk.",),
-            catalysts=("Services growth.",),
-        ),
     )
     return InvestmentResearchReport(
         ticker_reports=(nvda, aapl),
@@ -180,6 +197,17 @@ def _sample_report() -> InvestmentResearchReport:
                 risk_posture="Optimistic but evidence-based.",
                 evidence_requirements=("Catalyst evidence.",),
                 writing_style="optimistic_evidence_based",
+            ),
+        ),
+        committee_consensus=ResearchCommitteeConsensus(
+            final_action="hold",
+            confidence="medium",
+            horizon="3-6 months",
+            rationale="Committee weighed evidence, risks, and catalysts.",
+            final_risk_posture="Balanced and advisory only.",
+            todays_suggested_actions=(
+                "NVDA: HOLD (medium confidence) over 3-6 months; human investor decides.",
+                "AAPL: WATCH (medium confidence) over 3-6 months; human investor decides.",
             ),
         ),
         source_summaries=("portfolio: current holding context",),

@@ -7,9 +7,7 @@ from datetime import UTC, date, datetime
 from parakeetnest.research import (
     DailyInvestmentReportComposer,
     InvestmentResearchReport,
-    RecommendationType,
     ResearchCatalyst,
-    ResearchRecommendation,
     ResearchRisk,
     ResearchTickerReport,
     compose_daily_investment_report,
@@ -109,7 +107,8 @@ def test_default_composer_can_generate_and_render_report_body() -> None:
     assert "Investment Research Report\n" in body
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: TSLA" in body
-    assert "Recommendations" in body
+    assert "Recommendations" not in body
+    assert "Committee Consensus" in body
 
 
 def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
@@ -136,14 +135,6 @@ def _sample_report() -> InvestmentResearchReport:
         bear_case=("Valuation risk remains elevated.",),
         risks=(ResearchRisk("Valuation risk remains elevated."),),
         catalysts=(ResearchCatalyst("AI demand remains durable."),),
-        recommendation=ResearchRecommendation(
-            action=RecommendationType.WATCH,
-            confidence="low",
-            horizon="3-6 months",
-            evidence=("NVDA included in requested research list.",),
-            risks=("Valuation risk remains elevated.",),
-            catalysts=("AI demand remains durable.",),
-        ),
     )
     return InvestmentResearchReport(
         ticker_reports=(ticker_report,),

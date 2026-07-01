@@ -18,13 +18,11 @@ from parakeetnest.research.daily_delivery import (
     DailyReportDeliveryService,
 )
 from parakeetnest.research.models import (
-    ConfidenceLevel,
     InvestmentResearchReport,
-    RecommendationType,
     ResearchCatalyst,
+    ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
     ResearchFinding,
-    ResearchRecommendation,
     ResearchRisk,
     ResearchTickerReport,
 )
@@ -42,7 +40,6 @@ from parakeetnest.research.scheduler import (
 from parakeetnest.research.service import InvestmentResearchService
 
 __all__ = [
-    "ConfidenceLevel",
     "DailyInvestmentReportComposer",
     "DailyReportDeliveryRequest",
     "DailyReportDeliveryService",
@@ -50,7 +47,6 @@ __all__ = [
     "InvestmentResearchReportRenderer",
     "InvestmentResearchService",
     "NoOpReportDeliveryProvider",
-    "RecommendationType",
     "ReportSchedule",
     "ReportScheduleFrequency",
     "ReportScheduler",
@@ -61,9 +57,9 @@ __all__ = [
     "ReportDeliveryStatus",
     "ReportRecipient",
     "ResearchCatalyst",
+    "ResearchCommitteeConsensus",
     "ResearchCommitteeOpinion",
     "ResearchFinding",
-    "ResearchRecommendation",
     "ResearchRisk",
     "ResearchTickerReport",
     "ScheduledReportRun",

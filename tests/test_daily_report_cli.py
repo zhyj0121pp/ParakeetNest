@@ -151,6 +151,7 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
     assert "Key Risks" in body
     assert "Upcoming Catalysts" in body
     assert "Today's Suggested Actions" in body
+    assert "Recommendations" not in body
 
 
 def test_missing_tickers_return_clear_error(capsys: pytest.CaptureFixture[str]) -> None:

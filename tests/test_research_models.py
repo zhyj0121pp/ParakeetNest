@@ -7,26 +7,15 @@ from datetime import datetime
 import pytest
 
 from parakeetnest.research import (
-    ConfidenceLevel,
     InvestmentResearchReport,
-    RecommendationType,
     ResearchCatalyst,
-    ResearchRecommendation,
+    ResearchCommitteeConsensus,
     ResearchRisk,
     ResearchTickerReport,
 )
 
 
 def test_ticker_report_normalizes_for_email_ready_rendering() -> None:
-    recommendation = ResearchRecommendation(
-        action="hold",
-        confidence="medium",
-        horizon="3-6 months",
-        evidence=("Portfolio holding.", ""),
-        risks=("Valuation risk.",),
-        catalysts=("Earnings update.",),
-    )
-
     ticker_report = ResearchTickerReport(
         ticker=" nvda ",
         summary="Existing holding.",
@@ -34,46 +23,37 @@ def test_ticker_report_normalizes_for_email_ready_rendering() -> None:
         bear_case=("Margin pressure.",),
         risks=(ResearchRisk("Valuation risk."),),
         catalysts=(ResearchCatalyst("Earnings update.", horizon="next quarter"),),
-        recommendation=recommendation,
         source_summaries=("portfolio", ""),
         evidence_notes=("Position context.",),
     )
 
     assert ticker_report.ticker == "NVDA"
     assert ticker_report.bull_case == ("AI demand.",)
-    assert ticker_report.confidence is ConfidenceLevel.MEDIUM
-    assert ticker_report.recommendation.action is RecommendationType.HOLD
+    assert not hasattr(ticker_report, "recommendation")
+    assert not hasattr(ticker_report, "confidence")
 
 
-def test_recommendation_requires_evidence_risks_and_catalysts() -> None:
-    with pytest.raises(ValueError, match="evidence is required"):
-        ResearchRecommendation(
-            action=RecommendationType.WATCH,
-            confidence=ConfidenceLevel.LOW,
+def test_committee_consensus_requires_committee_judgment_fields() -> None:
+    consensus = ResearchCommitteeConsensus(
+        final_action="hold",
+        confidence="medium",
+        horizon="3-6 months",
+        rationale="Committee weighed evidence and risks.",
+        final_risk_posture="Balanced and advisory only.",
+        todays_suggested_actions=("NVDA: HOLD for human review.",),
+    )
+
+    assert consensus.final_action == "hold"
+    assert consensus.confidence == "medium"
+
+    with pytest.raises(ValueError, match="final action"):
+        ResearchCommitteeConsensus(
+            final_action="accumulate",
+            confidence="medium",
             horizon="3-6 months",
-            evidence=(),
-            risks=("Research gap.",),
-            catalysts=("Add context.",),
-        )
-
-    with pytest.raises(ValueError, match="risks are required"):
-        ResearchRecommendation(
-            action=RecommendationType.WATCH,
-            confidence=ConfidenceLevel.LOW,
-            horizon="3-6 months",
-            evidence=("Requested ticker.",),
-            risks=(),
-            catalysts=("Add context.",),
-        )
-
-    with pytest.raises(ValueError, match="catalysts are required"):
-        ResearchRecommendation(
-            action=RecommendationType.WATCH,
-            confidence=ConfidenceLevel.LOW,
-            horizon="3-6 months",
-            evidence=("Requested ticker.",),
-            risks=("Research gap.",),
-            catalysts=(),
+            rationale="Invalid action.",
+            final_risk_posture="Advisory only.",
+            todays_suggested_actions=("Review.",),
         )
 
 
@@ -85,14 +65,6 @@ def test_report_generated_timestamp_becomes_timezone_aware() -> None:
         bear_case=("Hardware demand risk.",),
         risks=(ResearchRisk("Hardware demand risk."),),
         catalysts=(ResearchCatalyst("Earnings update."),),
-        recommendation=ResearchRecommendation(
-            action=RecommendationType.WATCH,
-            confidence=ConfidenceLevel.LOW,
-            horizon="3-6 months",
-            evidence=("Watchlist context.",),
-            risks=("Hardware demand risk.",),
-            catalysts=("Earnings update.",),
-        ),
     )
 
     report = InvestmentResearchReport(

@@ -1,28 +1,9 @@
-"""Provider-neutral investment research report domain models."""
+"""Provider-neutral factual research context and committee report models."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import StrEnum
-
-
-class RecommendationType(StrEnum):
-    """Provider-neutral recommendation actions for research reports."""
-
-    BUY = "buy"
-    HOLD = "hold"
-    WATCH = "watch"
-    REDUCE = "reduce"
-    SELL = "sell"
-
-
-class ConfidenceLevel(StrEnum):
-    """Human-readable confidence levels for research conclusions."""
-
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
 
 
 @dataclass(frozen=True)
@@ -45,7 +26,7 @@ class ResearchFinding:
 
 @dataclass(frozen=True)
 class ResearchRisk:
-    """One risk that should travel with the recommendation."""
+    """One factual risk signal found in connected research context."""
 
     summary: str
     evidence_notes: tuple[str, ...] = field(default_factory=tuple)
@@ -75,36 +56,6 @@ class ResearchCatalyst:
             "evidence_notes",
             _normalize_text_tuple(self.evidence_notes),
         )
-
-
-@dataclass(frozen=True)
-class ResearchRecommendation:
-    """Complete recommendation payload required by project rules."""
-
-    action: RecommendationType
-    confidence: ConfidenceLevel
-    horizon: str
-    evidence: tuple[str, ...]
-    risks: tuple[str, ...]
-    catalysts: tuple[str, ...]
-    rationale: str | None = None
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.action, RecommendationType):
-            object.__setattr__(self, "action", RecommendationType(self.action))
-        if not isinstance(self.confidence, ConfidenceLevel):
-            object.__setattr__(self, "confidence", ConfidenceLevel(self.confidence))
-        object.__setattr__(self, "horizon", _required_text(self.horizon, "horizon"))
-        object.__setattr__(self, "evidence", _normalize_text_tuple(self.evidence))
-        object.__setattr__(self, "risks", _normalize_text_tuple(self.risks))
-        object.__setattr__(self, "catalysts", _normalize_text_tuple(self.catalysts))
-        object.__setattr__(self, "rationale", _optional_text(self.rationale))
-        if not self.evidence:
-            raise ValueError("recommendation evidence is required")
-        if not self.risks:
-            raise ValueError("recommendation risks are required")
-        if not self.catalysts:
-            raise ValueError("recommendation catalysts are required")
 
 
 @dataclass(frozen=True)
@@ -206,7 +157,7 @@ class ResearchCommitteeOpinion:
 
 @dataclass(frozen=True)
 class ResearchTickerReport:
-    """Email-ready research synthesis for one ticker."""
+    """Factual research context for one ticker before committee judgment."""
 
     ticker: str
     summary: str
@@ -214,7 +165,6 @@ class ResearchTickerReport:
     bear_case: tuple[str, ...]
     risks: tuple[ResearchRisk, ...]
     catalysts: tuple[ResearchCatalyst, ...]
-    recommendation: ResearchRecommendation
     findings: tuple[ResearchFinding, ...] = field(default_factory=tuple)
     source_summaries: tuple[str, ...] = field(default_factory=tuple)
     evidence_notes: tuple[str, ...] = field(default_factory=tuple)
@@ -239,9 +189,47 @@ class ResearchTickerReport:
         )
 
     @property
-    def confidence(self) -> ConfidenceLevel:
-        """Return the recommendation confidence for convenient rendering."""
-        return self.recommendation.confidence
+    def evidence(self) -> tuple[str, ...]:
+        """Return source-backed evidence summaries for committee consideration."""
+        return _normalize_text_tuple(tuple(finding.summary for finding in self.findings))
+
+
+@dataclass(frozen=True)
+class ResearchCommitteeConsensus:
+    """Final advisory investment judgment produced by the committee."""
+
+    final_action: str
+    confidence: str
+    horizon: str
+    rationale: str
+    final_risk_posture: str
+    todays_suggested_actions: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        action = _required_text(self.final_action, "final_action").lower()
+        if action not in {"buy", "hold", "watch", "reduce", "sell"}:
+            raise ValueError(
+                "committee consensus final action must be buy, hold, watch, reduce, or sell"
+            )
+        confidence = _required_text(self.confidence, "confidence").lower()
+        if confidence not in {"high", "medium", "low"}:
+            raise ValueError("committee consensus confidence must be high, medium, or low")
+        object.__setattr__(self, "final_action", action)
+        object.__setattr__(self, "confidence", confidence)
+        object.__setattr__(self, "horizon", _required_text(self.horizon, "horizon"))
+        object.__setattr__(self, "rationale", _required_text(self.rationale, "rationale"))
+        object.__setattr__(
+            self,
+            "final_risk_posture",
+            _required_text(self.final_risk_posture, "final_risk_posture"),
+        )
+        object.__setattr__(
+            self,
+            "todays_suggested_actions",
+            _normalize_text_tuple(self.todays_suggested_actions),
+        )
+        if not self.todays_suggested_actions:
+            raise ValueError("committee consensus today's suggested actions are required")
 
 
 @dataclass(frozen=True)
@@ -257,10 +245,16 @@ class InvestmentResearchReport:
     committee_opinions: tuple[ResearchCommitteeOpinion, ...] = field(
         default_factory=tuple,
     )
-    committee_consensus: str = (
-        "Committee consensus is based on the current evidence set."
+    committee_consensus: ResearchCommitteeConsensus = field(
+        default_factory=lambda: ResearchCommitteeConsensus(
+            final_action="watch",
+            confidence="low",
+            horizon="next research update",
+            rationale="Committee consensus is based on limited connected evidence.",
+            final_risk_posture="Advisory only; human investor makes the final decision.",
+            todays_suggested_actions=("Review evidence before making any decision.",),
+        )
     )
-    todays_suggested_actions: tuple[str, ...] = field(default_factory=tuple)
     source_summaries: tuple[str, ...] = field(default_factory=tuple)
     evidence_notes: tuple[str, ...] = field(default_factory=tuple)
 
@@ -292,12 +286,7 @@ class InvestmentResearchReport:
         object.__setattr__(
             self,
             "committee_consensus",
-            _required_text(self.committee_consensus, "committee_consensus"),
-        )
-        object.__setattr__(
-            self,
-            "todays_suggested_actions",
-            _normalize_text_tuple(self.todays_suggested_actions),
+            self.committee_consensus,
         )
         object.__setattr__(
             self,
@@ -341,13 +330,11 @@ def _normalize_text_tuple(values: tuple[str, ...]) -> tuple[str, ...]:
 
 
 __all__ = [
-    "ConfidenceLevel",
     "InvestmentResearchReport",
-    "RecommendationType",
     "ResearchCatalyst",
+    "ResearchCommitteeConsensus",
     "ResearchCommitteeOpinion",
     "ResearchFinding",
-    "ResearchRecommendation",
     "ResearchRisk",
     "ResearchTickerReport",
 ]

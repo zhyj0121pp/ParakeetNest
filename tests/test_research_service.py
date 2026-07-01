@@ -14,9 +14,7 @@ from parakeetnest.committee import (
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
 from parakeetnest.research import (
-    ConfidenceLevel,
     InvestmentResearchService,
-    RecommendationType,
 )
 from parakeetnest.watchlist import WatchlistInsight
 
@@ -119,11 +117,11 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert ticker_report.summary == "NVDA is both a portfolio holding and watchlist research item."
     assert "Datacenter demand." in ticker_report.bull_case
     assert "Export controls." in ticker_report.bear_case
-    assert ticker_report.recommendation.action is RecommendationType.HOLD
-    assert ticker_report.recommendation.confidence is ConfidenceLevel.HIGH
-    assert ticker_report.recommendation.evidence
-    assert ticker_report.recommendation.risks
-    assert ticker_report.recommendation.catalysts
+    assert not hasattr(ticker_report, "recommendation")
+    assert report.committee_consensus.final_action == "reduce"
+    assert report.committee_consensus.confidence == "high"
+    assert report.committee_consensus.rationale
+    assert report.committee_consensus.todays_suggested_actions
     assert portfolio.calls == ["main"]
     assert watchlist.calls == ["NVDA"]
     assert intelligence.calls == [("NVDA", date(2026, 7, 1))]
@@ -145,8 +143,9 @@ def test_generate_report_supports_watchlist_only_tickers() -> None:
     report = service.generate_report(("AAPL",), generated_at=AS_OF)
 
     ticker_report = report.ticker_reports[0]
-    assert ticker_report.recommendation.action is RecommendationType.WATCH
-    assert ticker_report.recommendation.confidence is ConfidenceLevel.LOW
+    assert not hasattr(ticker_report, "recommendation")
+    assert report.committee_consensus.final_action == "watch"
+    assert report.committee_consensus.confidence == "low"
     assert ticker_report.risks[0].summary == "China demand risk."
     assert ticker_report.catalysts[0].summary == "Services growth."
 
@@ -160,10 +159,12 @@ def test_generate_report_uses_explicit_research_gap_when_no_context_connected() 
     assert ticker_report.summary == (
         "TSLA is included for research, but connected context is limited."
     )
-    assert ticker_report.recommendation.action is RecommendationType.WATCH
-    assert ticker_report.recommendation.confidence is ConfidenceLevel.LOW
+    assert not hasattr(ticker_report, "recommendation")
+    assert report.committee_consensus.final_action == "watch"
+    assert report.committee_consensus.confidence == "low"
     assert ticker_report.findings[0].source == "research_service"
-    assert "No portfolio service connected." in ticker_report.evidence_notes
+    assert ticker_report.evidence_notes == ()
+    assert "No portfolio service connected." in report.evidence_notes
 
 
 def test_committee_opinions_are_derived_from_persona_prompt_context() -> None:
@@ -214,6 +215,10 @@ def test_all_committee_opinions_include_daily_report_reasoning_fields() -> None:
         assert opinion.evidence_considered
         assert opinion.key_concern
         assert opinion.suggested_action
+    assert report.committee_consensus.final_action
+    assert report.committee_consensus.confidence
+    assert report.committee_consensus.rationale
+    assert report.committee_consensus.todays_suggested_actions
 
 
 def test_committee_opinions_keep_persona_specific_lenses() -> None:

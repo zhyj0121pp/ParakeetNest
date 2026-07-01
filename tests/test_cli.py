@@ -8,6 +8,12 @@ import pytest
 
 from parakeetnest import cli
 from parakeetnest.committee import MeetingResult, MeetingStatus
+from parakeetnest.context import ContextService
+from parakeetnest.watchlist import (
+    InMemoryWatchlistRepository,
+    WatchlistContextProvider,
+    WatchlistIntelligenceService,
+)
 
 
 def test_cli_parser_parses_meeting_question_and_ticker() -> None:
@@ -19,6 +25,14 @@ def test_cli_parser_parses_meeting_question_and_ticker() -> None:
     assert args.command == "meeting"
     assert args.question == "Should I buy POET now?"
     assert args.ticker == "POET"
+
+
+def test_cli_parser_parses_watchlist_review_command() -> None:
+    """The watchlist review command should be available in the root CLI."""
+    args = cli.build_parser().parse_args(["watchlist", "review"])
+
+    assert args.command == "watchlist"
+    assert args.watchlist_command == "review"
 
 
 def test_cli_meeting_command_calls_meeting_service(
@@ -101,3 +115,83 @@ def test_cli_exits_successfully_with_mock_llm_provider(
     assert "meeting_id:" in output
     assert "status: completed" in output
     assert '"action": "watch"' in output
+
+
+def test_cli_watchlist_review_empty_watchlist_succeeds(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The watchlist review command should render an empty watchlist safely."""
+    exit_code = cli.main(
+        [
+            "watchlist",
+            "review",
+            "--database",
+            str(tmp_path / "watchlist-review.sqlite3"),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "## Watchlist" in output
+    assert "- No watchlist insights available." in output
+
+
+def test_cli_watchlist_review_does_not_invoke_llm_or_committee_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Watchlist review should only build and render context."""
+    repository = InMemoryWatchlistRepository()
+    context_service = ContextService(
+        providers=(
+            WatchlistContextProvider(WatchlistIntelligenceService(repository)),
+        )
+    )
+    calls: list[str] = []
+    configs: list[object] = []
+
+    class ForbiddenLLMProvider:
+        def complete(self, request: object) -> object:
+            raise AssertionError("LLM provider must not be invoked")
+
+    class ForbiddenCommitteeRuntime:
+        def run(self, agent: object, context: object) -> object:
+            raise AssertionError("committee runtime must not be invoked")
+
+    class ForbiddenMeetingService:
+        def run(self, question: str, ticker: str) -> object:
+            raise AssertionError("committee meeting must not be created")
+
+    class RecordingApp:
+        llm_provider = ForbiddenLLMProvider()
+        agent_runtime = ForbiddenCommitteeRuntime()
+        meeting_service = ForbiddenMeetingService()
+
+        def __init__(self, context_service: ContextService) -> None:
+            self.context_service = context_service
+
+        def commit(self) -> None:
+            raise AssertionError("watchlist review must not commit")
+
+        def rollback(self) -> None:
+            raise AssertionError("watchlist review must not rollback")
+
+        def close(self) -> None:
+            calls.append("close")
+
+    def recording_create_app(config: object) -> RecordingApp:
+        configs.append(config)
+        return RecordingApp(context_service)
+
+    monkeypatch.setattr(cli, "create_app", recording_create_app)
+
+    exit_code = cli.main(["watchlist", "review"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert calls == ["close"]
+    assert len(configs) == 1
+    assert configs[0].enabled_context_provider_ids == ("watchlist",)
+    assert "## Watchlist" in output
+    assert "- No watchlist insights available." in output

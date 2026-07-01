@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from parakeetnest.config import AppConfig
+from parakeetnest.context import ContextRequest, MeetingContextPromptRenderer
 
 
 def create_app(config: AppConfig | None = None):
@@ -39,6 +41,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="SQLite database path. Defaults to PARAKEETNEST_SQLITE_PATH or settings.",
     )
 
+    watchlist_parser = subparsers.add_parser(
+        "watchlist",
+        help="Review watchlist research context.",
+    )
+    watchlist_subparsers = watchlist_parser.add_subparsers(
+        dest="watchlist_command",
+        required=True,
+    )
+    watchlist_review_parser = watchlist_subparsers.add_parser(
+        "review",
+        help="Render current watchlist context without committee reasoning.",
+    )
+    watchlist_review_parser.add_argument(
+        "--database",
+        type=Path,
+        default=None,
+        help="SQLite database path. Defaults to PARAKEETNEST_SQLITE_PATH or settings.",
+    )
+
     return parser
 
 
@@ -53,6 +74,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             ticker=args.ticker,
             database_path=args.database,
         )
+        return 0
+
+    if args.command == "watchlist" and args.watchlist_command == "review":
+        run_watchlist_review(database_path=args.database)
         return 0
 
     parser.error(f"Unknown command: {args.command}")
@@ -80,6 +105,30 @@ def run_meeting(question: str, ticker: str, database_path: Path | None = None) -
     print(f"status: {result.status.value}")
     print("final_result:")
     print(json.dumps(result.result_json or {}, indent=2, sort_keys=True))
+
+
+def run_watchlist_review(database_path: Path | None = None) -> None:
+    """Render current watchlist context without LLM or committee execution."""
+    config = AppConfig(
+        database_path=database_path,
+        enabled_context_provider_ids=("watchlist",),
+    )
+    app = create_app(config)
+    try:
+        context = app.context_service.build_context(
+            ContextRequest(
+                question="Review watchlist context.",
+                symbols=(),
+                as_of=datetime.now(UTC),
+                include_portfolio=False,
+                include_macro=False,
+                include_knowledge_base=False,
+            )
+        )
+    finally:
+        app.close()
+
+    print(MeetingContextPromptRenderer().render(context))
 
 
 if __name__ == "__main__":

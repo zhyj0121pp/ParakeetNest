@@ -18,6 +18,7 @@
 | [Epic 014](epic-014-market-breadth.md) | Market Breadth Layer | Completed |
 | [Epic 015](epic-015-momentum-layer.md) | Momentum Layer | Completed |
 | [Epic 016](epic-016-market-sentiment-layer.md) | Market Sentiment Layer | Completed |
+| [Epic 017](epic-017-market-health-layer.md) | Market Health Layer | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

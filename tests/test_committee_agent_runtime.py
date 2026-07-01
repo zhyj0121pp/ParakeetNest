@@ -8,7 +8,12 @@ from dataclasses import dataclass
 from parakeetnest.committee import AgentResult, AgentRuntime, MeetingContext, PromptRenderer
 from parakeetnest.context import ContextRequest
 from parakeetnest.context import MeetingContext as ResearchMeetingContext
-from parakeetnest.llm import MockLLMProvider
+from parakeetnest.llm import (
+    COMMITTEE_OPINION_SCHEMA,
+    LLMRequest,
+    MockLLMProvider,
+    OutputParser,
+)
 
 
 @dataclass(frozen=True)
@@ -118,3 +123,41 @@ def test_agent_runtime_calls_llm_provider_once() -> None:
     assert provider.requests[0].metadata["agent_name"] == "Test Analyst"
     assert result.agent_name == "Test Analyst"
     assert json.loads(result.content)["viewpoint"] == "Constructive but uncertain."
+
+
+def test_agent_runtime_preserves_direct_provider_committee_output() -> None:
+    """Migrating the adapter to AgentRuntime should not change committee results."""
+    agent = RuntimeAgentStub()
+    context = _context()
+    migrated_provider = MockLLMProvider(responses=(_opinion(),))
+    direct_provider = MockLLMProvider(responses=(_opinion(),))
+
+    migrated_result = AgentRuntime(llm_provider=migrated_provider).run(agent, context)
+    direct_response = direct_provider.complete(
+        LLMRequest(
+            prompt=PromptRenderer().render(agent, context),
+            model="mock-committee",
+            response_schema=COMMITTEE_OPINION_SCHEMA,
+            metadata={
+                "meeting_id": str(context.meeting_id),
+                "agent_name": agent.name,
+                "role": agent.role,
+            },
+        )
+    )
+    direct_payload = OutputParser().parse_json(
+        direct_response,
+        COMMITTEE_OPINION_SCHEMA,
+    )
+    direct_result = AgentResult(
+        agent_name=agent.name,
+        role=agent.role,
+        content=json.dumps(direct_payload, sort_keys=True),
+    )
+
+    assert migrated_result == direct_result
+    assert migrated_provider.requests[0].prompt == direct_provider.requests[0].prompt
+    assert (
+        migrated_provider.requests[0].response_schema
+        == direct_provider.requests[0].response_schema
+    )

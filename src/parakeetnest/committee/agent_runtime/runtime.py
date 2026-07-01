@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Protocol
+from types import MappingProxyType
+from typing import Mapping, Protocol
 from uuid import uuid4
 
 from parakeetnest.committee.agent_runtime.models import (
@@ -13,7 +14,7 @@ from parakeetnest.committee.agent_runtime.models import (
     AgentRequest,
     AgentResponse,
 )
-from parakeetnest.llm.models import LLMRequest, LLMResponse
+from parakeetnest.llm.models import JSONSchema, LLMRequest, LLMResponse
 from parakeetnest.llm.provider import LLMProvider
 
 
@@ -33,6 +34,14 @@ class DefaultAgentRuntime:
     temperature: float = 0.0
     timeout_seconds: float | None = None
     max_retries: int = 0
+    response_schemas: Mapping[str, JSONSchema] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "response_schemas",
+            MappingProxyType(dict(self.response_schemas)),
+        )
 
     def execute(self, request: AgentRequest) -> AgentExecutionResult:
         """Execute one prepared agent request without parsing model output."""
@@ -106,6 +115,7 @@ class DefaultAgentRuntime:
             prompt=request.prompt,
             model=self.model,
             temperature=self.temperature,
+            response_schema=self.response_schemas.get(request.output_schema_id),
             timeout_seconds=self.timeout_seconds,
             max_retries=self.max_retries,
             metadata=metadata,

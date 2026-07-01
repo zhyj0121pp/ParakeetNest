@@ -26,6 +26,7 @@
 | [Epic 21.2](epic-021.2-agent-registry.md) | Agent Registry | Completed |
 | [Epic 21.3](epic-021.3-agent-prompt-builder.md) | Agent Prompt Builder | Completed |
 | [Epic 21.4.1](epic-021.4.1-agent-runtime-models.md) | Agent Runtime Models | Completed |
+| [Epic 21.5.1](epic-021.5.1-agent-runtime-integration.md) | Agent Runtime Committee Integration | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

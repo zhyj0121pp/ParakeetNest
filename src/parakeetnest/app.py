@@ -12,6 +12,10 @@ from parakeetnest.committee.agents import (
     XixiAgent,
     YoyoAgent,
 )
+from parakeetnest.committee.memory import (
+    CommitteeMemoryService,
+    SQLiteCommitteeMemoryRepository,
+)
 from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
 from parakeetnest.config import AppConfig
@@ -85,6 +89,7 @@ class ParakeetNestApp:
     sec_filing_service: SecFilingService
     financial_statement_service: FinancialStatementService
     llm_provider: LLMProvider
+    memory_service: CommitteeMemoryService | None
     agent_runtime: AgentRuntime
     committee_orchestrator: CommitteeMeetingOrchestrator
     meeting_service: MeetingService
@@ -112,6 +117,8 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     session = session_factory()
 
     meeting_repository = CommitteeMeetingRepository(session)
+    memory_repository = SQLiteCommitteeMemoryRepository(session)
+    memory_service = CommitteeMemoryService(memory_repository)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
     news_service = _create_news_service(resolved_config)
     macro_data_service = _create_macro_data_service()
@@ -139,6 +146,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         llm_provider=llm_provider,
         model="mock-committee",
         prompt_renderer=prompt_renderer,
+        memory_service=memory_service,
     )
     committee_orchestrator = CommitteeMeetingOrchestrator(
         repository=meeting_repository,
@@ -149,6 +157,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
             ChairmanAgent(),
         ),
         agent_runtime=agent_runtime,
+        memory_service=memory_service,
     )
     meeting_service = MeetingService(
         repository=meeting_repository,
@@ -172,6 +181,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         sec_filing_service=sec_filing_service,
         financial_statement_service=financial_statement_service,
         llm_provider=llm_provider,
+        memory_service=memory_service,
         agent_runtime=agent_runtime,
         committee_orchestrator=committee_orchestrator,
         meeting_service=meeting_service,

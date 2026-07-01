@@ -5,6 +5,12 @@ from pathlib import Path
 import pytest
 
 from parakeetnest.app import ParakeetNestApp, create_app, create_test_app
+from parakeetnest.committee.memory import (
+    CommitteeMemoryService,
+    MemoryQuery,
+    MemoryType,
+    SQLiteCommitteeMemoryRepository,
+)
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
 from parakeetnest.exceptions import ConfigurationError
@@ -49,6 +55,21 @@ def test_create_test_app_uses_mock_llm_provider() -> None:
         app.close()
 
 
+def test_create_app_wires_sqlite_committee_memory_service(tmp_path: Path) -> None:
+    """The app factory should create durable committee memory when it owns a session."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        assert isinstance(app.memory_service, CommitteeMemoryService)
+        assert isinstance(
+            app.memory_service._repository,
+            SQLiteCommitteeMemoryRepository,
+        )
+        assert app.agent_runtime.memory_service is app.memory_service
+        assert app.committee_orchestrator.memory_service is app.memory_service
+    finally:
+        app.close()
+
+
 def test_create_test_app_runs_mock_investment_intelligence_end_to_end() -> None:
     """The test app should pass mock investment intelligence into agent prompts."""
     app = create_test_app()
@@ -72,6 +93,72 @@ def test_create_test_app_runs_mock_investment_intelligence_end_to_end() -> None:
     assert "# Investment Intelligence Context" in first_prompt
     assert "## Market Health" in first_prompt
     assert "- Symbol: NVDA" in first_prompt
+
+
+def test_app_runtime_reads_memory_context_from_sqlite_service(
+    tmp_path: Path,
+) -> None:
+    """Agent prompts should read prior memories through the SQLite-backed service."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        assert app.memory_service is not None
+        meeting = app.meeting_repository.create_meeting(
+            "Should we add to NVDA?",
+            "NVDA",
+        )
+        app.memory_service.save_agent_observation(
+            meeting_id=str(meeting.id),
+            agent_id="xixi",
+            ticker="NVDA",
+            content="SQLite memory says prior margin risk was manageable.",
+        )
+        app.commit()
+
+        app.committee_orchestrator.run(
+            meeting.id,
+            "Should we add to NVDA?",
+            "NVDA",
+            app.context_service.build_context(
+                ContextRequest(question="Should we add to NVDA?", symbols=("NVDA",))
+            ),
+        )
+    finally:
+        app.close()
+
+    first_prompt = app.llm_provider.requests[0].prompt
+    assert "Relevant Committee Memories:" in first_prompt
+    assert "SQLite memory says prior margin risk was manageable." in first_prompt
+
+
+def test_completed_app_meeting_writes_back_to_sqlite_memory_repository(
+    tmp_path: Path,
+) -> None:
+    """Completed meetings should write durable memories through app composition."""
+    database_path = tmp_path / "app.sqlite3"
+    app = create_app(AppConfig(database_path=database_path))
+    try:
+        result = app.meeting_service.run(
+            question="Should I watch NVDA?",
+            ticker="NVDA",
+        )
+        app.commit()
+        meeting_id = result.meeting_id
+    finally:
+        app.close()
+
+    reopened_app = create_app(AppConfig(database_path=database_path))
+    try:
+        assert reopened_app.memory_service is not None
+        memories = reopened_app.memory_service.search(
+            MemoryQuery(meeting_id=str(meeting_id), limit=20)
+        )
+    finally:
+        reopened_app.close()
+
+    memory_types = {memory.memory.memory_type for memory in memories}
+    assert MemoryType.MEETING_SUMMARY in memory_types
+    assert MemoryType.DECISION in memory_types
+    assert MemoryType.AGENT_OBSERVATION in memory_types
 
 
 def test_create_app_can_disable_context_provider_before_service_creation(

@@ -42,6 +42,7 @@ class PromptRenderer:
             or "- No investment intelligence context available."
         )
         previous_results = self._format_previous_results(context)
+        original_request = self._format_original_request(context)
         return "\n".join(
             (
                 "System prompt:",
@@ -53,6 +54,9 @@ class PromptRenderer:
                 f"Meeting ID: {context.meeting_id}",
                 f"Ticker: {context.ticker}",
                 f"Question: {context.question}",
+                "",
+                "Original user request:",
+                original_request,
                 "",
                 "Meeting context:",
                 rendered_context,
@@ -76,6 +80,23 @@ class PromptRenderer:
             f"- {result.agent_name} ({result.role}): {result.content}"
             for result in context.previous_agent_results
         )
+
+    @staticmethod
+    def _format_original_request(context: MeetingContext) -> str:
+        request = context.investment_committee_request
+        if request is None:
+            return context.question
+
+        lines = [
+            f"- Ticker: {request.ticker}",
+            f"- Topic: {request.topic}",
+            f"- Time Horizon: {request.time_horizon.value}",
+        ]
+        if request.user_question:
+            lines.append(f"- User Question: {request.user_question}")
+        if request.portfolio_context_notes:
+            lines.append(f"- Portfolio Context Notes: {request.portfolio_context_notes}")
+        return "\n".join(lines)
 
 
 @dataclass

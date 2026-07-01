@@ -6,7 +6,13 @@ import json
 from dataclasses import dataclass
 
 from parakeetnest.committee.base import CommitteeAgent
-from parakeetnest.committee.models import AgentResult, MeetingContext, MeetingResult, MeetingStatus
+from parakeetnest.committee.models import (
+    AgentResult,
+    InvestmentCommitteeRequest,
+    MeetingContext,
+    MeetingResult,
+    MeetingStatus,
+)
 from parakeetnest.committee.runtime import AgentRuntime
 from parakeetnest.context.models import MeetingContext as ResearchMeetingContext
 from parakeetnest.database.repository import CommitteeMeetingRepository
@@ -27,6 +33,7 @@ class CommitteeMeetingOrchestrator:
         ticker: str,
         research_context: ResearchMeetingContext,
         rendered_investment_intelligence_context: str | None = None,
+        investment_committee_request: InvestmentCommitteeRequest | None = None,
     ) -> MeetingResult:
         """Run agents for an existing meeting and persist their messages."""
         agent_results: list[AgentResult] = []
@@ -39,6 +46,7 @@ class CommitteeMeetingOrchestrator:
                 rendered_investment_intelligence_context=(
                     rendered_investment_intelligence_context
                 ),
+                investment_committee_request=investment_committee_request,
                 previous_agent_results=tuple(agent_results),
             )
             result = self._run_agent(agent, context)

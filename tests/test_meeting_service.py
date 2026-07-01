@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+import json
 import logging
 from pathlib import Path
 
@@ -12,9 +13,15 @@ import pytest
 from parakeetnest.committee import (
     AgentResult,
     AgentRuntime,
+    ChairmanAgent,
+    DongdongAgent,
+    InvestmentCommitteeDecision,
+    InvestmentCommitteeRequest,
     MeetingResult,
     MeetingStatus,
     PromptRenderer,
+    XixiAgent,
+    YoyoAgent,
 )
 from parakeetnest.committee.orchestrator import CommitteeMeetingOrchestrator
 from parakeetnest.context import ContextRequest
@@ -50,6 +57,7 @@ class SuccessfulOrchestrator:
         ticker: str,
         research_context: ResearchMeetingContext,
         rendered_investment_intelligence_context: str | None = None,
+        investment_committee_request: InvestmentCommitteeRequest | None = None,
     ) -> MeetingResult:
         self.calls.append(
             (
@@ -98,6 +106,7 @@ class FailingOrchestrator:
         ticker: str,
         research_context: ResearchMeetingContext,
         rendered_investment_intelligence_context: str | None = None,
+        investment_committee_request: InvestmentCommitteeRequest | None = None,
     ) -> MeetingResult:
         self.calls.append(
             (
@@ -195,6 +204,31 @@ def _chairman_response() -> str:
       "data_confidence": "medium"
     }
     """
+
+
+def _opinion_response(
+    member_name: str,
+    role: str,
+    viewpoint: str,
+    risks: list[str] | None = None,
+) -> str:
+    return json.dumps(
+        {
+            "member_name": member_name,
+            "role": role,
+            "symbol": "NVDA",
+            "viewpoint": viewpoint,
+            "confidence": "medium",
+            "evidence": [
+                {
+                    "summary": f"{member_name} reviewed the request.",
+                    "source": "unit_test",
+                }
+            ],
+            "risks": risks or ["Execution risk."],
+            "catalysts": ["Earnings update."],
+        }
+    )
 
 
 def test_meeting_service_runs_successful_meeting_and_persists_completion(
@@ -386,3 +420,137 @@ def test_agents_receive_rendered_investment_intelligence_context(
     assert "- Symbol: NVDA" in prompt
     assert "- Regime: uptrend" in prompt
     assert result.status is MeetingStatus.COMPLETED
+
+
+def test_investment_committee_request_executes_through_meeting_service(
+    tmp_path: Path,
+) -> None:
+    """A typed investment committee request should produce a typed report."""
+    engine = create_sqlite_engine(tmp_path / "investment_committee.sqlite3")
+    initialize_database(engine)
+    session_factory = create_session_factory(engine)
+    llm_provider = MockLLMProvider(
+        responses=(
+            _opinion_response(
+                "Xixi",
+                "Chief Fundamental Analyst",
+                "Fundamentals remain durable.",
+            ),
+            _opinion_response(
+                "Dongdong",
+                "Chief Opportunity Hunter",
+                "Bull case depends on AI demand acceleration.",
+            ),
+            _opinion_response(
+                "Yoyo",
+                "Chief Risk Officer",
+                "Risk is manageable but valuation leaves less margin for error.",
+                risks=["Valuation compression.", "Demand normalization."],
+            ),
+            _chairman_response(),
+        )
+    )
+    intelligence_service = RecordingInvestmentIntelligenceService()
+    intelligence_renderer = RecordingInvestmentIntelligenceRenderer(
+        rendered_body=(
+            "# Investment Intelligence Context\n\n"
+            "## Economic Regime\n"
+            "- Regime: expansion\n\n"
+            "## Sector Rotation\n"
+            "- Summary: Technology leads.\n\n"
+            "## Risk\n"
+            "- Overall Level: moderate\n\n"
+            "## Momentum\n"
+            "- Symbol: NVDA\n"
+            "- Regime: uptrend\n\n"
+            "## Market Sentiment\n"
+            "- Regime: greed\n"
+        )
+    )
+
+    with session_scope(session_factory) as session:
+        repository = CommitteeMeetingRepository(session)
+        orchestrator = CommitteeMeetingOrchestrator(
+            repository=repository,
+            agents=(XixiAgent(), DongdongAgent(), YoyoAgent(), ChairmanAgent()),
+            agent_runtime=AgentRuntime(
+                llm_provider=llm_provider,
+                prompt_renderer=PromptRenderer(),
+            ),
+        )
+        service = MeetingService(
+            repository=repository,
+            orchestrator=orchestrator,
+            context_service=ContextService(providers=()),
+            investment_intelligence_context_service=intelligence_service,
+            investment_intelligence_renderer=intelligence_renderer,
+        )
+        report = service.execute_investment_committee(
+            InvestmentCommitteeRequest(
+                ticker="nvda",
+                topic="AI infrastructure durability",
+                time_horizon="1_year",
+                user_question="Should we add after earnings?",
+            )
+        )
+        meeting = session.get(CommitteeMeeting, 1)
+
+    assert report.ticker == "NVDA"
+    assert report.topic == "AI infrastructure durability"
+    assert report.macro_view == "- Regime: expansion"
+    assert report.sector_view == "- Summary: Technology leads."
+    assert report.fundamental_view == "Fundamentals remain durable."
+    assert report.bull_case == "Bull case depends on AI demand acceleration."
+    assert report.risk_view == (
+        "Risk is manageable but valuation leaves less margin for error."
+    )
+    assert "Valuation compression." in report.key_risks
+    assert report.decision is InvestmentCommitteeDecision.WATCH
+    assert report.confidence == "medium"
+    assert report.recommended_action.startswith("watch:")
+    assert meeting is not None
+    assert meeting.status == MeetingStatus.COMPLETED.value
+    assert meeting.result_json["ticker"] == "NVDA"
+
+
+def test_investment_committee_runtime_receives_original_request(
+    tmp_path: Path,
+) -> None:
+    """The runtime prompt should carry the original request fields."""
+    engine = create_sqlite_engine(tmp_path / "investment_committee_prompt.sqlite3")
+    initialize_database(engine)
+    session_factory = create_session_factory(engine)
+    llm_provider = MockLLMProvider(responses=(_chairman_response(),))
+
+    with session_scope(session_factory) as session:
+        repository = CommitteeMeetingRepository(session)
+        orchestrator = CommitteeMeetingOrchestrator(
+            repository=repository,
+            agents=(ChairmanAgent(),),
+            agent_runtime=AgentRuntime(
+                llm_provider=llm_provider,
+                prompt_renderer=PromptRenderer(),
+            ),
+        )
+        service = MeetingService(
+            repository=repository,
+            orchestrator=orchestrator,
+            context_service=ContextService(providers=()),
+        )
+        service.execute_investment_committee(
+            InvestmentCommitteeRequest(
+                ticker="MSFT",
+                topic="Cloud and AI margin durability",
+                time_horizon="6_months",
+                user_question="Should we hold MSFT?",
+                portfolio_context_notes="Already a top-five position.",
+            )
+        )
+
+    prompt = llm_provider.requests[0].prompt
+    assert "Original user request:" in prompt
+    assert "- Ticker: MSFT" in prompt
+    assert "- Topic: Cloud and AI margin durability" in prompt
+    assert "- Time Horizon: 6_months" in prompt
+    assert "- User Question: Should we hold MSFT?" in prompt
+    assert "- Portfolio Context Notes: Already a top-five position." in prompt

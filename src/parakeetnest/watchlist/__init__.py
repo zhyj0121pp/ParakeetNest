@@ -13,10 +13,12 @@ from parakeetnest.watchlist.repository import (
     WatchlistRepository,
     normalize_watchlist_symbol,
 )
+from parakeetnest.watchlist.service import WatchlistIntelligenceService
 
 __all__ = [
     "InMemoryWatchlistRepository",
     "WatchlistInsight",
+    "WatchlistIntelligenceService",
     "WatchlistItem",
     "WatchlistPriority",
     "WatchlistRepository",

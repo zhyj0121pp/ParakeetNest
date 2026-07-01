@@ -18,6 +18,7 @@ TABLES: tuple[str, ...] = (
     "committee_discussions",
     "committee_meeting",
     "committee_meeting_message",
+    "committee_memories",
     "recommendations",
     "reports",
 )

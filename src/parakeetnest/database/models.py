@@ -208,6 +208,30 @@ class CommitteeMeetingMessage(TimestampMixin, Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class CommitteeMemoryRecord(Base):
+    """Persistent committee memory record."""
+
+    __tablename__ = "committee_memories"
+
+    memory_id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    memory_type: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    importance: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
+    updated_at: Mapped[str | None] = mapped_column(String(40))
+    meeting_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    agent_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    ticker: Mapped[str | None] = mapped_column(String(16), index=True)
+    topic: Mapped[str | None] = mapped_column(String(240), index=True)
+    tags_json: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+    )
+
+
 class Recommendation(TimestampMixin, Base):
     """Final committee recommendation record."""
 

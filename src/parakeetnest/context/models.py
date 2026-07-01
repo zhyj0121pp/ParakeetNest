@@ -148,10 +148,35 @@ class PortfolioPosition:
 
     symbol: str
     quantity: float
+    name: str | None = None
     market_value: float | None = None
     cost_basis: float | None = None
     unrealized_pl: float | None = None
     weight: float | None = None
+    sector: str | None = None
+
+
+@dataclass(frozen=True)
+class PortfolioAllocationContextItem:
+    """One portfolio allocation bucket for committee context."""
+
+    category: str
+    value: float
+    percent: float
+
+
+@dataclass(frozen=True)
+class PortfolioRiskSummaryContext:
+    """Portfolio risk summary rendered before committee reasoning."""
+
+    concentration_score: float = 0.0
+    largest_holding_symbol: str | None = None
+    largest_holding_weight: float = 0.0
+    top_5_concentration: float = 0.0
+    cash_weight: float = 0.0
+    holding_count: int = 0
+    sector_count: int = 0
+    notes: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -160,6 +185,20 @@ class PortfolioSnapshot:
 
     source: str
     fetched_at: datetime | None = None
+    account_id: str | None = None
+    total_equity: float | None = None
+    total_market_value: float | None = None
+    total_cash: float | None = None
+    holding_count: int | None = None
+    symbols: tuple[str, ...] = field(default_factory=tuple)
+    top_holdings: tuple[PortfolioPosition, ...] = field(default_factory=tuple)
+    allocation_by_symbol: tuple[PortfolioAllocationContextItem, ...] = (
+        field(default_factory=tuple)
+    )
+    allocation_by_sector: tuple[PortfolioAllocationContextItem, ...] = (
+        field(default_factory=tuple)
+    )
+    risk_summary: PortfolioRiskSummaryContext | None = None
     positions: tuple[PortfolioPosition, ...] = field(default_factory=tuple)
     cash_balance: float | None = None
     total_value: float | None = None

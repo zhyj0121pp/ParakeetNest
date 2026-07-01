@@ -253,6 +253,16 @@ class MeetingContextPromptRenderer:
     def _render_portfolio(portfolio: PortfolioSnapshot | None) -> str:
         if portfolio is None:
             return "- No portfolio data available."
+        if (
+            portfolio.account_id is not None
+            or portfolio.top_holdings
+            or portfolio.allocation_by_symbol
+            or portfolio.allocation_by_sector
+            or portfolio.risk_summary is not None
+        ):
+            return MeetingContextPromptRenderer._render_portfolio_intelligence(
+                portfolio
+            )
         lines = [
             MeetingContextPromptRenderer._render_snapshot_header(
                 portfolio.source, portfolio.fetched_at
@@ -280,6 +290,114 @@ class MeetingContextPromptRenderer:
             for position in portfolio.positions
         )
         return "\n".join(lines)
+
+    @staticmethod
+    def _render_portfolio_intelligence(portfolio: PortfolioSnapshot) -> str:
+        lines = [
+            MeetingContextPromptRenderer._render_snapshot_header(
+                portfolio.source, portfolio.fetched_at
+            ),
+            "### Portfolio Summary",
+            "- "
+            + MeetingContextPromptRenderer._format_fields(
+                (
+                    ("account_id", portfolio.account_id),
+                    ("total_equity", portfolio.total_equity),
+                    ("total_market_value", portfolio.total_market_value),
+                    ("total_cash", portfolio.total_cash),
+                    ("holding_count", portfolio.holding_count),
+                    (
+                        "symbols",
+                        MeetingContextPromptRenderer._format_sequence(
+                            portfolio.symbols
+                        ),
+                    ),
+                )
+            ),
+            "### Top Holdings",
+        ]
+        if portfolio.top_holdings:
+            lines.extend(
+                "  - "
+                + holding.symbol
+                + ": "
+                + MeetingContextPromptRenderer._format_fields(
+                    (
+                        ("name", holding.name),
+                        ("quantity", holding.quantity),
+                        ("market_value", holding.market_value),
+                        ("cost_basis", holding.cost_basis),
+                        ("unrealized_pl", holding.unrealized_pl),
+                        ("weight", holding.weight),
+                        ("sector", holding.sector),
+                    )
+                )
+                for holding in portfolio.top_holdings
+            )
+        else:
+            lines.append("- None")
+
+        lines.append("### Symbol Allocation")
+        lines.extend(
+            MeetingContextPromptRenderer._render_allocations(
+                portfolio.allocation_by_symbol
+            )
+        )
+        lines.append("### Sector Allocation")
+        lines.extend(
+            MeetingContextPromptRenderer._render_allocations(
+                portfolio.allocation_by_sector
+            )
+        )
+        lines.append("### Risk Summary")
+        lines.extend(
+            MeetingContextPromptRenderer._render_portfolio_risk_summary(
+                portfolio.risk_summary
+            )
+        )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _render_allocations(allocations: tuple[Any, ...]) -> list[str]:
+        if not allocations:
+            return ["- None"]
+        return [
+            "- "
+            + allocation.category
+            + ": "
+            + MeetingContextPromptRenderer._format_fields(
+                (
+                    ("value", allocation.value),
+                    ("percent", allocation.percent),
+                )
+            )
+            for allocation in allocations
+        ]
+
+    @staticmethod
+    def _render_portfolio_risk_summary(risk_summary: Any | None) -> list[str]:
+        if risk_summary is None:
+            return ["- None"]
+        lines = [
+            "- "
+            + MeetingContextPromptRenderer._format_fields(
+                (
+                    ("concentration_score", risk_summary.concentration_score),
+                    ("largest_holding_symbol", risk_summary.largest_holding_symbol),
+                    ("largest_holding_weight", risk_summary.largest_holding_weight),
+                    ("top_5_concentration", risk_summary.top_5_concentration),
+                    ("cash_weight", risk_summary.cash_weight),
+                    ("holding_count", risk_summary.holding_count),
+                    ("sector_count", risk_summary.sector_count),
+                )
+            )
+        ]
+        if risk_summary.notes:
+            lines.append(
+                "- Notes: "
+                + MeetingContextPromptRenderer._format_sequence(risk_summary.notes)
+            )
+        return lines
 
     @staticmethod
     def _render_macro(macro: MacroSnapshot | None) -> str:

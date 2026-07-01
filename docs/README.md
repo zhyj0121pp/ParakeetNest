@@ -47,6 +47,7 @@ epics have dedicated detail pages:
 - [Epic 010: Macro Layer](epics/epic-010-macro-layer.md)
 - [Epic 011: Economic Regime Layer](epics/epic-011-economic-regime.md)
 - [Epic 012: Sector Rotation Layer](epics/epic-012-sector-rotation.md)
+- [Epic 024: Watchlist Intelligence](epics/epic-024-watchlist-intelligence.md)
 
 ## How Docs Are Organized
 

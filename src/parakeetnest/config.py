@@ -53,6 +53,7 @@ class AppConfig:
 
     database_path: Path | None = None
     database_url: str | None = None
+    watchlist_seed_path: Path | None = None
     llm_provider: str = "mock"
     market_data: MarketDataConfig | Mapping[str, str] = field(
         default_factory=MarketDataConfig

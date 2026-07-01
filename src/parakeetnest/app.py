@@ -72,6 +72,7 @@ from parakeetnest.services import (
 )
 from parakeetnest.watchlist import (
     InMemoryWatchlistRepository,
+    WatchlistSeedLoader,
     WatchlistIntelligenceService,
 )
 
@@ -134,7 +135,9 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     investment_intelligence_context_service = MockInvestmentIntelligenceService()
     sec_filing_service = _create_sec_filing_service(resolved_config)
     financial_statement_service = _create_financial_statement_service(resolved_config)
-    watchlist_intelligence_service = _create_watchlist_intelligence_service()
+    watchlist_intelligence_service = _create_watchlist_intelligence_service(
+        resolved_config
+    )
     context_provider_registry = _create_context_provider_registry(
         resolved_config,
         news_service,
@@ -264,8 +267,13 @@ def _create_financial_statement_service(config: AppConfig) -> FinancialStatement
     return FinancialStatementService(financial_statement_provider)
 
 
-def _create_watchlist_intelligence_service() -> WatchlistIntelligenceService:
-    return WatchlistIntelligenceService(InMemoryWatchlistRepository())
+def _create_watchlist_intelligence_service(
+    config: AppConfig,
+) -> WatchlistIntelligenceService:
+    seed_items = ()
+    if config.watchlist_seed_path is not None:
+        seed_items = WatchlistSeedLoader().load(config.watchlist_seed_path)
+    return WatchlistIntelligenceService(InMemoryWatchlistRepository(seed_items))
 
 
 def _normalize_optional_string(value: str | None) -> str | None:

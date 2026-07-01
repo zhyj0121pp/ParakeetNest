@@ -75,6 +75,43 @@ def test_create_app_wires_sqlite_committee_memory_service(tmp_path: Path) -> Non
         app.close()
 
 
+def test_create_app_loads_watchlist_seed_items(tmp_path: Path) -> None:
+    """The app factory should seed the in-memory watchlist when configured."""
+    seed_path = tmp_path / "watchlist.json"
+    seed_path.write_text(
+        """
+        [
+          {
+            "symbol": "NVDA",
+            "theme": "AI infrastructure",
+            "reason": "Track AI accelerator demand",
+            "priority": "high"
+          }
+        ]
+        """,
+        encoding="utf-8",
+    )
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            watchlist_seed_path=seed_path,
+            enabled_context_provider_ids=("watchlist",),
+        )
+    )
+    try:
+        context = app.context_service.build_context(
+            ContextRequest(question="Review watchlist.", symbols=())
+        )
+    finally:
+        app.close()
+
+    assert context.watchlist is not None
+    assert tuple(item.symbol for item in context.watchlist.items) == ("NVDA",)
+    assert context.watchlist.items[0].summary == (
+        "Track AI accelerator demand Theme: AI infrastructure."
+    )
+
+
 def test_create_test_app_runs_mock_investment_intelligence_end_to_end() -> None:
     """The test app should pass mock investment intelligence into agent prompts."""
     app = create_test_app()

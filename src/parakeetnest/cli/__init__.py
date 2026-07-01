@@ -59,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="SQLite database path. Defaults to PARAKEETNEST_SQLITE_PATH or settings.",
     )
+    watchlist_review_parser.add_argument(
+        "--watchlist-seed",
+        type=Path,
+        default=None,
+        help="Local JSON seed file for watchlist review items.",
+    )
 
     return parser
 
@@ -77,7 +83,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "watchlist" and args.watchlist_command == "review":
-        run_watchlist_review(database_path=args.database)
+        run_watchlist_review(
+            database_path=args.database,
+            watchlist_seed_path=args.watchlist_seed,
+        )
         return 0
 
     parser.error(f"Unknown command: {args.command}")
@@ -107,10 +116,14 @@ def run_meeting(question: str, ticker: str, database_path: Path | None = None) -
     print(json.dumps(result.result_json or {}, indent=2, sort_keys=True))
 
 
-def run_watchlist_review(database_path: Path | None = None) -> None:
+def run_watchlist_review(
+    database_path: Path | None = None,
+    watchlist_seed_path: Path | None = None,
+) -> None:
     """Render current watchlist context without LLM or committee execution."""
     config = AppConfig(
         database_path=database_path,
+        watchlist_seed_path=watchlist_seed_path,
         enabled_context_provider_ids=("watchlist",),
     )
     app = create_app(config)

@@ -35,6 +35,18 @@ def test_cli_parser_parses_watchlist_review_command() -> None:
     assert args.watchlist_command == "review"
 
 
+def test_cli_parser_parses_watchlist_review_seed_path(tmp_path: Path) -> None:
+    """The watchlist review command should accept a local seed path."""
+    seed_path = tmp_path / "watchlist.json"
+    args = cli.build_parser().parse_args(
+        ["watchlist", "review", "--watchlist-seed", str(seed_path)]
+    )
+
+    assert args.command == "watchlist"
+    assert args.watchlist_command == "review"
+    assert args.watchlist_seed == seed_path
+
+
 def test_cli_meeting_command_calls_meeting_service(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -137,6 +149,46 @@ def test_cli_watchlist_review_empty_watchlist_succeeds(
     assert "- No watchlist insights available." in output
 
 
+def test_cli_watchlist_review_with_seed_file_renders_seeded_symbols(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The watchlist review command should render items from a local seed file."""
+    seed_path = tmp_path / "watchlist.json"
+    seed_path.write_text(
+        """
+        [
+          {
+            "symbol": "NVDA",
+            "company_name": "NVIDIA",
+            "theme": "AI infrastructure",
+            "reason": "Track AI accelerator demand",
+            "priority": "high",
+            "notes": ["Watch valuation risk"]
+          }
+        ]
+        """,
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(
+        [
+            "watchlist",
+            "review",
+            "--database",
+            str(tmp_path / "watchlist-review.sqlite3"),
+            "--watchlist-seed",
+            str(seed_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "## Watchlist" in output
+    assert "- NVDA: Track AI accelerator demand Theme: AI infrastructure." in output
+    assert "Recommended action: review thesis" in output
+
+
 def test_cli_watchlist_review_does_not_invoke_llm_or_committee_runtime(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -193,5 +245,6 @@ def test_cli_watchlist_review_does_not_invoke_llm_or_committee_runtime(
     assert calls == ["close"]
     assert len(configs) == 1
     assert configs[0].enabled_context_provider_ids == ("watchlist",)
+    assert configs[0].watchlist_seed_path is None
     assert "## Watchlist" in output
     assert "- No watchlist insights available." in output

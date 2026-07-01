@@ -14,6 +14,7 @@ from parakeetnest.watchlist.repository import (
     WatchlistRepository,
     normalize_watchlist_symbol,
 )
+from parakeetnest.watchlist.seed import WatchlistSeedLoader, load_watchlist_items
 from parakeetnest.watchlist.service import WatchlistIntelligenceService
 
 __all__ = [
@@ -24,8 +25,10 @@ __all__ = [
     "WatchlistContextProvider",
     "WatchlistPriority",
     "WatchlistRepository",
+    "WatchlistSeedLoader",
     "WatchlistSignal",
     "WatchlistStatus",
     "WatchlistThesis",
+    "load_watchlist_items",
     "normalize_watchlist_symbol",
 ]

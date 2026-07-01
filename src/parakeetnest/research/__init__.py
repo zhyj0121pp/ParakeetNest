@@ -1,5 +1,9 @@
 """Investment research report public API."""
 
+from parakeetnest.research.composer import (
+    DailyInvestmentReportComposer,
+    compose_daily_investment_report,
+)
 from parakeetnest.research.models import (
     ConfidenceLevel,
     InvestmentResearchReport,
@@ -18,6 +22,7 @@ from parakeetnest.research.service import InvestmentResearchService
 
 __all__ = [
     "ConfidenceLevel",
+    "DailyInvestmentReportComposer",
     "InvestmentResearchReport",
     "InvestmentResearchReportRenderer",
     "InvestmentResearchService",
@@ -27,5 +32,6 @@ __all__ = [
     "ResearchRecommendation",
     "ResearchRisk",
     "ResearchTickerReport",
+    "compose_daily_investment_report",
     "render_investment_research_report",
 ]

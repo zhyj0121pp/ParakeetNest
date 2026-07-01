@@ -9,6 +9,7 @@ from parakeetnest.research import (
     InvestmentResearchReportRenderer,
     RecommendationType,
     ResearchCatalyst,
+    ResearchCommitteeOpinion,
     ResearchFinding,
     ResearchRecommendation,
     ResearchRisk,
@@ -40,6 +41,13 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
     assert "Recommendations" in body
     assert "Risks" in body
     assert "Catalysts" in body
+    assert "Dongdong's Opinion (Chief Growth Officer)" in body
+    assert "- Stance: bullish" in body
+    assert "- Reasoning: Upside is supported by identifiable catalysts." in body
+    assert "- Evidence:" in body
+    assert "  - Datacenter demand." in body
+    assert "- Concern: Export controls." in body
+    assert "- Suggested Action: Keep HOLD as advisory guidance." in body
     assert "Evidence Notes" in body
     assert "NVDA: HOLD | confidence high | horizon 3-6 months" in body
     assert "AAPL: WATCH | confidence medium | horizon 1-2 quarters" in body
@@ -71,6 +79,15 @@ def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
     assert "    - Watchlist bear case." in body
     assert "  NVDA Catalyst Evidence:" in body
     assert "    - Watchlist bull case." in body
+
+
+def test_renderer_keeps_report_advisory_only() -> None:
+    body = InvestmentResearchReportRenderer().render(_sample_report())
+
+    assert "advisory guidance" in body
+    assert "automatic trading" not in body.lower()
+    assert "broker" not in body.lower()
+    assert "execute trade" not in body.lower()
 
 
 def test_renderer_handles_empty_report_gracefully() -> None:
@@ -148,6 +165,23 @@ def _sample_report() -> InvestmentResearchReport:
     return InvestmentResearchReport(
         ticker_reports=(nvda, aapl),
         generated_at=GENERATED_AT,
+        committee_opinions=(
+            ResearchCommitteeOpinion(
+                persona_id="dongdong",
+                display_name="Dongdong",
+                role_title="Chief Growth Officer",
+                stance="bullish",
+                reasoning_summary="Upside is supported by identifiable catalysts.",
+                evidence_considered=("Datacenter demand.",),
+                key_concern="Export controls.",
+                suggested_action="Keep HOLD as advisory guidance.",
+                responsibility="Identify durable growth.",
+                viewpoint="Look for upside.",
+                risk_posture="Optimistic but evidence-based.",
+                evidence_requirements=("Catalyst evidence.",),
+                writing_style="optimistic_evidence_based",
+            ),
+        ),
         source_summaries=("portfolio: current holding context",),
         evidence_notes=("Research assembled from provider-neutral services.",),
     )

@@ -90,18 +90,14 @@ class InvestmentResearchReportRenderer:
             lines.extend(
                 [
                     f"{opinion.display_name}'s Opinion ({opinion.role_title})",
-                    f"- Viewpoint: {opinion.viewpoint}",
-                    f"- Responsibility: {opinion.responsibility}",
-                    f"- Risk Posture: {opinion.risk_posture}",
-                    f"- Writing Style: {opinion.writing_style}",
+                    f"- Stance: {opinion.stance}",
+                    f"- Reasoning: {opinion.reasoning_summary}",
+                    "- Evidence:",
                 ]
             )
-            lines.extend(
-                self._render_values(
-                    "Evidence Requirements",
-                    opinion.evidence_requirements,
-                )
-            )
+            lines.extend(f"  - {value}" for value in opinion.evidence_considered)
+            lines.append(f"- Concern: {opinion.key_concern}")
+            lines.append(f"- Suggested Action: {opinion.suggested_action}")
         if len(lines) == 1:
             lines.append("- No committee opinions.")
         return "\n".join(lines)

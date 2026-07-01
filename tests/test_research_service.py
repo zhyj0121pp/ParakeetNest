@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 from parakeetnest.committee import (
     CommitteeOpinionStyle,
@@ -195,3 +196,53 @@ def test_committee_opinions_are_derived_from_persona_prompt_context() -> None:
     assert opinion.responsibility == "Use a custom growth responsibility."
     assert "Apply a custom upside lens." in opinion.viewpoint
     assert "upside case depends on evidence-backed catalysts" not in opinion.viewpoint
+
+
+def test_all_committee_opinions_include_daily_report_reasoning_fields() -> None:
+    service = InvestmentResearchService()
+
+    report = service.generate_report(("NVDA",), generated_at=AS_OF)
+
+    assert tuple(opinion.display_name for opinion in report.committee_opinions) == (
+        "Dongdong",
+        "Xixi",
+        "Youyou",
+    )
+    for opinion in report.committee_opinions:
+        assert opinion.stance in {"bullish", "neutral", "cautious"}
+        assert opinion.reasoning_summary
+        assert opinion.evidence_considered
+        assert opinion.key_concern
+        assert opinion.suggested_action
+
+
+def test_committee_opinions_keep_persona_specific_lenses() -> None:
+    service = InvestmentResearchService()
+
+    report = service.generate_report(("NVDA",), generated_at=AS_OF)
+    opinions = {opinion.display_name: opinion for opinion in report.committee_opinions}
+
+    assert opinions["Dongdong"].stance == "neutral"
+    assert "upside" in opinions["Dongdong"].reasoning_summary
+    assert "catalyst" in opinions["Dongdong"].suggested_action.lower()
+    assert "fundamentals" in opinions["Xixi"].reasoning_summary
+    assert "valuation" in opinions["Xixi"].suggested_action
+    assert opinions["Youyou"].stance == "cautious"
+    assert "capital preservation" in opinions["Youyou"].reasoning_summary
+    assert "advisory only" in opinions["Youyou"].suggested_action
+
+
+def test_research_package_has_no_broker_or_trading_execution_logic() -> None:
+    research_dir = Path(__file__).parents[1] / "src" / "parakeetnest" / "research"
+    source = "\n".join(path.read_text() for path in research_dir.glob("*.py")).lower()
+
+    forbidden_terms = (
+        "broker",
+        "brokerage",
+        "place_order",
+        "execute_trade",
+        "automatic_trading",
+        "rebalance_account",
+    )
+    for term in forbidden_terms:
+        assert term not in source

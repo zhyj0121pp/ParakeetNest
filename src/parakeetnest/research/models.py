@@ -114,6 +114,11 @@ class ResearchCommitteeOpinion:
     persona_id: str
     display_name: str
     role_title: str
+    stance: str
+    reasoning_summary: str
+    evidence_considered: tuple[str, ...]
+    key_concern: str
+    suggested_action: str
     responsibility: str
     viewpoint: str
     risk_posture: str
@@ -136,6 +141,32 @@ class ResearchCommitteeOpinion:
             self,
             "role_title",
             _required_text(self.role_title, "role_title"),
+        )
+        stance = _required_text(self.stance, "stance").lower()
+        if stance not in {"bullish", "neutral", "cautious"}:
+            raise ValueError(
+                "committee opinion stance must be bullish, neutral, or cautious"
+            )
+        object.__setattr__(self, "stance", stance)
+        object.__setattr__(
+            self,
+            "reasoning_summary",
+            _required_text(self.reasoning_summary, "reasoning_summary"),
+        )
+        object.__setattr__(
+            self,
+            "evidence_considered",
+            _normalize_text_tuple(self.evidence_considered),
+        )
+        object.__setattr__(
+            self,
+            "key_concern",
+            _required_text(self.key_concern, "key_concern"),
+        )
+        object.__setattr__(
+            self,
+            "suggested_action",
+            _required_text(self.suggested_action, "suggested_action"),
         )
         object.__setattr__(
             self,
@@ -169,6 +200,8 @@ class ResearchCommitteeOpinion:
         )
         if not self.evidence_requirements:
             raise ValueError("committee opinion evidence requirements are required")
+        if not self.evidence_considered:
+            raise ValueError("committee opinion evidence considered is required")
 
 
 @dataclass(frozen=True)

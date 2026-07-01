@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from typing import Any, Protocol
 
 from parakeetnest.committee.personas import (
+    CommitteeRole,
     PermanentCommitteeService,
 )
 from parakeetnest.committee.prompting import (
@@ -153,6 +154,7 @@ class InvestmentResearchService:
             watchlist_review=watchlist_review,
             committee_opinions=_build_committee_opinions(
                 committee_prompts,
+                ticker_reports,
             ),
             committee_consensus=_committee_consensus(ticker_reports),
             todays_suggested_actions=_todays_suggested_actions(ticker_reports),
@@ -547,12 +549,21 @@ def _build_committee_prompt_contexts(
 
 def _build_committee_opinions(
     committee_prompts: tuple[CommitteePersonaPrompt, ...],
+    ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> tuple[ResearchCommitteeOpinion, ...]:
     return tuple(
         ResearchCommitteeOpinion(
             persona_id=prompt.persona_id,
             display_name=prompt.display_name,
             role_title=prompt.role_title,
+            stance=_committee_stance(prompt.context, ticker_reports),
+            reasoning_summary=_committee_reasoning(prompt.context, ticker_reports),
+            evidence_considered=_committee_evidence(prompt.context),
+            key_concern=_committee_concern(prompt.context),
+            suggested_action=_committee_suggested_action(
+                prompt.context,
+                ticker_reports,
+            ),
             responsibility=prompt.context.persona.responsibility,
             viewpoint=_committee_viewpoint(prompt.context),
             risk_posture=prompt.context.persona.risk_posture,
@@ -563,6 +574,140 @@ def _build_committee_opinions(
             ),
         )
         for prompt in committee_prompts
+    )
+
+
+def _committee_stance(
+    context: CommitteePromptContext,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> str:
+    action_values = {
+        ticker_report.recommendation.action
+        for ticker_report in ticker_reports
+    }
+    low_confidence = any(
+        ticker_report.recommendation.confidence is ConfidenceLevel.LOW
+        for ticker_report in ticker_reports
+    )
+    has_reduce_or_sell = bool(
+        action_values & {RecommendationType.REDUCE, RecommendationType.SELL}
+    )
+    has_hold_or_buy = bool(
+        action_values & {RecommendationType.BUY, RecommendationType.HOLD}
+    )
+
+    role = context.persona.role
+    if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        if has_reduce_or_sell:
+            return "neutral"
+        if low_confidence and not has_hold_or_buy:
+            return "neutral"
+        return "bullish" if context.upcoming_catalysts else "neutral"
+    if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        if has_reduce_or_sell or low_confidence or context.key_risks:
+            return "cautious"
+        return "neutral"
+    if has_reduce_or_sell:
+        return "cautious"
+    return "neutral" if low_confidence or not has_hold_or_buy else "bullish"
+
+
+def _committee_reasoning(
+    context: CommitteePromptContext,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> str:
+    tickers = ", ".join(context.tickers)
+    action_summary = _action_mix(ticker_reports)
+    confidence_summary = _confidence_mix(ticker_reports)
+    catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
+    risk_summary = _summarize_context_values(context.key_risks)
+
+    role = context.persona.role
+    if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        return (
+            f"{tickers}: upside depends on identifiable catalysts and durable "
+            f"growth evidence. Current action mix is {action_summary} with "
+            f"{confidence_summary} confidence; catalyst evidence: {catalyst_summary}."
+        )
+    if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        return (
+            f"{tickers}: capital preservation comes first while the report "
+            f"shows {action_summary} with {confidence_summary} confidence. "
+            f"Primary downside evidence: {risk_summary}."
+        )
+    return (
+        f"{tickers}: fundamentals and execution evidence should validate the "
+        f"current {action_summary} action mix before risk is added. "
+        f"Evidence base: {_summarize_context_values(context.ticker_summaries)}."
+    )
+
+
+def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
+    role = context.persona.role
+    if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        values = context.upcoming_catalysts + context.ticker_summaries
+    elif role is CommitteeRole.CHIEF_RISK_OFFICER:
+        values = (
+            context.key_risks
+            + (context.market_summary, context.portfolio_review)
+            + context.evidence_notes
+        )
+    else:
+        values = (
+            context.ticker_summaries
+            + (context.portfolio_review, context.watchlist_review)
+            + context.evidence_notes
+        )
+    return _unique(values)[:4] or ("Connected report context is limited.",)
+
+
+def _committee_concern(context: CommitteePromptContext) -> str:
+    role = context.persona.role
+    if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        if context.upcoming_catalysts:
+            return (
+                "Catalysts still need evidence that upside is not purely "
+                "narrative-driven."
+            )
+        return (
+            "Upside case is weak until clearer catalysts or innovation signals "
+            "are added."
+        )
+    if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        return _summarize_context_values(
+            context.key_risks,
+            limit=1,
+        ) or "Downside risk cannot be sized well with limited connected context."
+    if context.evidence_notes:
+        return (
+            "Fundamental conviction remains limited by missing connected "
+            "research inputs."
+        )
+    return "Valuation, earnings quality, and execution evidence need continued review."
+
+
+def _committee_suggested_action(
+    context: CommitteePromptContext,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> str:
+    actions = "; ".join(
+        f"{ticker_report.ticker} {ticker_report.recommendation.action.value.upper()}"
+        for ticker_report in ticker_reports
+    )
+    role = context.persona.role
+    if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        return (
+            f"Keep {actions} as advisory guidance and prioritize catalyst follow-up "
+            "before upgrading exposure."
+        )
+    if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        return (
+            f"Treat {actions} as advisory only; preserve cash flexibility and avoid "
+            "adding size without stronger risk evidence."
+        )
+    return (
+        f"Use {actions} as the working advisory plan, then confirm valuation, "
+        "earnings quality, and execution evidence before any human decision."
     )
 
 

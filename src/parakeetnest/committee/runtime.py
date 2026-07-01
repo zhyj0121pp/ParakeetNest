@@ -203,6 +203,8 @@ class AgentRuntime:
             agent_name=agent.name,
             role=agent.role,
             content=json.dumps(payload, sort_keys=True),
+            agent_id=profile.agent_id,
+            ticker=context.ticker,
         )
 
     def _execution_runtime(self) -> PreparedAgentRuntime:

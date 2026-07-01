@@ -163,6 +163,8 @@ class AgentResult:
     agent_name: str
     role: str
     content: str
+    agent_id: str | None = None
+    ticker: str | None = None
 
 
 @dataclass(frozen=True)

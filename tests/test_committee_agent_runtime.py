@@ -408,6 +408,8 @@ def test_agent_runtime_preserves_direct_provider_committee_output() -> None:
         agent_name=agent.name,
         role=agent.role,
         content=json.dumps(direct_payload, sort_keys=True),
+        agent_id=agent.agent_id,
+        ticker=context.ticker,
     )
 
     assert migrated_result == direct_result

@@ -16,10 +16,12 @@ from parakeetnest.committee.memory.repository import (
     validate_memory_id,
     validate_positive_limit,
 )
+from parakeetnest.committee.memory.service import CommitteeMemoryService
 
 __all__ = [
     "CommitteeMemory",
     "CommitteeMemoryRepository",
+    "CommitteeMemoryService",
     "InMemoryCommitteeMemoryRepository",
     "MemoryImportance",
     "MemoryQuery",

@@ -21,6 +21,7 @@ and lower-level design notes.
 - [Market Data Layer](architecture/market-data-layer.md)
 - [Architecture Milestone Review v1.1](architecture/architecture-milestone-review-v1.1.md)
 - [Architecture Milestone Review v1.0](architecture/architecture-milestone-review-v1.0.md)
+- [ADR 004: Agent-First Committee Architecture](architecture/ADR-004-agent-first-committee-architecture.md)
 - [ADR 003: Investment Intelligence Layer Pattern](architecture/ADR-003-investment-intelligence-pattern.md)
 - [Architecture Milestone Review v0.9](architecture/milestone-review-v0.9.md)
 - [Architecture Milestone Review v0.8](architecture/milestone-review-v0.8.md)

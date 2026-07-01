@@ -6,11 +6,15 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
 
+from parakeetnest.committee.personas import (
+    PermanentCommitteeService,
+)
 from parakeetnest.research.models import (
     ConfidenceLevel,
     InvestmentResearchReport,
     RecommendationType,
     ResearchCatalyst,
+    ResearchCommitteeOpinion,
     ResearchFinding,
     ResearchRecommendation,
     ResearchRisk,
@@ -39,6 +43,11 @@ class _IntelligenceService(Protocol):
         """Return investment intelligence context for a symbol."""
 
 
+class _PermanentCommitteeService(Protocol):
+    def daily_investment_committee(self) -> Any:
+        """Return the stable daily investment committee."""
+
+
 @dataclass(frozen=True)
 class _TickerInputs:
     ticker: str
@@ -57,11 +66,13 @@ class InvestmentResearchService:
         portfolio_service: _PortfolioService | None = None,
         watchlist_service: _WatchlistService | None = None,
         intelligence_service: _IntelligenceService | None = None,
+        committee_service: _PermanentCommitteeService | None = None,
         default_horizon: str = "3-6 months",
     ) -> None:
         self._portfolio_service = portfolio_service
         self._watchlist_service = watchlist_service
         self._intelligence_service = intelligence_service
+        self._committee_service = committee_service or PermanentCommitteeService()
         self._default_horizon = default_horizon
 
     def generate_report(
@@ -110,6 +121,21 @@ class InvestmentResearchService:
         return InvestmentResearchReport(
             ticker_reports=ticker_reports,
             generated_at=generated_at or datetime.now(UTC),
+            market_summary=_market_summary(ticker_reports),
+            portfolio_review=_portfolio_review(
+                ticker_reports,
+                has_portfolio=self._portfolio_service is not None,
+            ),
+            watchlist_review=_watchlist_review(
+                ticker_reports,
+                has_watchlist=self._watchlist_service is not None,
+            ),
+            committee_opinions=_build_committee_opinions(
+                self._committee_service,
+                ticker_reports,
+            ),
+            committee_consensus=_committee_consensus(ticker_reports),
+            todays_suggested_actions=_todays_suggested_actions(ticker_reports),
             source_summaries=source_summaries,
             evidence_notes=evidence_notes,
         )
@@ -412,6 +438,143 @@ def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
     if not summaries:
         summaries.append("research_service: requested ticker only")
     return tuple(summaries)
+
+
+def _market_summary(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    ticker_count = len(ticker_reports)
+    if ticker_count == 1:
+        return "Market summary covers 1 requested ticker using connected research context."
+    return (
+        f"Market summary covers {ticker_count} requested tickers using connected "
+        "research context."
+    )
+
+
+def _portfolio_review(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+    *,
+    has_portfolio: bool,
+) -> str:
+    if not has_portfolio:
+        return (
+            "No portfolio service is connected; review remains advisory and "
+            "context-limited."
+        )
+    holding_count = sum(
+        any(finding.source == "portfolio" for finding in ticker_report.findings)
+        for ticker_report in ticker_reports
+    )
+    return f"Portfolio review found {holding_count} covered holding(s)."
+
+
+def _watchlist_review(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+    *,
+    has_watchlist: bool,
+) -> str:
+    if not has_watchlist:
+        return (
+            "No watchlist service is connected; watchlist review uses requested "
+            "tickers only."
+        )
+    watchlist_count = sum(
+        any(finding.source == "watchlist" for finding in ticker_report.findings)
+        for ticker_report in ticker_reports
+    )
+    return f"Watchlist review found {watchlist_count} covered watchlist item(s)."
+
+
+def _build_committee_opinions(
+    committee_service: _PermanentCommitteeService,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> tuple[ResearchCommitteeOpinion, ...]:
+    return tuple(
+        ResearchCommitteeOpinion(
+            persona_id=member.id,
+            display_name=member.display_name,
+            role_title=member.role_title,
+            responsibility=member.persona.responsibility,
+            viewpoint=_committee_viewpoint(member.persona.id, ticker_reports),
+            risk_posture=member.persona.risk_posture,
+            evidence_requirements=member.persona.evidence_requirements,
+            writing_style=member.persona.writing_style.value,
+            decision_biases_to_avoid=member.persona.decision_biases_to_avoid,
+        )
+        for member in committee_service.daily_investment_committee()
+    )
+
+
+def _committee_viewpoint(
+    persona_id: str,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> str:
+    tickers = ", ".join(ticker_report.ticker for ticker_report in ticker_reports)
+    if persona_id == "dongdong":
+        catalysts = _unique(
+            catalyst.summary
+            for ticker_report in ticker_reports
+            for catalyst in ticker_report.catalysts
+        )
+        catalyst_summary = "; ".join(catalysts[:2]) if catalysts else "no clear catalysts"
+        return (
+            f"{tickers}: upside case depends on evidence-backed catalysts: "
+            f"{catalyst_summary}."
+        )
+    if persona_id == "xixi":
+        actions = _action_mix(ticker_reports)
+        return (
+            f"{tickers}: base case should follow fundamentals, valuation support, "
+            f"and evidence quality; current action mix is {actions}."
+        )
+    if persona_id == "youyou":
+        risks = _unique(
+            risk.summary
+            for ticker_report in ticker_reports
+            for risk in ticker_report.risks
+        )
+        risk_summary = "; ".join(risks[:2]) if risks else "risk evidence is limited"
+        return (
+            f"{tickers}: preserve capital until these risks are addressed: "
+            f"{risk_summary}."
+        )
+    return f"{tickers}: review should stay grounded in the available evidence."
+
+
+def _committee_consensus(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    return (
+        "The committee remains advisory: "
+        f"{_action_mix(ticker_reports)} with confidence {_confidence_mix(ticker_reports)}."
+    )
+
+
+def _todays_suggested_actions(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> tuple[str, ...]:
+    return tuple(
+        f"{ticker_report.ticker}: "
+        f"{ticker_report.recommendation.action.value.upper()} "
+        f"({ticker_report.recommendation.confidence.value} confidence) "
+        f"over {ticker_report.recommendation.horizon}."
+        for ticker_report in ticker_reports
+    )
+
+
+def _action_mix(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    counts: dict[str, int] = {}
+    for ticker_report in ticker_reports:
+        action = ticker_report.recommendation.action.value.upper()
+        counts[action] = counts.get(action, 0) + 1
+    return ", ".join(
+        f"{action}: {count}" for action, count in sorted(counts.items())
+    ) or "no recommendations"
+
+
+def _confidence_mix(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+    levels = _unique(
+        ticker_report.recommendation.confidence.value
+        for ticker_report in ticker_reports
+    )
+    return ", ".join(levels) or "none"
 
 
 def _get_ticker(value: str) -> str:

@@ -108,6 +108,70 @@ class ResearchRecommendation:
 
 
 @dataclass(frozen=True)
+class ResearchCommitteeOpinion:
+    """Daily-report opinion generated from a permanent committee persona."""
+
+    persona_id: str
+    display_name: str
+    role_title: str
+    responsibility: str
+    viewpoint: str
+    risk_posture: str
+    evidence_requirements: tuple[str, ...]
+    writing_style: str
+    decision_biases_to_avoid: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "persona_id",
+            _required_text(self.persona_id, "persona_id"),
+        )
+        object.__setattr__(
+            self,
+            "display_name",
+            _required_text(self.display_name, "display_name"),
+        )
+        object.__setattr__(
+            self,
+            "role_title",
+            _required_text(self.role_title, "role_title"),
+        )
+        object.__setattr__(
+            self,
+            "responsibility",
+            _required_text(self.responsibility, "responsibility"),
+        )
+        object.__setattr__(
+            self,
+            "viewpoint",
+            _required_text(self.viewpoint, "viewpoint"),
+        )
+        object.__setattr__(
+            self,
+            "risk_posture",
+            _required_text(self.risk_posture, "risk_posture"),
+        )
+        object.__setattr__(
+            self,
+            "evidence_requirements",
+            _normalize_text_tuple(self.evidence_requirements),
+        )
+        object.__setattr__(
+            self,
+            "writing_style",
+            _required_text(self.writing_style, "writing_style"),
+        )
+        object.__setattr__(
+            self,
+            "decision_biases_to_avoid",
+            _normalize_text_tuple(self.decision_biases_to_avoid),
+        )
+        if not self.evidence_requirements:
+            raise ValueError("committee opinion evidence requirements are required")
+
+
+@dataclass(frozen=True)
 class ResearchTickerReport:
     """Email-ready research synthesis for one ticker."""
 
@@ -154,6 +218,16 @@ class InvestmentResearchReport:
     ticker_reports: tuple[ResearchTickerReport, ...]
     generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     title: str = "Investment Research Report"
+    market_summary: str = "Market context is limited to connected research inputs."
+    portfolio_review: str = "Portfolio review depends on connected portfolio context."
+    watchlist_review: str = "Watchlist review depends on connected watchlist context."
+    committee_opinions: tuple[ResearchCommitteeOpinion, ...] = field(
+        default_factory=tuple,
+    )
+    committee_consensus: str = (
+        "Committee consensus is based on the current evidence set."
+    )
+    todays_suggested_actions: tuple[str, ...] = field(default_factory=tuple)
     source_summaries: tuple[str, ...] = field(default_factory=tuple)
     evidence_notes: tuple[str, ...] = field(default_factory=tuple)
 
@@ -166,6 +240,32 @@ class InvestmentResearchReport:
                 self.generated_at.replace(tzinfo=UTC),
             )
         object.__setattr__(self, "title", _required_text(self.title, "title"))
+        object.__setattr__(
+            self,
+            "market_summary",
+            _required_text(self.market_summary, "market_summary"),
+        )
+        object.__setattr__(
+            self,
+            "portfolio_review",
+            _required_text(self.portfolio_review, "portfolio_review"),
+        )
+        object.__setattr__(
+            self,
+            "watchlist_review",
+            _required_text(self.watchlist_review, "watchlist_review"),
+        )
+        object.__setattr__(self, "committee_opinions", tuple(self.committee_opinions))
+        object.__setattr__(
+            self,
+            "committee_consensus",
+            _required_text(self.committee_consensus, "committee_consensus"),
+        )
+        object.__setattr__(
+            self,
+            "todays_suggested_actions",
+            _normalize_text_tuple(self.todays_suggested_actions),
+        )
         object.__setattr__(
             self,
             "source_summaries",
@@ -212,6 +312,7 @@ __all__ = [
     "InvestmentResearchReport",
     "RecommendationType",
     "ResearchCatalyst",
+    "ResearchCommitteeOpinion",
     "ResearchFinding",
     "ResearchRecommendation",
     "ResearchRisk",

@@ -17,6 +17,7 @@ that future work should follow.
 - [ADR 002: Unified Data Source Architecture](ADR-002-unified-data-source-architecture.md)
 - [ADR 003: Investment Intelligence Layer Pattern](../architecture/ADR-003-investment-intelligence-pattern.md)
 - [ADR 004: Agent-First Committee Architecture](../architecture/ADR-004-agent-first-committee-architecture.md)
+- [ADR 005: Stable Committee Personality Architecture](ADR-005-stable-committee-personality-architecture.md)
 
 ## ADR Template
 

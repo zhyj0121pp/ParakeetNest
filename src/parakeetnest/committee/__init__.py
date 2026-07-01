@@ -25,22 +25,59 @@ from parakeetnest.committee.models import (
     MeetingResult,
     MeetingStatus,
 )
-from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
+from parakeetnest.committee.personas import (
+    CommitteeMemberProfile,
+    CommitteeOpinionStyle,
+    CommitteePersona,
+    CommitteePersonaRegistry,
+    CommitteeRole,
+    DAILY_INVESTMENT_COMMITTEE,
+    DONGDONG_PERSONA,
+    DuplicateCommitteePersonaError,
+    PERMANENT_COMMITTEE_PERSONAS,
+    PermanentCommitteeService,
+    UnknownCommitteePersonaError,
+    XIXI_PERSONA,
+    YOUYOU_PERSONA,
+    create_permanent_committee_service,
+)
 from parakeetnest.committee.secretary import InvestmentSecretary
 from parakeetnest.committee.xixi import Xixi
 from parakeetnest.committee.yoyo import Yoyo
+
+
+def __getattr__(name: str) -> object:
+    """Lazily expose runtime exports without loading them for domain imports."""
+    if name in {"AgentRuntime", "PromptRenderer"}:
+        from parakeetnest.committee.runtime import AgentRuntime, PromptRenderer
+
+        exports = {
+            "AgentRuntime": AgentRuntime,
+            "PromptRenderer": PromptRenderer,
+        }
+        return exports[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "Chairman",
     "ChairmanAgent",
     "ChairmanSummary",
     "CommitteeAgent",
+    "CommitteeMemberProfile",
     "CommitteeMember",
     "CommitteeMeetingResult",
+    "CommitteeOpinionStyle",
     "CommitteeOpinion",
+    "CommitteePersona",
+    "CommitteePersonaRegistry",
+    "CommitteeRole",
+    "DAILY_INVESTMENT_COMMITTEE",
     "DEFAULT_INVESTMENT_COMMITTEE",
+    "DONGDONG_PERSONA",
     "Dongdong",
     "DongdongAgent",
+    "DuplicateCommitteePersonaError",
     "InvestmentContext",
     "InvestmentCommitteeDecision",
     "InvestmentCommitteeMember",
@@ -53,9 +90,15 @@ __all__ = [
     "MeetingRequest",
     "MeetingResult",
     "MeetingStatus",
+    "PERMANENT_COMMITTEE_PERSONAS",
+    "PermanentCommitteeService",
     "PromptRenderer",
+    "UnknownCommitteePersonaError",
     "Xixi",
     "XixiAgent",
+    "XIXI_PERSONA",
+    "YOUYOU_PERSONA",
     "Yoyo",
     "YoyoAgent",
+    "create_permanent_committee_service",
 ]

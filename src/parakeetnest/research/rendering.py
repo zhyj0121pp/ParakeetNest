@@ -23,11 +23,18 @@ class InvestmentResearchReportRenderer:
         """Return a plain-text report suitable for an email body."""
         sections = [
             self._render_header(report),
+            self._render_market_summary(report),
+            self._render_portfolio_review(report),
+            self._render_watchlist_review(report),
             self._render_executive_summary(report),
+            self._render_committee_opinions(report),
+            self._render_committee_consensus(report),
+            self._render_confidence(report),
             self._render_ticker_reports(report.ticker_reports),
             self._render_recommendations(report.ticker_reports),
-            self._render_risks(report.ticker_reports),
-            self._render_catalysts(report.ticker_reports),
+            self._render_key_risks(report.ticker_reports),
+            self._render_upcoming_catalysts(report.ticker_reports),
+            self._render_todays_suggested_actions(report),
             self._render_evidence_notes(report),
         ]
         return "\n\n".join(section.rstrip() for section in sections).rstrip() + "\n"
@@ -42,6 +49,15 @@ class InvestmentResearchReportRenderer:
                 f"Tickers: {tickers}",
             ]
         )
+
+    def _render_market_summary(self, report: InvestmentResearchReport) -> str:
+        return "\n".join(["Market Summary", f"- {report.market_summary}"])
+
+    def _render_portfolio_review(self, report: InvestmentResearchReport) -> str:
+        return "\n".join(["Portfolio Review", f"- {report.portfolio_review}"])
+
+    def _render_watchlist_review(self, report: InvestmentResearchReport) -> str:
+        return "\n".join(["Watchlist Review", f"- {report.watchlist_review}"])
 
     def _render_executive_summary(self, report: InvestmentResearchReport) -> str:
         lines = ["Executive Summary"]
@@ -66,6 +82,43 @@ class InvestmentResearchReportRenderer:
                 f"({self._value(recommendation.confidence)} confidence) - "
                 f"{ticker_report.summary}"
             )
+        return "\n".join(lines)
+
+    def _render_committee_opinions(self, report: InvestmentResearchReport) -> str:
+        lines = ["Committee Opinions"]
+        for opinion in report.committee_opinions:
+            lines.extend(
+                [
+                    f"{opinion.display_name}'s Opinion ({opinion.role_title})",
+                    f"- Viewpoint: {opinion.viewpoint}",
+                    f"- Responsibility: {opinion.responsibility}",
+                    f"- Risk Posture: {opinion.risk_posture}",
+                    f"- Writing Style: {opinion.writing_style}",
+                ]
+            )
+            lines.extend(
+                self._render_values(
+                    "Evidence Requirements",
+                    opinion.evidence_requirements,
+                )
+            )
+        if len(lines) == 1:
+            lines.append("- No committee opinions.")
+        return "\n".join(lines)
+
+    def _render_committee_consensus(self, report: InvestmentResearchReport) -> str:
+        return "\n".join(["Committee Consensus", f"- {report.committee_consensus}"])
+
+    def _render_confidence(self, report: InvestmentResearchReport) -> str:
+        lines = ["Confidence"]
+        for ticker_report in report.ticker_reports:
+            lines.append(
+                "- "
+                f"{ticker_report.ticker}: "
+                f"{self._value(ticker_report.recommendation.confidence)}"
+            )
+        if len(lines) == 1:
+            lines.append("- No confidence levels.")
         return "\n".join(lines)
 
     def _render_ticker_reports(
@@ -113,11 +166,11 @@ class InvestmentResearchReportRenderer:
             lines.append("- No recommendations.")
         return "\n".join(lines)
 
-    def _render_risks(
+    def _render_key_risks(
         self,
         ticker_reports: Iterable[ResearchTickerReport],
     ) -> str:
-        lines = ["Risks"]
+        lines = ["Key Risks"]
         for ticker_report in ticker_reports:
             lines.append(f"- {ticker_report.ticker}")
             lines.extend(self._render_risk_items(ticker_report.risks))
@@ -125,16 +178,26 @@ class InvestmentResearchReportRenderer:
             lines.append("- No risks.")
         return "\n".join(lines)
 
-    def _render_catalysts(
+    def _render_upcoming_catalysts(
         self,
         ticker_reports: Iterable[ResearchTickerReport],
     ) -> str:
-        lines = ["Catalysts"]
+        lines = ["Upcoming Catalysts"]
         for ticker_report in ticker_reports:
             lines.append(f"- {ticker_report.ticker}")
             lines.extend(self._render_catalyst_items(ticker_report.catalysts))
         if len(lines) == 1:
             lines.append("- No catalysts.")
+        return "\n".join(lines)
+
+    def _render_todays_suggested_actions(
+        self,
+        report: InvestmentResearchReport,
+    ) -> str:
+        lines = ["Today's Suggested Actions"]
+        lines.extend(f"- {action}" for action in report.todays_suggested_actions)
+        if len(lines) == 1:
+            lines.append("- No suggested actions.")
         return "\n".join(lines)
 
     def _render_evidence_notes(self, report: InvestmentResearchReport) -> str:

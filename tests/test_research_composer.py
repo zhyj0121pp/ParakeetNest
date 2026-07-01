@@ -112,6 +112,22 @@ def test_default_composer_can_generate_and_render_report_body() -> None:
     assert "Recommendations" in body
 
 
+def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
+    body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
+
+    assert "Market Summary" in body
+    assert "Portfolio Review" in body
+    assert "Watchlist Review" in body
+    assert "Dongdong's Opinion (Chief Growth Officer)" in body
+    assert "Xixi's Opinion (Chief Investment Analyst)" in body
+    assert "Youyou's Opinion (Chief Risk Officer)" in body
+    assert "Committee Consensus" in body
+    assert "Confidence" in body
+    assert "Key Risks" in body
+    assert "Upcoming Catalysts" in body
+    assert "Today's Suggested Actions" in body
+
+
 def _sample_report() -> InvestmentResearchReport:
     ticker_report = ResearchTickerReport(
         ticker="NVDA",

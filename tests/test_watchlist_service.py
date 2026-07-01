@@ -54,6 +54,42 @@ def test_build_insight_for_one_active_item() -> None:
     )
 
 
+def test_summary_adds_punctuation_before_appended_theme() -> None:
+    """Reason text without punctuation should read cleanly before theme text."""
+    repository = InMemoryWatchlistRepository(
+        (_item("NVDA", reason="Track AI accelerator demand"),)
+    )
+    service = WatchlistIntelligenceService(repository)
+
+    insight = service.build_insight("NVDA")
+
+    assert insight.summary == "Track AI accelerator demand. Theme: AI infrastructure."
+
+
+def test_summary_keeps_existing_punctuation_before_appended_theme() -> None:
+    """Reason text with terminal punctuation should not receive another period."""
+    repository = InMemoryWatchlistRepository(
+        (_item("NVDA", reason="Track AI accelerator demand!"),)
+    )
+    service = WatchlistIntelligenceService(repository)
+
+    insight = service.build_insight("NVDA")
+
+    assert insight.summary == "Track AI accelerator demand! Theme: AI infrastructure."
+
+
+def test_summary_without_theme_keeps_existing_reason_behavior() -> None:
+    """Reason-only summaries should not be changed by theme append formatting."""
+    repository = InMemoryWatchlistRepository(
+        (_item("NVDA", theme=None, reason="Track AI accelerator demand"),)
+    )
+    service = WatchlistIntelligenceService(repository)
+
+    insight = service.build_insight("NVDA")
+
+    assert insight.summary == "Track AI accelerator demand"
+
+
 def test_missing_item_raises_value_error() -> None:
     service = WatchlistIntelligenceService(InMemoryWatchlistRepository())
 

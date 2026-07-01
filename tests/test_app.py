@@ -108,7 +108,7 @@ def test_create_app_loads_watchlist_seed_items(tmp_path: Path) -> None:
     assert context.watchlist is not None
     assert tuple(item.symbol for item in context.watchlist.items) == ("NVDA",)
     assert context.watchlist.items[0].summary == (
-        "Track AI accelerator demand Theme: AI infrastructure."
+        "Track AI accelerator demand. Theme: AI infrastructure."
     )
 
 

@@ -130,8 +130,15 @@ def _build_summary(
         base = f"{item.symbol} remains on the watchlist for review."
 
     if item.theme and item.reason:
-        return f"{base} Theme: {item.theme}."
+        return f"{_ensure_terminal_punctuation(base)} Theme: {item.theme}."
     return base
+
+
+def _ensure_terminal_punctuation(value: str) -> str:
+    """Return text with sentence-ending punctuation for appended clauses."""
+    if value.endswith((".", "!", "?")):
+        return value
+    return f"{value}."
 
 
 def _build_bullish_factors(

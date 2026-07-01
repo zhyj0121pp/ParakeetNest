@@ -185,7 +185,7 @@ def test_cli_watchlist_review_with_seed_file_renders_seeded_symbols(
     output = capsys.readouterr().out
     assert exit_code == 0
     assert "## Watchlist" in output
-    assert "- NVDA: Track AI accelerator demand Theme: AI infrastructure." in output
+    assert "- NVDA: Track AI accelerator demand. Theme: AI infrastructure." in output
     assert "Recommended action: review thesis" in output
 
 

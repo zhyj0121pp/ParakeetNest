@@ -49,6 +49,7 @@ class MeetingContext:
     question: str
     ticker: str
     research_context: ResearchMeetingContext
+    rendered_investment_intelligence_context: str | None = None
     previous_agent_results: tuple[AgentResult, ...] = field(default_factory=tuple)
 
 

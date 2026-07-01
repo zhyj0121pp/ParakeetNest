@@ -97,6 +97,51 @@ def test_committee_runtime_has_no_sec_filing_dependency() -> None:
     assert "SecFilingService" not in source
 
 
+def test_committee_agents_do_not_depend_on_intelligence_source_services() -> None:
+    """Committee agents should consume rendered context, not fetch source signals."""
+    source_path = Path("src/parakeetnest/committee")
+    forbidden_module_prefixes = (
+        "parakeetnest.market_data",
+        "parakeetnest.news",
+        "parakeetnest.macro",
+        "parakeetnest.intelligence.risk",
+        "parakeetnest.intelligence.sentiment",
+        "parakeetnest.intelligence.health",
+        "parakeetnest.intelligence.momentum",
+        "parakeetnest.intelligence.market_breadth",
+        "parakeetnest.intelligence.sector_rotation",
+    )
+    forbidden_service_names = (
+        "MarketDataService",
+        "NewsService",
+        "MacroDataService",
+        "RiskService",
+        "MarketSentimentService",
+        "MarketHealthService",
+        "MomentumService",
+        "MarketBreadthService",
+        "SectorRotationService",
+    )
+
+    imported_modules = []
+    source = ""
+    for path in source_path.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        source += text
+        tree = ast.parse(text)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module is not None:
+                imported_modules.append(node.module)
+            elif isinstance(node, ast.Import):
+                imported_modules.extend(alias.name for alias in node.names)
+
+    assert all(
+        not module.startswith(forbidden_module_prefixes)
+        for module in imported_modules
+    )
+    assert all(service_name not in source for service_name in forbidden_service_names)
+
+
 def test_context_service_does_not_access_news_provider_registry() -> None:
     """ContextService must receive news through context providers and NewsService."""
     source_path = Path("src/parakeetnest/context/service.py")

@@ -26,6 +26,7 @@ class CommitteeMeetingOrchestrator:
         question: str,
         ticker: str,
         research_context: ResearchMeetingContext,
+        rendered_investment_intelligence_context: str | None = None,
     ) -> MeetingResult:
         """Run agents for an existing meeting and persist their messages."""
         agent_results: list[AgentResult] = []
@@ -35,6 +36,9 @@ class CommitteeMeetingOrchestrator:
                 question=question,
                 ticker=ticker,
                 research_context=research_context,
+                rendered_investment_intelligence_context=(
+                    rendered_investment_intelligence_context
+                ),
                 previous_agent_results=tuple(agent_results),
             )
             result = self._run_agent(agent, context)

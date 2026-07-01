@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 import logging
 from pathlib import Path
 
@@ -38,7 +39,9 @@ from parakeetnest.services import MeetingService
 class SuccessfulOrchestrator:
     """Test double that records service invocation and returns a final result."""
 
-    calls: list[tuple[int, str, str, ResearchMeetingContext]] = field(default_factory=list)
+    calls: list[tuple[int, str, str, ResearchMeetingContext, str | None]] = field(
+        default_factory=list
+    )
 
     def run(
         self,
@@ -46,8 +49,17 @@ class SuccessfulOrchestrator:
         question: str,
         ticker: str,
         research_context: ResearchMeetingContext,
+        rendered_investment_intelligence_context: str | None = None,
     ) -> MeetingResult:
-        self.calls.append((meeting_id, question, ticker, research_context))
+        self.calls.append(
+            (
+                meeting_id,
+                question,
+                ticker,
+                research_context,
+                rendered_investment_intelligence_context,
+            )
+        )
         return MeetingResult(
             meeting_id=meeting_id,
             status=MeetingStatus.COMPLETED,
@@ -75,7 +87,9 @@ class SuccessfulOrchestrator:
 class FailingOrchestrator:
     """Test double that records service invocation and raises."""
 
-    calls: list[tuple[int, str, str, ResearchMeetingContext]] = field(default_factory=list)
+    calls: list[tuple[int, str, str, ResearchMeetingContext, str | None]] = field(
+        default_factory=list
+    )
 
     def run(
         self,
@@ -83,8 +97,17 @@ class FailingOrchestrator:
         question: str,
         ticker: str,
         research_context: ResearchMeetingContext,
+        rendered_investment_intelligence_context: str | None = None,
     ) -> MeetingResult:
-        self.calls.append((meeting_id, question, ticker, research_context))
+        self.calls.append(
+            (
+                meeting_id,
+                question,
+                ticker,
+                research_context,
+                rendered_investment_intelligence_context,
+            )
+        )
         raise RuntimeError("provider unavailable")
 
 
@@ -122,6 +145,40 @@ class ChairmanAgentStub:
     name: str = "Chairman"
     role: str = "Final decision maker"
     prompt_filename: str = "chairman.md"
+
+
+@dataclass
+class RecordingInvestmentIntelligenceService:
+    rendered_body: str = "# Investment Intelligence Context\n\n## Risk\n- Overall Level: moderate\n"
+    calls: list[dict[str, object]] = field(default_factory=list)
+
+    def build_context(
+        self,
+        *,
+        as_of_date: date | None = None,
+        universe: str = "US",
+        symbol: str = "SPY",
+        health_metadata: dict[str, object] | None = None,
+    ) -> object:
+        self.calls.append(
+            {
+                "as_of_date": as_of_date,
+                "universe": universe,
+                "symbol": symbol,
+                "health_metadata": health_metadata,
+            }
+        )
+        return object()
+
+
+@dataclass
+class RecordingInvestmentIntelligenceRenderer:
+    rendered_body: str = "# Investment Intelligence Context\n\n## Risk\n- Overall Level: moderate\n"
+    contexts: list[object] = field(default_factory=list)
+
+    def render(self, context: object) -> str:
+        self.contexts.append(context)
+        return self.rendered_body
 
 
 def _chairman_response() -> str:
@@ -170,6 +227,7 @@ def test_meeting_service_runs_successful_meeting_and_persists_completion(
         question="Should we add to NVDA?",
         symbols=("NVDA",),
     )
+    assert call[4] is None
     assert meeting is not None
     assert meeting.status == MeetingStatus.COMPLETED.value
     assert meeting.result_json == result.result_json
@@ -247,4 +305,84 @@ def test_meeting_service_builds_context_before_committee_receives_it(
     assert "Meeting context:" in prompt
     assert "## Market" in prompt
     assert "NVDA: price=123.45" in prompt
+    assert result.status is MeetingStatus.COMPLETED
+
+
+def test_meeting_service_builds_investment_intelligence_before_agent_execution(
+    tmp_path: Path,
+) -> None:
+    """The service should render investment intelligence before invoking agents."""
+    engine = create_sqlite_engine(tmp_path / "service_investment_intelligence.sqlite3")
+    initialize_database(engine)
+    session_factory = create_session_factory(engine)
+    orchestrator = SuccessfulOrchestrator()
+    intelligence_service = RecordingInvestmentIntelligenceService()
+    intelligence_renderer = RecordingInvestmentIntelligenceRenderer()
+
+    with session_scope(session_factory) as session:
+        repository = CommitteeMeetingRepository(session)
+        service = MeetingService(
+            repository=repository,
+            orchestrator=orchestrator,
+            context_service=ContextService(providers=()),
+            investment_intelligence_context_service=intelligence_service,
+            investment_intelligence_renderer=intelligence_renderer,
+        )
+        result = service.run("Should we add to NVDA?", "NVDA")
+
+    assert result.status is MeetingStatus.COMPLETED
+    assert intelligence_service.calls == [
+        {
+            "as_of_date": None,
+            "universe": "US",
+            "symbol": "NVDA",
+            "health_metadata": {"meeting_id": str(result.meeting_id)},
+        }
+    ]
+    assert len(intelligence_renderer.contexts) == 1
+    assert orchestrator.calls[0][4] == intelligence_renderer.rendered_body
+
+
+def test_agents_receive_rendered_investment_intelligence_context(
+    tmp_path: Path,
+) -> None:
+    """Rendered investment intelligence should be included in agent prompts."""
+    engine = create_sqlite_engine(tmp_path / "service_agent_intelligence.sqlite3")
+    initialize_database(engine)
+    session_factory = create_session_factory(engine)
+    llm_provider = MockLLMProvider(responses=(_chairman_response(),))
+    intelligence_service = RecordingInvestmentIntelligenceService()
+    intelligence_renderer = RecordingInvestmentIntelligenceRenderer(
+        rendered_body=(
+            "# Investment Intelligence Context\n\n"
+            "## Momentum\n"
+            "- Symbol: NVDA\n"
+            "- Regime: uptrend\n"
+        )
+    )
+
+    with session_scope(session_factory) as session:
+        repository = CommitteeMeetingRepository(session)
+        orchestrator = CommitteeMeetingOrchestrator(
+            repository=repository,
+            agents=(ChairmanAgentStub(),),
+            agent_runtime=AgentRuntime(
+                llm_provider=llm_provider,
+                prompt_renderer=PromptRenderer(),
+            ),
+        )
+        service = MeetingService(
+            repository=repository,
+            orchestrator=orchestrator,
+            context_service=ContextService(providers=()),
+            investment_intelligence_context_service=intelligence_service,
+            investment_intelligence_renderer=intelligence_renderer,
+        )
+        result = service.run("Should we add to NVDA?", "NVDA")
+
+    prompt = llm_provider.requests[0].prompt
+    assert "Investment intelligence context:" in prompt
+    assert "# Investment Intelligence Context" in prompt
+    assert "- Symbol: NVDA" in prompt
+    assert "- Regime: uptrend" in prompt
     assert result.status is MeetingStatus.COMPLETED

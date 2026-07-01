@@ -43,6 +43,7 @@ from parakeetnest.intelligence.market_breadth import (
     MarketBreadthService,
     MockMarketBreadthProvider,
 )
+from parakeetnest.intelligence.context import MockInvestmentIntelligenceService
 from parakeetnest.intelligence.sector_rotation import (
     MockSectorRotationProvider,
     SectorRotationService,
@@ -60,7 +61,10 @@ from parakeetnest.news import NewsService, create_news_provider_registry
 from parakeetnest.regime import EconomicRegimeService
 from parakeetnest.regime.context_provider import EconomicRegimeContextProvider
 from parakeetnest.sec import SecFilingService, create_sec_filing_provider_registry
-from parakeetnest.services import MeetingService
+from parakeetnest.services import (
+    InvestmentIntelligenceContextService,
+    MeetingService,
+)
 
 
 @dataclass
@@ -77,6 +81,7 @@ class ParakeetNestApp:
     economic_regime_service: EconomicRegimeService
     sector_rotation_service: SectorRotationService
     market_breadth_service: MarketBreadthService
+    investment_intelligence_context_service: InvestmentIntelligenceContextService
     sec_filing_service: SecFilingService
     financial_statement_service: FinancialStatementService
     llm_provider: LLMProvider
@@ -113,6 +118,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     economic_regime_service = EconomicRegimeService(macro_data_service)
     sector_rotation_service = _create_sector_rotation_service()
     market_breadth_service = _create_market_breadth_service()
+    investment_intelligence_context_service = MockInvestmentIntelligenceService()
     sec_filing_service = _create_sec_filing_service(resolved_config)
     financial_statement_service = _create_financial_statement_service(resolved_config)
     context_provider_registry = _create_context_provider_registry(
@@ -148,6 +154,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         repository=meeting_repository,
         orchestrator=committee_orchestrator,
         context_service=context_service,
+        investment_intelligence_context_service=investment_intelligence_context_service,
     )
 
     return ParakeetNestApp(
@@ -161,6 +168,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         economic_regime_service=economic_regime_service,
         sector_rotation_service=sector_rotation_service,
         market_breadth_service=market_breadth_service,
+        investment_intelligence_context_service=investment_intelligence_context_service,
         sec_filing_service=sec_filing_service,
         financial_statement_service=financial_statement_service,
         llm_provider=llm_provider,

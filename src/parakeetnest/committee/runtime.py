@@ -37,6 +37,10 @@ class PromptRenderer:
         system_prompt = self._load_markdown(self.system_filename)
         agent_prompt = self._load_markdown(agent.prompt_filename)
         rendered_context = self.context_renderer.render(context.research_context)
+        rendered_investment_intelligence_context = (
+            context.rendered_investment_intelligence_context
+            or "- No investment intelligence context available."
+        )
         previous_results = self._format_previous_results(context)
         return "\n".join(
             (
@@ -52,6 +56,9 @@ class PromptRenderer:
                 "",
                 "Meeting context:",
                 rendered_context,
+                "",
+                "Investment intelligence context:",
+                rendered_investment_intelligence_context,
                 "",
                 "Previous agent results:",
                 previous_results,

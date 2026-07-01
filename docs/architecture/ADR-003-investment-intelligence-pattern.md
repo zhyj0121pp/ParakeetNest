@@ -97,6 +97,23 @@ and rendered. Memory, normalized evidence, and deterministic intelligence are
 available before the committee reasons about action, confidence, horizon,
 evidence, risks, and catalysts.
 
+## Committee Integration
+
+Epic 19 integrates the unified Investment Intelligence Context at the meeting
+orchestration boundary. `MeetingService` builds ordinary research context
+through `ContextService`, builds investment intelligence through an injected
+context service, renders that intelligence to Markdown, and passes the rendered
+artifact into `CommitteeMeetingOrchestrator`.
+
+This keeps the v1.1 boundary intact:
+
+- committee agents receive prompt context, not service dependencies;
+- `AgentRuntime` renders prompts and calls the LLM provider only;
+- `ContextService` continues to assemble standard `MeetingContext` sections;
+- investment intelligence remains a separate context-producing layer;
+- app bootstrap chooses mock or real service implementations through
+  constructor injection.
+
 ## Consequences
 
 Investment intelligence becomes testable without live providers, network access,

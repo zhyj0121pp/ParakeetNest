@@ -33,6 +33,23 @@ def _context(*previous_agent_results: AgentResult) -> MeetingContext:
     )
 
 
+def _context_with_investment_intelligence() -> MeetingContext:
+    return MeetingContext(
+        meeting_id=1,
+        question="Should we add to NVDA?",
+        ticker="NVDA",
+        research_context=ResearchMeetingContext(
+            request=ContextRequest(
+                question="Should we add to NVDA?",
+                symbols=("NVDA",),
+            )
+        ),
+        rendered_investment_intelligence_context=(
+            "# Investment Intelligence Context\n\n## Risk\n- Overall Level: moderate\n"
+        ),
+    )
+
+
 def _opinion() -> str:
     return json.dumps(
         {
@@ -78,6 +95,17 @@ def test_prompt_renderer_includes_rendered_meeting_context() -> None:
     assert "Meeting context:" in prompt
     assert "## Market" in prompt
     assert "## Knowledge Base" in prompt
+
+
+def test_prompt_renderer_includes_rendered_investment_intelligence_context() -> None:
+    prompt = PromptRenderer().render(
+        RuntimeAgentStub(),
+        _context_with_investment_intelligence(),
+    )
+
+    assert "Investment intelligence context:" in prompt
+    assert "# Investment Intelligence Context" in prompt
+    assert "- Overall Level: moderate" in prompt
 
 
 def test_agent_runtime_calls_llm_provider_once() -> None:

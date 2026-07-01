@@ -15,7 +15,10 @@ from parakeetnest.services.calendar import MockCalendarService
 from parakeetnest.services.financial import MockFinancialService
 from parakeetnest.services.macro import MockMacroService
 from parakeetnest.services.market_data import MockMarketDataService
-from parakeetnest.services.meeting import MeetingService
+from parakeetnest.services.meeting import (
+    InvestmentIntelligenceContextService,
+    MeetingService,
+)
 from parakeetnest.services.news import MockNewsService
 from parakeetnest.services.orchestrator import (
     DataCollectionOrchestrator,
@@ -32,6 +35,7 @@ __all__ = [
     "MacroService",
     "MarketDataService",
     "MeetingService",
+    "InvestmentIntelligenceContextService",
     "MockCalendarService",
     "MockFinancialService",
     "MockMacroService",

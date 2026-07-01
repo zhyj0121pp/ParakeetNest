@@ -9,6 +9,7 @@ from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.financials import MockFinancialStatementProvider
+from parakeetnest.intelligence.context import MockInvestmentIntelligenceService
 from parakeetnest.intelligence.market_breadth import (
     MarketBreadthCalculator,
     MarketBreadthContextProvider,
@@ -46,6 +47,31 @@ def test_create_test_app_uses_mock_llm_provider() -> None:
         assert isinstance(app.llm_provider, MockLLMProvider)
     finally:
         app.close()
+
+
+def test_create_test_app_runs_mock_investment_intelligence_end_to_end() -> None:
+    """The test app should pass mock investment intelligence into agent prompts."""
+    app = create_test_app()
+    try:
+        result = app.meeting_service.run(
+            question="Should I watch NVDA?",
+            ticker="NVDA",
+        )
+    finally:
+        app.close()
+
+    assert result.status.value == "completed"
+    assert isinstance(
+        app.investment_intelligence_context_service,
+        MockInvestmentIntelligenceService,
+    )
+    assert isinstance(app.llm_provider, MockLLMProvider)
+    assert app.llm_provider.requests
+    first_prompt = app.llm_provider.requests[0].prompt
+    assert "Investment intelligence context:" in first_prompt
+    assert "# Investment Intelligence Context" in first_prompt
+    assert "## Market Health" in first_prompt
+    assert "- Symbol: NVDA" in first_prompt
 
 
 def test_create_app_can_disable_context_provider_before_service_creation(

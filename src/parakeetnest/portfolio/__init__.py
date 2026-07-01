@@ -15,9 +15,11 @@ from parakeetnest.portfolio.exceptions import (
     PortfolioDataUnavailableError,
     PortfolioProviderError,
 )
+from parakeetnest.portfolio.mock_provider import MockPortfolioProvider
 from parakeetnest.portfolio.provider import PortfolioProvider
 
 __all__ = [
+    "MockPortfolioProvider",
     "PortfolioAllocation",
     "PortfolioAccountNotFoundError",
     "PortfolioAssetType",

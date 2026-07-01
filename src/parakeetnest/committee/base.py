@@ -23,6 +23,7 @@ class CommitteeMember(Protocol):
 class CommitteeAgent(Protocol):
     """Protocol for prompt-backed committee meeting agent definitions."""
 
+    agent_id: str
     name: str
     role: str
     prompt_filename: str

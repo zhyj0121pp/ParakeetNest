@@ -3,15 +3,45 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from parakeetnest.committee.agent_profiles import (
+    CHAIRMAN_PROFILE,
+    DONGDONG_PROFILE,
+    XIXI_PROFILE,
+    YOYO_PROFILE,
+    AgentProfile,
+)
 
 
 @dataclass(frozen=True)
 class PromptBackedCommitteeAgent:
-    """Metadata needed by the shared committee agent runtime."""
+    """Profile-backed committee agent handle kept for stable public imports."""
 
     name: str
     role: str
     prompt_filename: str
+    agent_id: str = ""
+    profile: AgentProfile | None = None
+
+    def __post_init__(self) -> None:
+        if self.agent_id:
+            return
+        if self.profile is not None:
+            object.__setattr__(self, "agent_id", self.profile.agent_id)
+            return
+        object.__setattr__(self, "agent_id", Path(self.prompt_filename).stem)
+
+
+def _profile_agent_kwargs(profile: AgentProfile, role: str) -> dict[str, Any]:
+    return {
+        "name": profile.name,
+        "role": role,
+        "prompt_filename": Path(profile.prompt_source).name,
+        "agent_id": profile.agent_id,
+        "profile": profile,
+    }
 
 
 class XixiAgent(PromptBackedCommitteeAgent):
@@ -19,9 +49,7 @@ class XixiAgent(PromptBackedCommitteeAgent):
 
     def __init__(self) -> None:
         super().__init__(
-            name="Xixi",
-            role="Chief Fundamental Analyst",
-            prompt_filename="xixi.md",
+            **_profile_agent_kwargs(XIXI_PROFILE, "Chief Fundamental Analyst")
         )
 
 
@@ -30,9 +58,7 @@ class DongdongAgent(PromptBackedCommitteeAgent):
 
     def __init__(self) -> None:
         super().__init__(
-            name="Dongdong",
-            role="Chief Opportunity Hunter",
-            prompt_filename="dongdong.md",
+            **_profile_agent_kwargs(DONGDONG_PROFILE, "Chief Opportunity Hunter")
         )
 
 
@@ -41,9 +67,7 @@ class YoyoAgent(PromptBackedCommitteeAgent):
 
     def __init__(self) -> None:
         super().__init__(
-            name="Yoyo",
-            role="Chief Risk Officer",
-            prompt_filename="yoyo.md",
+            **_profile_agent_kwargs(YOYO_PROFILE, "Chief Risk Officer")
         )
 
 
@@ -52,7 +76,5 @@ class ChairmanAgent(PromptBackedCommitteeAgent):
 
     def __init__(self) -> None:
         super().__init__(
-            name="Chairman",
-            role="Final decision maker",
-            prompt_filename="chairman.md",
+            **_profile_agent_kwargs(CHAIRMAN_PROFILE, "Final decision maker")
         )

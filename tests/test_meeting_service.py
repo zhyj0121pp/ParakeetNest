@@ -151,6 +151,7 @@ class RecordingProvider:
 
 @dataclass(frozen=True)
 class ChairmanAgentStub:
+    agent_id: str = "chairman"
     name: str = "Chairman"
     role: str = "Final decision maker"
     prompt_filename: str = "chairman.md"

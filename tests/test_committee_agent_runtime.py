@@ -30,6 +30,7 @@ from parakeetnest.llm import (
 
 @dataclass(frozen=True)
 class RuntimeAgentStub:
+    agent_id: str = "xixi"
     name: str = "Test Analyst"
     role: str = "Test Role"
     prompt_filename: str = "xixi.md"
@@ -37,11 +38,9 @@ class RuntimeAgentStub:
 
 class TrackingAgentRegistry:
     def __init__(self) -> None:
-        self.exists_calls: list[str] = []
         self.get_calls: list[str] = []
 
     def exists(self, agent_id: str) -> bool:
-        self.exists_calls.append(agent_id)
         return agent_id == XIXI_PROFILE.agent_id
 
     def get(self, agent_id: str):
@@ -195,7 +194,6 @@ def test_prompt_renderer_delegates_profile_lookup_to_agent_registry() -> None:
 
     PromptRenderer(agent_registry=registry).render(XixiAgent(), _context())
 
-    assert registry.exists_calls == ["xixi"]
     assert registry.get_calls == ["xixi"]
 
 

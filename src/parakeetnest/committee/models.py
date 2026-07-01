@@ -24,12 +24,136 @@ class MeetingStatus(StrEnum):
     FAILED = "failed"
 
 
+class InvestmentCommitteeDecision(StrEnum):
+    """Supported decisions for the complete investment committee product."""
+
+    BUY = "buy"
+    HOLD = "hold"
+    WATCH = "watch"
+    AVOID = "avoid"
+
+
 @dataclass(frozen=True)
 class MeetingRequest:
     """User request for a committee meeting."""
 
     question: str
     ticker: str
+
+
+@dataclass(frozen=True)
+class InvestmentCommitteeRequest:
+    """Request for a complete investment committee review."""
+
+    ticker: str
+    topic: str
+    time_horizon: InvestmentHorizon | str
+    user_question: str | None = None
+    portfolio_context_notes: str | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize stable request fields without reaching into services."""
+        object.__setattr__(self, "ticker", self.ticker.strip().upper())
+        object.__setattr__(self, "topic", self.topic.strip())
+        if isinstance(self.time_horizon, str):
+            object.__setattr__(
+                self,
+                "time_horizon",
+                InvestmentHorizon(self.time_horizon.strip()),
+            )
+        if self.user_question is not None:
+            object.__setattr__(self, "user_question", self.user_question.strip())
+        if self.portfolio_context_notes is not None:
+            object.__setattr__(
+                self,
+                "portfolio_context_notes",
+                self.portfolio_context_notes.strip(),
+            )
+
+
+@dataclass(frozen=True)
+class InvestmentCommitteeReport:
+    """Structured output for a complete investment committee review."""
+
+    ticker: str
+    topic: str
+    time_horizon: InvestmentHorizon | str
+    macro_view: str
+    sector_view: str
+    fundamental_view: str
+    valuation_view: str
+    risk_view: str
+    momentum_sentiment_view: str
+    bull_case: str
+    bear_case: str
+    key_risks: tuple[str, ...]
+    decision: InvestmentCommitteeDecision | str
+    confidence: ConfidenceLevel | str
+    recommended_action: str
+
+    def __post_init__(self) -> None:
+        """Normalize enum-backed report fields."""
+        object.__setattr__(self, "ticker", self.ticker.strip().upper())
+        object.__setattr__(self, "topic", self.topic.strip())
+        if isinstance(self.time_horizon, str):
+            object.__setattr__(
+                self,
+                "time_horizon",
+                InvestmentHorizon(self.time_horizon.strip()),
+            )
+        if isinstance(self.decision, str):
+            object.__setattr__(
+                self,
+                "decision",
+                InvestmentCommitteeDecision(self.decision.strip().lower()),
+            )
+        if isinstance(self.confidence, str):
+            object.__setattr__(
+                self,
+                "confidence",
+                ConfidenceLevel(self.confidence.strip().lower()),
+            )
+        object.__setattr__(self, "key_risks", tuple(self.key_risks))
+
+
+@dataclass(frozen=True)
+class InvestmentCommitteeMember:
+    """Role metadata for the default complete investment committee."""
+
+    name: str
+    role: str
+
+
+DEFAULT_INVESTMENT_COMMITTEE: tuple[InvestmentCommitteeMember, ...] = (
+    InvestmentCommitteeMember(
+        name="Macro Strategist",
+        role="Assesses economic regime, rates, inflation, and liquidity backdrop.",
+    ),
+    InvestmentCommitteeMember(
+        name="Sector Analyst",
+        role="Assesses sector structure, rotation, industry trends, and peers.",
+    ),
+    InvestmentCommitteeMember(
+        name="Fundamental Analyst",
+        role="Assesses business quality, growth, margins, and financial durability.",
+    ),
+    InvestmentCommitteeMember(
+        name="Valuation Analyst",
+        role="Assesses valuation, assumptions, upside, and downside scenarios.",
+    ),
+    InvestmentCommitteeMember(
+        name="Risk Manager",
+        role="Assesses downside risks, position sizing concerns, and red flags.",
+    ),
+    InvestmentCommitteeMember(
+        name="Momentum / Sentiment Analyst",
+        role="Assesses price momentum, market sentiment, and positioning.",
+    ),
+    InvestmentCommitteeMember(
+        name="Chair / CIO",
+        role="Synthesizes views into a final decision and recommended action.",
+    ),
+)
 
 
 @dataclass(frozen=True)

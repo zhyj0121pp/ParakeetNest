@@ -27,6 +27,7 @@ from parakeetnest.context.providers import (
     NewsContextProvider,
     PortfolioContextProvider,
     SecFilingContextProvider,
+    WatchlistContextProvider,
 )
 from parakeetnest.context.registry import ContextProviderRegistry
 from parakeetnest.context.service import ContextService
@@ -69,6 +70,10 @@ from parakeetnest.services import (
     InvestmentIntelligenceContextService,
     MeetingService,
 )
+from parakeetnest.watchlist import (
+    InMemoryWatchlistRepository,
+    WatchlistIntelligenceService,
+)
 
 
 @dataclass
@@ -88,6 +93,7 @@ class ParakeetNestApp:
     investment_intelligence_context_service: InvestmentIntelligenceContextService
     sec_filing_service: SecFilingService
     financial_statement_service: FinancialStatementService
+    watchlist_intelligence_service: WatchlistIntelligenceService
     llm_provider: LLMProvider
     memory_service: CommitteeMemoryService | None
     agent_runtime: AgentRuntime
@@ -128,6 +134,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     investment_intelligence_context_service = MockInvestmentIntelligenceService()
     sec_filing_service = _create_sec_filing_service(resolved_config)
     financial_statement_service = _create_financial_statement_service(resolved_config)
+    watchlist_intelligence_service = _create_watchlist_intelligence_service()
     context_provider_registry = _create_context_provider_registry(
         resolved_config,
         news_service,
@@ -137,6 +144,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         market_breadth_service,
         sec_filing_service,
         financial_statement_service,
+        watchlist_intelligence_service,
     )
     context_service = ContextService(
         providers=context_provider_registry.resolve_enabled_providers()
@@ -180,6 +188,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         investment_intelligence_context_service=investment_intelligence_context_service,
         sec_filing_service=sec_filing_service,
         financial_statement_service=financial_statement_service,
+        watchlist_intelligence_service=watchlist_intelligence_service,
         llm_provider=llm_provider,
         memory_service=memory_service,
         agent_runtime=agent_runtime,
@@ -255,6 +264,10 @@ def _create_financial_statement_service(config: AppConfig) -> FinancialStatement
     return FinancialStatementService(financial_statement_provider)
 
 
+def _create_watchlist_intelligence_service() -> WatchlistIntelligenceService:
+    return WatchlistIntelligenceService(InMemoryWatchlistRepository())
+
+
 def _normalize_optional_string(value: str | None) -> str | None:
     if value is None:
         return None
@@ -271,6 +284,7 @@ def _create_context_provider_registry(
     market_breadth_service: MarketBreadthService,
     sec_filing_service: SecFilingService,
     financial_statement_service: FinancialStatementService,
+    watchlist_intelligence_service: WatchlistIntelligenceService,
 ) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
     market_data_provider_registry = create_market_data_provider_registry()
@@ -298,6 +312,10 @@ def _create_context_provider_registry(
     registry.register(
         "market_breadth",
         MarketBreadthContextProvider(market_breadth_service),
+    )
+    registry.register(
+        "watchlist",
+        WatchlistContextProvider(watchlist_intelligence_service),
     )
     registry.register("mock_knowledge_base", KnowledgeBaseContextProvider())
     _apply_context_provider_config(registry, config)

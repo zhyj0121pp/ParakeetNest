@@ -8,6 +8,7 @@ from parakeetnest.context.providers.portfolio import PortfolioContextProvider
 from parakeetnest.context.providers.sec_filings import SecFilingContextProvider
 from parakeetnest.context.providers.valuation import ValuationContextProvider
 from parakeetnest.financials.context import FinancialStatementContextProvider
+from parakeetnest.watchlist.context_provider import WatchlistContextProvider
 
 __all__ = [
     "FinancialStatementContextProvider",
@@ -18,4 +19,5 @@ __all__ = [
     "PortfolioContextProvider",
     "SecFilingContextProvider",
     "ValuationContextProvider",
+    "WatchlistContextProvider",
 ]

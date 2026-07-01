@@ -18,6 +18,7 @@ from parakeetnest.context.models import (
     PortfolioSnapshot,
     SectorRotationContextSnapshot,
     ValuationContextSnapshot,
+    WatchlistContextSnapshot,
 )
 
 
@@ -42,6 +43,7 @@ class MeetingContextPromptRenderer:
                 + self._render_economic_regime(context.economic_regime),
                 "## Sector Rotation\n"
                 + self._render_sector_rotation(context.sector_rotation),
+                "## Watchlist\n" + self._render_watchlist(context.watchlist),
                 "## Knowledge Base\n"
                 + self._render_knowledge_base(context.knowledge_base),
             )
@@ -495,6 +497,42 @@ class MeetingContextPromptRenderer:
         else:
             lines.append("- Evidence: None")
         lines.append(f"- Source: {sector_rotation.source}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _render_watchlist(
+        watchlist: WatchlistContextSnapshot | None,
+    ) -> str:
+        if watchlist is None or not watchlist.items:
+            return "- No watchlist insights available."
+        lines = [
+            MeetingContextPromptRenderer._render_snapshot_header(
+                watchlist.source,
+                watchlist.fetched_at,
+            )
+        ]
+        for item in watchlist.items:
+            lines.extend(
+                (
+                    f"- {item.symbol}: {item.summary}",
+                    "  - Bullish factors: "
+                    + MeetingContextPromptRenderer._format_sequence(
+                        item.bullish_factors
+                    ),
+                    "  - Bearish factors: "
+                    + MeetingContextPromptRenderer._format_sequence(
+                        item.bearish_factors
+                    ),
+                    "  - Open questions: "
+                    + MeetingContextPromptRenderer._format_sequence(
+                        item.open_questions
+                    ),
+                    "  - Recommended action: "
+                    + MeetingContextPromptRenderer._format_value(
+                        item.recommended_action
+                    ),
+                )
+            )
         return "\n".join(lines)
 
     @staticmethod

@@ -23,6 +23,8 @@ from parakeetnest.context import (
     SectorRotationContextSnapshot,
     ValuationContextItem,
     ValuationContextSnapshot,
+    WatchlistContextItem,
+    WatchlistContextSnapshot,
 )
 
 
@@ -52,6 +54,7 @@ def test_renderer_outputs_structured_empty_context() -> None:
             "## Macro\n- No macro context available.",
             "## Economic Regime\n- No economic regime context available.",
             "## Sector Rotation\n- No sector rotation context available.",
+            "## Watchlist\n- No watchlist insights available.",
             "## Knowledge Base\n- No knowledge base context available.",
         )
     )
@@ -72,6 +75,7 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
                 "market_provider",
                 "news_provider",
                 "filings_provider",
+                "watchlist",
                 "knowledge_base",
             ),
             warnings=("news feed delayed",),
@@ -182,6 +186,20 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
                 "Utilities: Relative return classified as weakening.",
             ),
         ),
+        watchlist=WatchlistContextSnapshot(
+            source="watchlist",
+            fetched_at=generated_at,
+            items=(
+                WatchlistContextItem(
+                    symbol="NVDA",
+                    summary="Track AI accelerator demand.",
+                    bullish_factors=("Data center demand remains strong.",),
+                    bearish_factors=("Valuation leaves little room for error.",),
+                    open_questions=("What margin trajectory is durable?",),
+                    recommended_action="continue monitoring",
+                ),
+            ),
+        ),
         knowledge_base=KnowledgeBaseSnapshot(
             source="knowledge_base",
             fetched_at=generated_at,
@@ -199,7 +217,7 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             "## Metadata\n"
             "- Generated at: 2026-06-29T13:00:00+00:00\n"
             "- Sources: market_provider, news_provider, filings_provider, "
-            "knowledge_base\n"
+            "watchlist, knowledge_base\n"
             "- Warnings: news feed delayed\n"
             "- Data quality notes: quotes are delayed 15 minutes",
             "## Market\n"
@@ -259,6 +277,13 @@ def test_renderer_outputs_stable_markdown_for_populated_context() -> None:
             "  - Technology: Relative return classified as leading.\n"
             "  - Utilities: Relative return classified as weakening.\n"
             "- Source: sector_rotation_calculator",
+            "## Watchlist\n"
+            "- Snapshot: source=watchlist, fetched_at=2026-06-29T13:00:00+00:00\n"
+            "- NVDA: Track AI accelerator demand.\n"
+            "  - Bullish factors: Data center demand remains strong.\n"
+            "  - Bearish factors: Valuation leaves little room for error.\n"
+            "  - Open questions: What margin trajectory is durable?\n"
+            "  - Recommended action: continue monitoring",
             "## Knowledge Base\n"
             "- Snapshot: source=knowledge_base, fetched_at=2026-06-29T13:00:00+00:00\n"
             "- Thesis: Own if AI share gains continue.\n"

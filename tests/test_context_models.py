@@ -26,6 +26,8 @@ from parakeetnest.context import (
     SectorRotationContextSnapshot,
     ValuationContextItem,
     ValuationContextSnapshot,
+    WatchlistContextItem,
+    WatchlistContextSnapshot,
 )
 
 
@@ -167,6 +169,20 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         unknown=("Materials",),
         evidence=("Technology: Relative return classified as leading.",),
     )
+    watchlist = WatchlistContextSnapshot(
+        source="watchlist",
+        fetched_at=fetched_at,
+        items=(
+            WatchlistContextItem(
+                symbol="NVDA",
+                summary="Track AI infrastructure demand.",
+                bullish_factors=("Accelerator demand remains strong.",),
+                bearish_factors=("Valuation risk is elevated.",),
+                open_questions=("What is the durable margin profile?",),
+                recommended_action="continue monitoring",
+            ),
+        ),
+    )
     knowledge_base = KnowledgeBaseSnapshot(
         thesis=("Own if AI data center share gains continue.",),
         discussions=("Prior committee wanted margin evidence.",),
@@ -183,6 +199,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
             "mock_macro",
             "economic_regime",
             "sector_rotation",
+            "watchlist",
             "knowledge_base",
         ),
         data_quality_notes=("All context is deterministic test data.",),
@@ -200,6 +217,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
         macro=macro,
         economic_regime=economic_regime,
         sector_rotation=sector_rotation,
+        watchlist=watchlist,
         knowledge_base=knowledge_base,
     )
 
@@ -213,6 +231,7 @@ def test_meeting_context_composes_all_context_snapshots() -> None:
     assert context.macro == macro
     assert context.economic_regime == economic_regime
     assert context.sector_rotation == sector_rotation
+    assert context.watchlist == watchlist
     assert context.knowledge_base == knowledge_base
     assert context.metadata.sources[-1] == "knowledge_base"
 

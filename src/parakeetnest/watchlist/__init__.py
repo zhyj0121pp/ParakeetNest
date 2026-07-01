@@ -1,5 +1,6 @@
 """Watchlist Intelligence domain model package."""
 
+from parakeetnest.watchlist.context_provider import WatchlistContextProvider
 from parakeetnest.watchlist.models import (
     WatchlistInsight,
     WatchlistItem,
@@ -20,6 +21,7 @@ __all__ = [
     "WatchlistInsight",
     "WatchlistIntelligenceService",
     "WatchlistItem",
+    "WatchlistContextProvider",
     "WatchlistPriority",
     "WatchlistRepository",
     "WatchlistSignal",

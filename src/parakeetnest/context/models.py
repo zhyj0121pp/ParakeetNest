@@ -269,6 +269,27 @@ class MarketBreadthContextSnapshot:
 
 
 @dataclass(frozen=True)
+class WatchlistContextItem:
+    """One watchlist insight prepared for committee context."""
+
+    symbol: str
+    summary: str
+    bullish_factors: tuple[str, ...] = field(default_factory=tuple)
+    bearish_factors: tuple[str, ...] = field(default_factory=tuple)
+    open_questions: tuple[str, ...] = field(default_factory=tuple)
+    recommended_action: str | None = None
+
+
+@dataclass(frozen=True)
+class WatchlistContextSnapshot:
+    """Active watchlist insights available to a context assembly."""
+
+    source: str
+    fetched_at: datetime | None = None
+    items: tuple[WatchlistContextItem, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class KnowledgeBaseSnapshot:
     """Remembered research context loaded before committee reasoning."""
 
@@ -306,4 +327,5 @@ class MeetingContext:
     economic_regime: EconomicRegimeContextSnapshot | None = None
     sector_rotation: SectorRotationContextSnapshot | None = None
     market_breadth: MarketBreadthContextSnapshot | None = None
+    watchlist: WatchlistContextSnapshot | None = None
     knowledge_base: KnowledgeBaseSnapshot | None = None

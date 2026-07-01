@@ -25,6 +25,11 @@ from parakeetnest.intelligence.market_breadth import (
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.news import NewsQuery
 from parakeetnest.sec import EdgarSecFilingProvider, MockSecFilingProvider
+from parakeetnest.watchlist import (
+    InMemoryWatchlistRepository,
+    WatchlistContextProvider,
+    WatchlistIntelligenceService,
+)
 
 
 def test_create_app_returns_working_application(tmp_path: Path) -> None:
@@ -338,6 +343,33 @@ def test_create_app_wires_market_breadth_layer(tmp_path: Path) -> None:
     assert context.market_breadth.universe == "SP500"
     assert context.market_breadth.breadth_regime == "healthy"
     assert app.market_breadth_service._provider.calls == ["SP500"]
+
+
+def test_create_app_wires_watchlist_context_provider(tmp_path: Path) -> None:
+    """The context pipeline should receive watchlist insights through the service."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        registrations = {
+            registration.provider_id: registration.provider
+            for registration in app.context_provider_registry.list_registrations()
+        }
+        provider = registrations["watchlist"]
+        context = app.context_service.build_context(
+            ContextRequest(question="Prepare watchlist.", symbols=())
+        )
+    finally:
+        app.close()
+
+    assert isinstance(app.watchlist_intelligence_service, WatchlistIntelligenceService)
+    assert isinstance(
+        app.watchlist_intelligence_service._repository,
+        InMemoryWatchlistRepository,
+    )
+    assert isinstance(provider, WatchlistContextProvider)
+    assert provider._watchlist_intelligence_service is app.watchlist_intelligence_service
+    assert context.watchlist is not None
+    assert context.watchlist.source == "watchlist"
+    assert context.watchlist.items == ()
 
 
 def test_create_app_rejects_sec_edgar_without_user_agent(tmp_path: Path) -> None:

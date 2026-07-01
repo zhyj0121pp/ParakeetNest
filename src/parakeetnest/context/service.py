@@ -22,6 +22,7 @@ _CONTEXT_SECTIONS = (
     "economic_regime",
     "sector_rotation",
     "market_breadth",
+    "watchlist",
     "knowledge_base",
 )
 

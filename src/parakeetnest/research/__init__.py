@@ -10,11 +10,16 @@ from parakeetnest.research.models import (
     ResearchRisk,
     ResearchTickerReport,
 )
+from parakeetnest.research.rendering import (
+    InvestmentResearchReportRenderer,
+    render_investment_research_report,
+)
 from parakeetnest.research.service import InvestmentResearchService
 
 __all__ = [
     "ConfidenceLevel",
     "InvestmentResearchReport",
+    "InvestmentResearchReportRenderer",
     "InvestmentResearchService",
     "RecommendationType",
     "ResearchCatalyst",
@@ -22,4 +27,5 @@ __all__ = [
     "ResearchRecommendation",
     "ResearchRisk",
     "ResearchTickerReport",
+    "render_investment_research_report",
 ]

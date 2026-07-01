@@ -28,6 +28,8 @@
 | [Epic 21.4.1](epic-021.4.1-agent-runtime-models.md) | Agent Runtime Models | Completed |
 | [Epic 21.5.1](epic-021.5.1-agent-runtime-integration.md) | Agent Runtime Committee Integration | Completed |
 | [Epic 024](epic-024-watchlist-intelligence.md) | Watchlist Intelligence | Completed |
+| [Epic 025](epic-025-investment-research-report-mvp.md) | Investment Research Report MVP | Completed |
+| [Epic 026](epic-026-investment-report-renderer.md) | Investment Report Renderer | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

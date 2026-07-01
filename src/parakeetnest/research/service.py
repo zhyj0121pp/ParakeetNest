@@ -9,6 +9,13 @@ from typing import Any, Protocol
 from parakeetnest.committee.personas import (
     PermanentCommitteeService,
 )
+from parakeetnest.committee.prompting import (
+    ADVISORY_ONLY_DISCLAIMER,
+    CommitteePersonaPrompt,
+    CommitteePromptBuilder,
+    CommitteePromptContext,
+    PersonaDrivenCommitteePromptBuilder,
+)
 from parakeetnest.research.models import (
     ConfidenceLevel,
     InvestmentResearchReport,
@@ -67,12 +74,14 @@ class InvestmentResearchService:
         watchlist_service: _WatchlistService | None = None,
         intelligence_service: _IntelligenceService | None = None,
         committee_service: _PermanentCommitteeService | None = None,
+        prompt_builder: CommitteePromptBuilder | None = None,
         default_horizon: str = "3-6 months",
     ) -> None:
         self._portfolio_service = portfolio_service
         self._watchlist_service = watchlist_service
         self._intelligence_service = intelligence_service
         self._committee_service = committee_service or PermanentCommitteeService()
+        self._prompt_builder = prompt_builder or PersonaDrivenCommitteePromptBuilder()
         self._default_horizon = default_horizon
 
     def generate_report(
@@ -118,21 +127,32 @@ class InvestmentResearchService:
             for ticker_report in ticker_reports
             for note in ticker_report.evidence_notes
         )
+        market_summary = _market_summary(ticker_reports)
+        portfolio_review = _portfolio_review(
+            ticker_reports,
+            has_portfolio=self._portfolio_service is not None,
+        )
+        watchlist_review = _watchlist_review(
+            ticker_reports,
+            has_watchlist=self._watchlist_service is not None,
+        )
+        prompt_contexts = _build_committee_prompt_contexts(
+            self._committee_service,
+            ticker_reports,
+            market_summary=market_summary,
+            portfolio_review=portfolio_review,
+            watchlist_review=watchlist_review,
+            evidence_notes=evidence_notes,
+        )
+        committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
         return InvestmentResearchReport(
             ticker_reports=ticker_reports,
             generated_at=generated_at or datetime.now(UTC),
-            market_summary=_market_summary(ticker_reports),
-            portfolio_review=_portfolio_review(
-                ticker_reports,
-                has_portfolio=self._portfolio_service is not None,
-            ),
-            watchlist_review=_watchlist_review(
-                ticker_reports,
-                has_watchlist=self._watchlist_service is not None,
-            ),
+            market_summary=market_summary,
+            portfolio_review=portfolio_review,
+            watchlist_review=watchlist_review,
             committee_opinions=_build_committee_opinions(
-                self._committee_service,
-                ticker_reports,
+                committee_prompts,
             ),
             committee_consensus=_committee_consensus(ticker_reports),
             todays_suggested_actions=_todays_suggested_actions(ticker_reports),
@@ -484,60 +504,85 @@ def _watchlist_review(
     return f"Watchlist review found {watchlist_count} covered watchlist item(s)."
 
 
-def _build_committee_opinions(
+def _build_committee_prompt_contexts(
     committee_service: _PermanentCommitteeService,
     ticker_reports: tuple[ResearchTickerReport, ...],
-) -> tuple[ResearchCommitteeOpinion, ...]:
+    *,
+    market_summary: str,
+    portfolio_review: str,
+    watchlist_review: str,
+    evidence_notes: tuple[str, ...],
+) -> tuple[CommitteePromptContext, ...]:
+    tickers = tuple(ticker_report.ticker for ticker_report in ticker_reports)
+    ticker_summaries = tuple(
+        f"{ticker_report.ticker}: {ticker_report.summary}"
+        for ticker_report in ticker_reports
+    )
+    key_risks = _unique(
+        f"{ticker_report.ticker}: {risk.summary}"
+        for ticker_report in ticker_reports
+        for risk in ticker_report.risks
+    )
+    upcoming_catalysts = _unique(
+        f"{ticker_report.ticker}: {catalyst.summary}"
+        for ticker_report in ticker_reports
+        for catalyst in ticker_report.catalysts
+    )
     return tuple(
-        ResearchCommitteeOpinion(
-            persona_id=member.id,
-            display_name=member.display_name,
-            role_title=member.role_title,
-            responsibility=member.persona.responsibility,
-            viewpoint=_committee_viewpoint(member.persona.id, ticker_reports),
-            risk_posture=member.persona.risk_posture,
-            evidence_requirements=member.persona.evidence_requirements,
-            writing_style=member.persona.writing_style.value,
-            decision_biases_to_avoid=member.persona.decision_biases_to_avoid,
+        CommitteePromptContext(
+            persona=member.persona,
+            tickers=tickers,
+            market_summary=market_summary,
+            portfolio_review=portfolio_review,
+            watchlist_review=watchlist_review,
+            ticker_summaries=ticker_summaries,
+            evidence_notes=evidence_notes,
+            key_risks=key_risks,
+            upcoming_catalysts=upcoming_catalysts,
+            advisory_only_disclaimer=ADVISORY_ONLY_DISCLAIMER,
         )
         for member in committee_service.daily_investment_committee()
     )
 
 
-def _committee_viewpoint(
-    persona_id: str,
-    ticker_reports: tuple[ResearchTickerReport, ...],
-) -> str:
-    tickers = ", ".join(ticker_report.ticker for ticker_report in ticker_reports)
-    if persona_id == "dongdong":
-        catalysts = _unique(
-            catalyst.summary
-            for ticker_report in ticker_reports
-            for catalyst in ticker_report.catalysts
+def _build_committee_opinions(
+    committee_prompts: tuple[CommitteePersonaPrompt, ...],
+) -> tuple[ResearchCommitteeOpinion, ...]:
+    return tuple(
+        ResearchCommitteeOpinion(
+            persona_id=prompt.persona_id,
+            display_name=prompt.display_name,
+            role_title=prompt.role_title,
+            responsibility=prompt.context.persona.responsibility,
+            viewpoint=_committee_viewpoint(prompt.context),
+            risk_posture=prompt.context.persona.risk_posture,
+            evidence_requirements=prompt.context.persona.evidence_requirements,
+            writing_style=prompt.context.persona.writing_style.value,
+            decision_biases_to_avoid=(
+                prompt.context.persona.decision_biases_to_avoid
+            ),
         )
-        catalyst_summary = "; ".join(catalysts[:2]) if catalysts else "no clear catalysts"
-        return (
-            f"{tickers}: upside case depends on evidence-backed catalysts: "
-            f"{catalyst_summary}."
-        )
-    if persona_id == "xixi":
-        actions = _action_mix(ticker_reports)
-        return (
-            f"{tickers}: base case should follow fundamentals, valuation support, "
-            f"and evidence quality; current action mix is {actions}."
-        )
-    if persona_id == "youyou":
-        risks = _unique(
-            risk.summary
-            for ticker_report in ticker_reports
-            for risk in ticker_report.risks
-        )
-        risk_summary = "; ".join(risks[:2]) if risks else "risk evidence is limited"
-        return (
-            f"{tickers}: preserve capital until these risks are addressed: "
-            f"{risk_summary}."
-        )
-    return f"{tickers}: review should stay grounded in the available evidence."
+        for prompt in committee_prompts
+    )
+
+
+def _committee_viewpoint(context: CommitteePromptContext) -> str:
+    tickers = ", ".join(context.tickers)
+    evidence_summary = _summarize_context_values(context.evidence_notes)
+    risk_summary = _summarize_context_values(context.key_risks)
+    catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
+    return (
+        f"{tickers}: {context.persona.default_viewpoint} "
+        f"Evidence: {evidence_summary}. "
+        f"Risks: {risk_summary}. "
+        f"Catalysts: {catalyst_summary}."
+    )
+
+
+def _summarize_context_values(values: tuple[str, ...], limit: int = 2) -> str:
+    if not values:
+        return "limited connected context"
+    return "; ".join(values[:limit])
 
 
 def _committee_consensus(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:

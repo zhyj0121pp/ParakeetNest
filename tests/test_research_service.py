@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
+from parakeetnest.committee import (
+    CommitteeOpinionStyle,
+    CommitteePersona,
+    CommitteeRole,
+    PermanentCommitteeService,
+)
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
 from parakeetnest.research import (
@@ -157,3 +163,35 @@ def test_generate_report_uses_explicit_research_gap_when_no_context_connected() 
     assert ticker_report.recommendation.confidence is ConfidenceLevel.LOW
     assert ticker_report.findings[0].source == "research_service"
     assert "No portfolio service connected." in ticker_report.evidence_notes
+
+
+def test_committee_opinions_are_derived_from_persona_prompt_context() -> None:
+    custom_dongdong = CommitteePersona(
+        id="dongdong",
+        display_name="Dongdong",
+        role=CommitteeRole.CHIEF_GROWTH_OFFICER,
+        role_title="Chief Growth Officer",
+        responsibility="Use a custom growth responsibility.",
+        default_viewpoint="Apply a custom upside lens.",
+        risk_posture="Optimistic but bounded.",
+        evidence_requirements=("Custom growth evidence.",),
+        writing_style=CommitteeOpinionStyle.OPTIMISTIC_EVIDENCE_BASED,
+        decision_biases_to_avoid=("Custom growth bias.",),
+    )
+    service = InvestmentResearchService(
+        committee_service=PermanentCommitteeService(
+            personas=(
+                custom_dongdong,
+                PermanentCommitteeService().get("xixi"),
+                PermanentCommitteeService().get("youyou"),
+            )
+        )
+    )
+
+    report = service.generate_report(("NVDA",), generated_at=AS_OF)
+
+    opinion = report.committee_opinions[0]
+    assert opinion.persona_id == "dongdong"
+    assert opinion.responsibility == "Use a custom growth responsibility."
+    assert "Apply a custom upside lens." in opinion.viewpoint
+    assert "upside case depends on evidence-backed catalysts" not in opinion.viewpoint

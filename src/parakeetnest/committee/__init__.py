@@ -41,6 +41,13 @@ from parakeetnest.committee.personas import (
     YOUYOU_PERSONA,
     create_permanent_committee_service,
 )
+from parakeetnest.committee.prompting import (
+    ADVISORY_ONLY_DISCLAIMER,
+    CommitteePersonaPrompt,
+    CommitteePromptBuilder,
+    CommitteePromptContext,
+    PersonaDrivenCommitteePromptBuilder,
+)
 from parakeetnest.committee.secretary import InvestmentSecretary
 from parakeetnest.committee.xixi import Xixi
 from parakeetnest.committee.yoyo import Yoyo
@@ -86,12 +93,17 @@ __all__ = [
     "InvestmentSecretary",
     "AgentResult",
     "AgentRuntime",
+    "ADVISORY_ONLY_DISCLAIMER",
+    "CommitteePersonaPrompt",
+    "CommitteePromptBuilder",
+    "CommitteePromptContext",
     "MeetingContext",
     "MeetingRequest",
     "MeetingResult",
     "MeetingStatus",
     "PERMANENT_COMMITTEE_PERSONAS",
     "PermanentCommitteeService",
+    "PersonaDrivenCommitteePromptBuilder",
     "PromptRenderer",
     "UnknownCommitteePersonaError",
     "Xixi",

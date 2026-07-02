@@ -173,3 +173,19 @@ def test_yahoo_finance_code_stays_isolated_to_yahoo_provider() -> None:
         source = source_path.read_text(encoding="utf-8").lower()
         assert "yfinance" not in source
         assert "yahoo finance" not in source
+
+
+def test_robinhood_code_stays_isolated_to_robinhood_provider_and_registry() -> None:
+    """Robinhood dependencies should stay out of committee and report logic."""
+    allowed_paths = {
+        Path("src/parakeetnest/config.py"),
+        Path("src/parakeetnest/portfolio/robinhood.py"),
+        Path("src/parakeetnest/portfolio/registry.py"),
+    }
+
+    for source_path in Path("src/parakeetnest").rglob("*.py"):
+        if source_path in allowed_paths:
+            continue
+        source = source_path.read_text(encoding="utf-8").lower()
+        assert "robin_stocks" not in source
+        assert "robinhood" not in source

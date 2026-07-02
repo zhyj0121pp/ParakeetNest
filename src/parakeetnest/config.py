@@ -50,6 +50,17 @@ class FinancialStatementConfig:
 
 
 @dataclass(frozen=True)
+class PortfolioConfig:
+    """Portfolio provider configuration."""
+
+    provider: str = "mock"
+    account_id: str | None = None
+    robinhood_username_env_var: str = "PARAKEETNEST_ROBINHOOD_USERNAME"
+    robinhood_password_env_var: str = "PARAKEETNEST_ROBINHOOD_PASSWORD"
+    robinhood_session_token_env_var: str = "PARAKEETNEST_ROBINHOOD_SESSION_TOKEN"
+
+
+@dataclass(frozen=True)
 class LLMConfig:
     """Language model provider configuration."""
 
@@ -77,6 +88,9 @@ class AppConfig:
     )
     financials: FinancialStatementConfig | Mapping[str, str] = field(
         default_factory=FinancialStatementConfig
+    )
+    portfolio: PortfolioConfig | Mapping[str, str | None] = field(
+        default_factory=PortfolioConfig
     )
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
@@ -121,6 +135,12 @@ class AppConfig:
                 self,
                 "financials",
                 FinancialStatementConfig(**dict(self.financials)),
+            )
+        if isinstance(self.portfolio, Mapping):
+            object.__setattr__(
+                self,
+                "portfolio",
+                PortfolioConfig(**dict(self.portfolio)),
             )
 
     def resolved_database_url(self) -> str:

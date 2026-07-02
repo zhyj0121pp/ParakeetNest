@@ -19,6 +19,12 @@ from parakeetnest.portfolio.exceptions import (
 )
 from parakeetnest.portfolio.mock_provider import MockPortfolioProvider
 from parakeetnest.portfolio.provider import PortfolioProvider
+from parakeetnest.portfolio.registry import (
+    PortfolioProviderFactory,
+    PortfolioProviderRegistration,
+    PortfolioProviderRegistry,
+    create_portfolio_provider_registry,
+)
 from parakeetnest.portfolio.service import PortfolioService
 
 __all__ = [
@@ -35,7 +41,11 @@ __all__ = [
     "PortfolioPositionType",
     "PortfolioProvider",
     "PortfolioProviderError",
+    "PortfolioProviderFactory",
+    "PortfolioProviderRegistration",
+    "PortfolioProviderRegistry",
     "PortfolioRiskSummary",
     "PortfolioService",
     "PortfolioSnapshot",
+    "create_portfolio_provider_registry",
 ]

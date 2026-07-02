@@ -63,7 +63,8 @@ from parakeetnest.market_data import (
 )
 from parakeetnest.macro import MacroDataService, MockMacroDataProvider
 from parakeetnest.news import NewsService, create_news_provider_registry
-from parakeetnest.portfolio import MockPortfolioProvider
+from parakeetnest.portfolio import create_portfolio_provider_registry
+from parakeetnest.portfolio.provider import PortfolioProvider
 from parakeetnest.regime import EconomicRegimeService
 from parakeetnest.regime.context_provider import EconomicRegimeContextProvider
 from parakeetnest.sec import SecFilingService, create_sec_filing_provider_registry
@@ -308,7 +309,10 @@ def _create_context_provider_registry(
     )
     registry.register(
         "portfolio",
-        PortfolioContextProvider(MockPortfolioProvider(), account_id="mock-main"),
+        PortfolioContextProvider(
+            _create_portfolio_provider(config),
+            account_id=_portfolio_account_id(config),
+        ),
     )
     registry.register("macro", MacroContextProvider(macro_data_service))
     registry.register(
@@ -368,3 +372,18 @@ def _raise_for_unknown_context_provider_ids(
     if unknown_provider_ids:
         joined_provider_ids = ", ".join(unknown_provider_ids)
         raise KeyError(f"Unknown context provider(s): {joined_provider_ids}")
+
+
+def _create_portfolio_provider(config: AppConfig) -> PortfolioProvider:
+    portfolio_provider_registry = create_portfolio_provider_registry()
+    return portfolio_provider_registry.resolve(config.portfolio)
+
+
+def _portfolio_account_id(config: AppConfig) -> str:
+    if config.portfolio.account_id is not None:
+        account_id = config.portfolio.account_id.strip()
+        if account_id:
+            return account_id
+    if config.portfolio.provider.strip().lower() == "mock":
+        return "mock-main"
+    return "default"

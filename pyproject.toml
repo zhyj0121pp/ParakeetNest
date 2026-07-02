@@ -24,6 +24,9 @@ openai = [
 yahoo = [
     "yfinance>=0.2",
 ]
+robinhood = [
+    "robin-stocks>=3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

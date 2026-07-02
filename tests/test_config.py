@@ -2,7 +2,13 @@
 
 from pathlib import Path
 
-from parakeetnest.config import AppConfig, MarketDataConfig, Settings, get_settings
+from parakeetnest.config import (
+    AppConfig,
+    MarketDataConfig,
+    PortfolioConfig,
+    Settings,
+    get_settings,
+)
 
 
 def test_settings_defaults_are_safe() -> None:
@@ -112,4 +118,25 @@ def test_app_config_supports_market_data_mapping() -> None:
         provider="yahoo",
         max_attempts=2,
         retry_delay_seconds=0.0,
+    )
+
+
+def test_app_config_supports_portfolio_mapping() -> None:
+    """App config should normalize provider-neutral portfolio settings."""
+    config = AppConfig(
+        portfolio={
+            "provider": "robinhood",
+            "account_id": "default",
+            "robinhood_username_env_var": "TEST_RH_USER",
+            "robinhood_password_env_var": "TEST_RH_PASS",
+            "robinhood_session_token_env_var": "TEST_RH_SESSION",
+        }
+    )
+
+    assert config.portfolio == PortfolioConfig(
+        provider="robinhood",
+        account_id="default",
+        robinhood_username_env_var="TEST_RH_USER",
+        robinhood_password_env_var="TEST_RH_PASS",
+        robinhood_session_token_env_var="TEST_RH_SESSION",
     )

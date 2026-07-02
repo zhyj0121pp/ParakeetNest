@@ -10,6 +10,7 @@ from pathlib import Path
 
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest, MeetingContextPromptRenderer
+from parakeetnest.cli import doctor
 
 
 def create_app(config: AppConfig | None = None):
@@ -66,6 +67,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Local JSON seed file for watchlist review items.",
     )
 
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Validate provider configuration without external API calls.",
+    )
+    doctor_parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Optional TOML integration config. Defaults to mock AppConfig.",
+    )
+
     return parser
 
 
@@ -88,6 +100,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             watchlist_seed_path=args.watchlist_seed,
         )
         return 0
+
+    if args.command == "doctor":
+        doctor_args = []
+        if args.config is not None:
+            doctor_args.extend(["--config", str(args.config)])
+        return doctor.main(doctor_args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

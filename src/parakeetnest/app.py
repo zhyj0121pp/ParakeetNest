@@ -37,6 +37,11 @@ from parakeetnest.database import (
     create_session_factory,
     initialize_database,
 )
+from parakeetnest.email import (
+    EmailProvider,
+    EmailReportDeliveryProvider,
+    create_email_provider_registry,
+)
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.financials import (
     FinancialStatementService,
@@ -58,6 +63,7 @@ from parakeetnest.intelligence.sector_rotation.context_provider import (
 )
 from parakeetnest.llm import LLMProvider, create_llm_provider_registry
 from parakeetnest.market_data import (
+    MarketDataProvider,
     MarketDataService,
     create_market_data_provider_registry,
 )
@@ -97,6 +103,10 @@ class ParakeetNestApp:
     sec_filing_service: SecFilingService
     financial_statement_service: FinancialStatementService
     watchlist_intelligence_service: WatchlistIntelligenceService
+    market_data_service: MarketDataService
+    portfolio_provider: PortfolioProvider
+    email_provider: EmailProvider
+    report_delivery_provider: EmailReportDeliveryProvider
     llm_provider: LLMProvider
     memory_service: CommitteeMemoryService | None
     agent_runtime: AgentRuntime
@@ -140,6 +150,14 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     watchlist_intelligence_service = _create_watchlist_intelligence_service(
         resolved_config
     )
+    market_data_provider = _create_market_data_provider(resolved_config)
+    market_data_service = MarketDataService(market_data_provider)
+    portfolio_provider = _create_portfolio_provider(resolved_config)
+    email_provider = _create_email_provider(resolved_config)
+    report_delivery_provider = EmailReportDeliveryProvider(
+        email_provider,
+        provider_name=resolved_config.email.provider,
+    )
     context_provider_registry = _create_context_provider_registry(
         resolved_config,
         news_service,
@@ -150,6 +168,8 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         sec_filing_service,
         financial_statement_service,
         watchlist_intelligence_service,
+        market_data_service,
+        portfolio_provider,
     )
     context_service = ContextService(
         providers=context_provider_registry.resolve_enabled_providers()
@@ -195,6 +215,10 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         sec_filing_service=sec_filing_service,
         financial_statement_service=financial_statement_service,
         watchlist_intelligence_service=watchlist_intelligence_service,
+        market_data_service=market_data_service,
+        portfolio_provider=portfolio_provider,
+        email_provider=email_provider,
+        report_delivery_provider=report_delivery_provider,
         llm_provider=llm_provider,
         memory_service=memory_service,
         agent_runtime=agent_runtime,
@@ -230,6 +254,11 @@ def _create_macro_data_service(config: AppConfig) -> MacroDataService:
     macro_provider_registry = create_macro_data_provider_registry()
     macro_provider = macro_provider_registry.resolve(config.macro)
     return MacroDataService(macro_provider)
+
+
+def _create_market_data_provider(config: AppConfig) -> MarketDataProvider:
+    market_data_provider_registry = create_market_data_provider_registry()
+    return market_data_provider_registry.resolve(config.market_data)
 
 
 def _create_sector_rotation_service() -> SectorRotationService:
@@ -297,11 +326,10 @@ def _create_context_provider_registry(
     sec_filing_service: SecFilingService,
     financial_statement_service: FinancialStatementService,
     watchlist_intelligence_service: WatchlistIntelligenceService,
+    market_data_service: MarketDataService,
+    portfolio_provider: PortfolioProvider,
 ) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
-    market_data_provider_registry = create_market_data_provider_registry()
-    market_data_provider = market_data_provider_registry.resolve(config.market_data)
-    market_data_service = MarketDataService(market_data_provider)
     registry.register("market_data", MarketContextProvider(market_data_service))
     registry.register("news", NewsContextProvider(news_service))
     registry.register("sec_filings", SecFilingContextProvider(sec_filing_service))
@@ -312,7 +340,7 @@ def _create_context_provider_registry(
     registry.register(
         "portfolio",
         PortfolioContextProvider(
-            _create_portfolio_provider(config),
+            portfolio_provider,
             account_id=_portfolio_account_id(config),
         ),
     )
@@ -379,6 +407,11 @@ def _raise_for_unknown_context_provider_ids(
 def _create_portfolio_provider(config: AppConfig) -> PortfolioProvider:
     portfolio_provider_registry = create_portfolio_provider_registry()
     return portfolio_provider_registry.resolve(config.portfolio)
+
+
+def _create_email_provider(config: AppConfig) -> EmailProvider:
+    email_provider_registry = create_email_provider_registry()
+    return email_provider_registry.resolve(config.email)
 
 
 def _portfolio_account_id(config: AppConfig) -> str:

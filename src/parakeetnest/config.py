@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -49,6 +50,7 @@ class SecFilingConfig:
 
     provider: str = "mock"
     user_agent: str | None = None
+    user_agent_env_var: str = "SEC_USER_AGENT"
     timeout: float = 10.0
     sec_edgar_user_agent: str | None = None
 
@@ -56,6 +58,12 @@ class SecFilingConfig:
         """Preserve legacy SEC EDGAR config while supporting provider-neutral keys."""
         if self.user_agent is None and self.sec_edgar_user_agent is not None:
             object.__setattr__(self, "user_agent", self.sec_edgar_user_agent)
+        if self.user_agent is None:
+            env_var_name = self.user_agent_env_var.strip()
+            if env_var_name:
+                user_agent = os.environ.get(env_var_name)
+                if user_agent is not None and user_agent.strip():
+                    object.__setattr__(self, "user_agent", user_agent)
 
 
 @dataclass(frozen=True)

@@ -179,6 +179,7 @@ def test_robinhood_code_stays_isolated_to_robinhood_provider_and_registry() -> N
     """Robinhood dependencies should stay out of committee and report logic."""
     allowed_paths = {
         Path("src/parakeetnest/config.py"),
+        Path("src/parakeetnest/cli/doctor.py"),
         Path("src/parakeetnest/portfolio/robinhood.py"),
         Path("src/parakeetnest/portfolio/registry.py"),
     }

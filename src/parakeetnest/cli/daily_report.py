@@ -27,11 +27,15 @@ from parakeetnest.research import DailyInvestmentReportComposer, ReportMode
 from parakeetnest.research.service import InvestmentResearchService
 
 
-def build_parser() -> argparse.ArgumentParser:
+def build_parser(
+    *,
+    prog: str = "python -m parakeetnest.cli.daily_report",
+    description: str = "Generate a local advisory daily investment report.",
+) -> argparse.ArgumentParser:
     """Build the daily report CLI parser."""
     parser = argparse.ArgumentParser(
-        prog="python -m parakeetnest.cli.daily_report",
-        description="Generate a local advisory daily investment report.",
+        prog=prog,
+        description=description,
     )
     parser.add_argument(
         "--mode",
@@ -90,36 +94,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Generate the daily investment report and print it to stdout."""
     parser = build_parser()
     args = parser.parse_args(argv)
-    report_mode = ReportMode.from_value(args.mode)
-    explicit_tickers = _normalize_tickers(args.tickers or ())
-    if args.tickers is not None and not explicit_tickers:
-        parser.error("at least one ticker is required")
     app = create_app(_build_app_config(args.database, args.watchlist_seed))
     email_output = StringIO()
     try:
-        composer = _build_daily_report_composer(app)
-        tickers = explicit_tickers or _watchlist_tickers(
-            app.watchlist_intelligence_service
-        )
-        if not tickers:
-            parser.error("No tickers provided and no watchlist seed is configured.")
-        request = DailyReportRequest(
-            mode=report_mode,
-            tickers=tickers,
-            account_id=args.account_id,
-            as_of_date=args.as_of_date,
-            archive=args.archive,
-            output_path=args.output,
-            email_recipient=args.email,
-        )
-        orchestrator = DailyReportOrchestrator(
-            composer=composer,
-            email_service=(
-                EmailService(ConsoleEmailProvider(stream=email_output))
-                if args.email
-                else None
-            ),
-        )
+        request = build_daily_report_request(args, app, parser)
+        orchestrator = build_daily_report_orchestrator(args, app, email_output)
         result = orchestrator.run(request)
     except ValueError as exc:
         parser.error(str(exc))
@@ -133,6 +112,46 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.email:
         print(email_output.getvalue(), end="")
     return 0
+
+
+def build_daily_report_request(
+    args: argparse.Namespace,
+    app: object,
+    parser: argparse.ArgumentParser,
+) -> DailyReportRequest:
+    """Build a daily report request from parsed CLI arguments."""
+    report_mode = ReportMode.from_value(args.mode)
+    explicit_tickers = _normalize_tickers(args.tickers or ())
+    if args.tickers is not None and not explicit_tickers:
+        parser.error("at least one ticker is required")
+    tickers = explicit_tickers or _watchlist_tickers(app.watchlist_intelligence_service)
+    if not tickers:
+        parser.error("No tickers provided and no watchlist seed is configured.")
+    return DailyReportRequest(
+        mode=report_mode,
+        tickers=tickers,
+        account_id=args.account_id,
+        as_of_date=args.as_of_date,
+        archive=args.archive,
+        output_path=args.output,
+        email_recipient=args.email,
+    )
+
+
+def build_daily_report_orchestrator(
+    args: argparse.Namespace,
+    app: object,
+    email_output: StringIO,
+) -> DailyReportOrchestrator:
+    """Build the daily report orchestrator from parsed CLI arguments."""
+    return DailyReportOrchestrator(
+        composer=_build_daily_report_composer(app),
+        email_service=(
+            EmailService(ConsoleEmailProvider(stream=email_output))
+            if args.email
+            else None
+        ),
+    )
 
 
 def _build_app_config(

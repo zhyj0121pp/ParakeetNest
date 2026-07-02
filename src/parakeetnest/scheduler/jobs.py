@@ -1,8 +1,26 @@
 """Scheduler job definitions."""
 
+from __future__ import annotations
 
-class ResearchJob:
-    """Represent a scheduled research workflow."""
+from parakeetnest.reports import (
+    DailyReportOrchestrator,
+    DailyReportRequest,
+    DailyReportResult,
+)
 
-    def run(self) -> None:
-        """Run the research job placeholder."""
+
+class DailyReportScheduledJob:
+    """Scheduler-compatible wrapper for one daily report workflow run."""
+
+    def __init__(
+        self,
+        *,
+        orchestrator: DailyReportOrchestrator,
+        request: DailyReportRequest,
+    ) -> None:
+        self._orchestrator = orchestrator
+        self._request = request
+
+    def run(self) -> DailyReportResult:
+        """Trigger the daily report orchestrator."""
+        return self._orchestrator.run(self._request)

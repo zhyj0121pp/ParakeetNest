@@ -141,6 +141,85 @@ def test_cli_prints_report_to_stdout_without_default_file(
     assert composer.calls[0]["mode"] is ReportMode.MORNING
 
 
+def test_cli_invokes_email_service_when_email_is_specified(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer("Market Summary\n")
+    sent: list[dict[str, object]] = []
+
+    class RecordingEmailService:
+        def __init__(self, provider: object) -> None:
+            self.provider = provider
+
+        def send(self, report: str, *, recipient: str, as_of_date: date | None = None) -> None:
+            sent.append(
+                {
+                    "report": report,
+                    "recipient": recipient,
+                    "as_of_date": as_of_date,
+                }
+            )
+
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
+
+    exit_code = daily_report.main(
+        [
+            "--tickers",
+            "NVDA",
+            "--as-of-date",
+            "2026-07-01",
+            "--email",
+            "investor@example.com",
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == "Market Summary\n"
+    assert sent == [
+        {
+            "report": "Market Summary\n",
+            "recipient": "investor@example.com",
+            "as_of_date": date(2026, 7, 1),
+        }
+    ]
+
+
+def test_cli_does_not_send_email_when_email_is_omitted(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer("Market Summary\n")
+    sent: list[object] = []
+
+    class RecordingEmailService:
+        def __init__(self, provider: object) -> None:
+            self.provider = provider
+
+        def send(self, *args: object, **kwargs: object) -> None:
+            sent.append((args, kwargs))
+
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
+
+    exit_code = daily_report.main(["--tickers", "NVDA"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == "Market Summary\n"
+    assert sent == []
+
+
 def test_cli_dispatches_morning_mode(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

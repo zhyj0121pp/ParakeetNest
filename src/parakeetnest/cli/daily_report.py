@@ -10,6 +10,7 @@ import sys
 
 from parakeetnest.app import create_app
 from parakeetnest.config import AppConfig, get_settings
+from parakeetnest.email import ConsoleEmailProvider, EmailService
 from parakeetnest.research import DailyInvestmentReportComposer, ReportMode
 from parakeetnest.research.service import InvestmentResearchService
 
@@ -73,6 +74,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional report date in YYYY-MM-DD format.",
     )
+    parser.add_argument(
+        "--email",
+        default=None,
+        help="Optional email recipient for console email delivery.",
+    )
     return parser
 
 
@@ -118,6 +124,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         app.close()
 
     print(body, end="" if body.endswith("\n") else "\n")
+    if args.email:
+        try:
+            EmailService(ConsoleEmailProvider()).send(
+                body,
+                recipient=args.email,
+                as_of_date=args.as_of_date,
+            )
+        except Exception as exc:
+            print(f"daily report email delivery failed: {exc}", file=sys.stderr)
+            return 1
     return 0
 
 

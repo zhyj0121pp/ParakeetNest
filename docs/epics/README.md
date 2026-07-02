@@ -35,6 +35,7 @@
 | [Epic 043](epic-043-robinhood-portfolio-provider.md) | Robinhood Portfolio Provider | Completed |
 | [Epic 044](epic-044-sec-edgar-provider.md) | SEC EDGAR Provider | Completed |
 | [Epic 045](epic-045-fred-macro-provider.md) | FRED Macro Provider | Completed |
+| [Epic 046](epic-046-gmail-provider.md) | Gmail Provider | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

@@ -87,6 +87,16 @@ class LLMConfig:
 
 
 @dataclass(frozen=True)
+class EmailConfig:
+    """Email delivery provider configuration."""
+
+    provider: str = "mock"
+    gmail_credentials_path_env_var: str = "GOOGLE_APPLICATION_CREDENTIALS"
+    gmail_token_path_env_var: str = "PARAKEETNEST_GMAIL_TOKEN_PATH"
+    sender_email: str | None = None
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Application container configuration."""
 
@@ -110,6 +120,7 @@ class AppConfig:
     portfolio: PortfolioConfig | Mapping[str, str | None] = field(
         default_factory=PortfolioConfig
     )
+    email: EmailConfig | Mapping[str, str | None] = field(default_factory=EmailConfig)
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
     enabled_context_provider_ids: tuple[str, ...] | None = None
@@ -175,6 +186,12 @@ class AppConfig:
                 self,
                 "portfolio",
                 PortfolioConfig(**dict(self.portfolio)),
+            )
+        if isinstance(self.email, Mapping):
+            object.__setattr__(
+                self,
+                "email",
+                EmailConfig(**dict(self.email)),
             )
 
     def resolved_database_url(self) -> str:

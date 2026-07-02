@@ -27,6 +27,10 @@ yahoo = [
 robinhood = [
     "robin-stocks>=3",
 ]
+gmail = [
+    "google-api-python-client>=2",
+    "google-auth>=2",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

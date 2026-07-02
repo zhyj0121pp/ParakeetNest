@@ -4,6 +4,7 @@ from pathlib import Path
 
 from parakeetnest.config import (
     AppConfig,
+    EmailConfig,
     MacroConfig,
     MarketDataConfig,
     PortfolioConfig,
@@ -157,4 +158,23 @@ def test_app_config_supports_portfolio_mapping() -> None:
         robinhood_username_env_var="TEST_RH_USER",
         robinhood_password_env_var="TEST_RH_PASS",
         robinhood_session_token_env_var="TEST_RH_SESSION",
+    )
+
+
+def test_app_config_supports_email_mapping() -> None:
+    """App config should normalize provider-neutral email settings."""
+    config = AppConfig(
+        email={
+            "provider": "gmail",
+            "gmail_credentials_path_env_var": "TEST_GOOGLE_CREDENTIALS",
+            "gmail_token_path_env_var": "TEST_GMAIL_TOKEN",
+            "sender_email": "sender@example.com",
+        }
+    )
+
+    assert config.email == EmailConfig(
+        provider="gmail",
+        gmail_credentials_path_env_var="TEST_GOOGLE_CREDENTIALS",
+        gmail_token_path_env_var="TEST_GMAIL_TOKEN",
+        sender_email="sender@example.com",
     )

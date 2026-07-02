@@ -115,7 +115,13 @@ def _opinion() -> str:
             "symbol": "NVDA",
             "viewpoint": "Constructive but uncertain.",
             "confidence": "medium",
-            "evidence": [{"summary": "Unit test evidence.", "source": "unit_test"}],
+            "evidence": [
+                {
+                    "summary": "Unit test evidence.",
+                    "source": "unit_test",
+                    "observed_at": None,
+                }
+            ],
             "risks": ["Valuation risk."],
             "catalysts": ["Earnings update."],
         }

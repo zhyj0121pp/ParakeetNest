@@ -60,7 +60,13 @@ class MockLLMProvider(LLMProvider):
     def _default_response(request: LLMRequest) -> str:
         response_schema = request.response_schema or {}
         required = set(response_schema.get("required", ()))
-        evidence = [{"summary": "Deterministic mock response.", "source": "MockLLMProvider"}]
+        evidence = [
+            {
+                "summary": "Deterministic mock response.",
+                "source": "MockLLMProvider",
+                "observed_at": None,
+            }
+        ]
         if "portfolio_view" in required:
             return json.dumps(
                 {

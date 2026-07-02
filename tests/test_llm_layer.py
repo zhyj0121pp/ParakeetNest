@@ -20,8 +20,10 @@ from parakeetnest.llm import (
     OutputParser,
     OutputParserError,
     PromptContextBuilder,
+    PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
     create_llm_provider_registry,
 )
+from parakeetnest.llm.models import JSONSchema
 from parakeetnest.llm.prompts import TextPromptBuilder
 from parakeetnest.models import ConfidenceLevel, RecommendationAction
 
@@ -93,6 +95,33 @@ def test_openai_provider_constructs_chat_completion_request_with_fake_client() -
             },
         },
     }
+
+
+def test_openai_structured_output_schema_is_strict_json_schema_compatible() -> None:
+    """Committee schemas passed to OpenAI should satisfy strict structured outputs."""
+    provider = OpenAIProvider(client=_FakeOpenAIClient({"choices": []}))
+    request = LLMRequest(
+        prompt="Return JSON.",
+        model="gpt-test",
+        response_schema=CHAIRMAN_SUMMARY_SCHEMA,
+    )
+
+    kwargs = provider._build_request_kwargs(request, model="gpt-test")
+    schema = kwargs["response_format"]["json_schema"]["schema"]
+
+    evidence_items = schema["properties"]["evidence"]["items"]
+    assert "observed_at" in evidence_items["required"]
+    assert evidence_items["properties"]["observed_at"] == {
+        "type": ["string", "null"]
+    }
+
+    for response_schema in (
+        COMMITTEE_OPINION_SCHEMA,
+        CHAIRMAN_SUMMARY_SCHEMA,
+        PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
+        DAILY_REPORT_SCHEMA,
+    ):
+        _assert_strict_object_schema(response_schema)
 
 
 def test_openai_provider_requires_api_key_without_injected_client() -> None:
@@ -167,7 +196,11 @@ def test_output_parser_parses_committee_opinion() -> None:
                     "viewpoint": "Risk remains manageable but valuation must be watched.",
                     "confidence": "medium",
                     "evidence": [
-                        {"summary": "Balance sheet is resilient.", "source": "mock_fixture"}
+                        {
+                            "summary": "Balance sheet is resilient.",
+                            "source": "mock_fixture",
+                            "observed_at": None,
+                        }
                     ],
                     "risks": ["Multiple compression."],
                     "catalysts": ["Product cycle update."],
@@ -195,7 +228,11 @@ def test_output_parser_parses_chairman_summary_with_required_recommendation_fiel
                     "horizon": "3_months",
                     "rationale": "Wait for more validated evidence.",
                     "evidence": [
-                        {"summary": "Cloud growth was cited.", "source": "mock_fixture"}
+                        {
+                            "summary": "Cloud growth was cited.",
+                            "source": "mock_fixture",
+                            "observed_at": None,
+                        }
                     ],
                     "risks": ["Execution risk."],
                     "catalysts": ["Earnings update."],
@@ -237,7 +274,13 @@ def test_daily_report_schema_validates_report_shape() -> None:
         "confidence": "medium",
         "horizon": "3_months",
         "rationale": "Watch for confirmation.",
-        "evidence": [{"summary": "Validated growth.", "source": "mock_fixture"}],
+        "evidence": [
+            {
+                "summary": "Validated growth.",
+                "source": "mock_fixture",
+                "observed_at": None,
+            }
+        ],
         "risks": ["Valuation risk."],
         "catalysts": ["Earnings."],
         "data_confidence": "medium",
@@ -248,7 +291,13 @@ def test_daily_report_schema_validates_report_shape() -> None:
         "symbol": "NVDA",
         "viewpoint": "There are visible catalysts.",
         "confidence": "medium",
-        "evidence": [{"summary": "AI demand.", "source": "mock_fixture"}],
+        "evidence": [
+            {
+                "summary": "AI demand.",
+                "source": "mock_fixture",
+                "observed_at": None,
+            }
+        ],
         "risks": [],
         "catalysts": ["Product launch."],
     }
@@ -275,6 +324,28 @@ def test_daily_report_schema_validates_report_shape() -> None:
     assert report["recommendations"][0]["action"] == "watch"
     assert DAILY_REPORT_SCHEMA["required"]
     assert CHAIRMAN_SUMMARY_SCHEMA["required"]
+
+
+def _assert_strict_object_schema(schema: JSONSchema) -> None:
+    expected_type = schema.get("type")
+    if isinstance(expected_type, list):
+        is_object = "object" in expected_type
+    else:
+        is_object = expected_type == "object"
+
+    properties = schema.get("properties")
+    if is_object and properties:
+        assert schema.get("additionalProperties") is False
+        assert set(schema.get("required", ())) == set(properties)
+
+    if isinstance(properties, dict):
+        for property_schema in properties.values():
+            if isinstance(property_schema, dict):
+                _assert_strict_object_schema(property_schema)
+
+    items = schema.get("items")
+    if isinstance(items, dict):
+        _assert_strict_object_schema(items)
 
 
 class _FakeOpenAIClient:

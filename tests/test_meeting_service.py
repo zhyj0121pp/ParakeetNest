@@ -84,7 +84,13 @@ class SuccessfulOrchestrator:
                 "action": "watch",
                 "confidence": "medium",
                 "horizon": "3_months",
-                "evidence": [{"summary": "Committee reviewed.", "source": "test"}],
+                "evidence": [
+                    {
+                        "summary": "Committee reviewed.",
+                        "source": "test",
+                        "observed_at": None,
+                    }
+                ],
                 "risks": ["Valuation risk."],
                 "catalysts": ["Earnings update."],
             },
@@ -199,7 +205,13 @@ def _chairman_response() -> str:
       "confidence": "medium",
       "horizon": "3_months",
       "rationale": "Wait for confirmation.",
-      "evidence": [{"summary": "Committee reviewed.", "source": "unit_test"}],
+      "evidence": [
+        {
+          "summary": "Committee reviewed.",
+          "source": "unit_test",
+          "observed_at": null
+        }
+      ],
       "risks": ["Valuation risk."],
       "catalysts": ["Earnings update."],
       "data_confidence": "medium"
@@ -224,6 +236,7 @@ def _opinion_response(
                 {
                     "summary": f"{member_name} reviewed the request.",
                     "source": "unit_test",
+                    "observed_at": None,
                 }
             ],
             "risks": risks or ["Execution risk."],

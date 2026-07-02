@@ -77,7 +77,13 @@ class RecordingAgentRuntime:
             "advisory_action": "Monitor portfolio exposure; do not execute trades.",
             "confidence": "medium",
             "horizon": "3_months",
-            "evidence": [{"summary": "Portfolio context reviewed.", "source": "unit_test"}],
+            "evidence": [
+                {
+                    "summary": "Portfolio context reviewed.",
+                    "source": "unit_test",
+                    "observed_at": None,
+                }
+            ],
             "risks": ["Concentration risk."],
             "catalysts": ["Macro update."],
         }

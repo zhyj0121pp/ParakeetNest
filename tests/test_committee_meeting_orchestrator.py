@@ -38,7 +38,13 @@ def _opinion(member_name: str, role: str) -> str:
             "symbol": "NVDA",
             "viewpoint": f"{member_name} view.",
             "confidence": "medium",
-            "evidence": [{"summary": "Test evidence.", "source": "unit_test"}],
+            "evidence": [
+                {
+                    "summary": "Test evidence.",
+                    "source": "unit_test",
+                    "observed_at": None,
+                }
+            ],
             "risks": ["Test risk."],
             "catalysts": ["Test catalyst."],
         }
@@ -53,7 +59,13 @@ def _chair_result() -> str:
             "confidence": "medium",
             "horizon": "3_months",
             "rationale": "Wait for confirmation.",
-            "evidence": [{"summary": "Committee reviewed.", "source": "unit_test"}],
+            "evidence": [
+                {
+                    "summary": "Committee reviewed.",
+                    "source": "unit_test",
+                    "observed_at": None,
+                }
+            ],
             "risks": ["Valuation risk."],
             "catalysts": ["Earnings update."],
             "data_confidence": "medium",
@@ -156,7 +168,13 @@ def test_orchestrator_persists_messages_and_final_result() -> None:
         "confidence": "medium",
         "horizon": "3_months",
         "rationale": "Wait for confirmation.",
-        "evidence": [{"summary": "Committee reviewed.", "source": "unit_test"}],
+        "evidence": [
+            {
+                "summary": "Committee reviewed.",
+                "source": "unit_test",
+                "observed_at": None,
+            }
+        ],
         "risks": ["Valuation risk."],
         "catalysts": ["Earnings update."],
         "data_confidence": "medium",

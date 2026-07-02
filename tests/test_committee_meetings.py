@@ -100,7 +100,13 @@ def test_committee_meeting_repository_lifecycle(tmp_path: Path) -> None:
             "action": "watch",
             "confidence": "low",
             "horizon": "3_months",
-            "evidence": [{"summary": "Earnings context reviewed.", "source": "test"}],
+            "evidence": [
+                {
+                    "summary": "Earnings context reviewed.",
+                    "source": "test",
+                    "observed_at": None,
+                }
+            ],
             "risks": ["Valuation risk."],
             "catalysts": ["Next earnings call."],
         }

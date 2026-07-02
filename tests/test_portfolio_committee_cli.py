@@ -26,7 +26,13 @@ def _result(account_id: str = "mock-main") -> PortfolioCommitteeResult:
         "advisory_action": "monitor",
         "confidence": "medium",
         "horizon": "3_months",
-        "evidence": [{"summary": "Mock portfolio context.", "source": "test"}],
+        "evidence": [
+            {
+                "summary": "Mock portfolio context.",
+                "source": "test",
+                "observed_at": None,
+            }
+        ],
         "risks": ["Concentration risk."],
         "catalysts": ["Earnings updates."],
     }

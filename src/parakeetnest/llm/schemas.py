@@ -9,7 +9,7 @@ from parakeetnest.models import ConfidenceLevel, InvestmentHorizon, Recommendati
 EVIDENCE_ITEM_SCHEMA: JSONSchema = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["summary", "source"],
+    "required": ["summary", "source", "observed_at"],
     "properties": {
         "summary": {"type": "string", "minLength": 1},
         "source": {"type": "string", "minLength": 1},

@@ -32,7 +32,13 @@ def _response() -> AgentResponse:
         output_schema_id="committee_opinion",
         parsed_payload={
             "viewpoint": "Constructive.",
-            "evidence": [{"summary": "Revenue growth.", "source": "unit_test"}],
+            "evidence": [
+                {
+                    "summary": "Revenue growth.",
+                    "source": "unit_test",
+                    "observed_at": None,
+                }
+            ],
         },
         metadata={"finish_reason": "stop"},
     )
@@ -74,7 +80,7 @@ def test_agent_runtime_models_create_normalized_immutable_values() -> None:
     assert request.metadata["meeting_id"] == "42"
     assert response.parsed_payload is not None
     assert response.parsed_payload["evidence"] == (
-        {"summary": "Revenue growth.", "source": "unit_test"},
+        {"summary": "Revenue growth.", "source": "unit_test", "observed_at": None},
     )
     assert result.response is response
 
@@ -174,5 +180,5 @@ def test_agent_runtime_models_serialize_round_trip() -> None:
     assert restored == result
     assert payload["metadata"]["started_at"] == "2026-06-30T12:00:00+00:00"
     assert payload["response"]["parsed_payload"]["evidence"] == [
-        {"summary": "Revenue growth.", "source": "unit_test"},
+        {"summary": "Revenue growth.", "source": "unit_test", "observed_at": None},
     ]

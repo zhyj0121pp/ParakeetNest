@@ -101,6 +101,21 @@ def test_openai_provider_requires_api_key_without_injected_client() -> None:
         OpenAIProvider(api_key=None)
 
 
+def test_openai_provider_normalizes_malformed_response_from_fake_client() -> None:
+    """Malformed OpenAI responses should not leak raw exceptions."""
+    provider = OpenAIProvider(
+        client=_FakeOpenAIClient({"choices": []}),
+        default_model="gpt-test",
+    )
+
+    response = provider.complete(LLMRequest(prompt="Return JSON.", model="gpt-test"))
+
+    assert response.ok is False
+    assert response.finish_reason == "error"
+    assert response.error is not None
+    assert response.provider_name == "openai"
+
+
 def test_llm_provider_registry_selects_mock_provider() -> None:
     """Provider selection should be registry-based and keep mock available."""
     registry = create_llm_provider_registry()

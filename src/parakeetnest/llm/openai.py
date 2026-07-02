@@ -44,31 +44,19 @@ class OpenAIProvider(LLMProvider):
             response = self.client.chat.completions.create(
                 **self._build_request_kwargs(request, model=model)
             )
-        except Exception as exc:  # noqa: BLE001 - normalize provider failures.
+            choice = self._first_choice(response)
+            content = self._message_content(choice)
+            finish_reason = self._finish_reason(choice)
             return LLMResponse(
-                content="",
+                content=content,
                 model=model,
                 provider_name=self.name,
-                finish_reason="error",
-                error=LLMError(
-                    code=exc.__class__.__name__,
-                    message=str(exc) or exc.__class__.__name__,
-                    retryable=False,
-                ),
+                finish_reason=finish_reason,
                 latency_ms=self._elapsed_ms(started_at),
+                metadata=self._usage_metadata(response),
             )
-
-        choice = self._first_choice(response)
-        content = self._message_content(choice)
-        finish_reason = self._finish_reason(choice)
-        return LLMResponse(
-            content=content,
-            model=model,
-            provider_name=self.name,
-            finish_reason=finish_reason,
-            latency_ms=self._elapsed_ms(started_at),
-            metadata=self._usage_metadata(response),
-        )
+        except Exception as exc:  # noqa: BLE001 - normalize provider failures.
+            return self._error_response(exc, model=model, started_at=started_at)
 
     def _build_request_kwargs(self, request: LLMRequest, *, model: str) -> dict[str, Any]:
         messages: list[dict[str, str]] = []
@@ -131,6 +119,26 @@ class OpenAIProvider(LLMProvider):
     @staticmethod
     def _elapsed_ms(started_at: float) -> int:
         return int((perf_counter() - started_at) * 1000)
+
+    def _error_response(
+        self,
+        exc: Exception,
+        *,
+        model: str,
+        started_at: float,
+    ) -> LLMResponse:
+        return LLMResponse(
+            content="",
+            model=model,
+            provider_name=self.name,
+            finish_reason="error",
+            error=LLMError(
+                code=exc.__class__.__name__,
+                message=str(exc) or exc.__class__.__name__,
+                retryable=False,
+            ),
+            latency_ms=self._elapsed_ms(started_at),
+        )
 
 
 def _read(value: Any, key: str, default: Any = None) -> Any:

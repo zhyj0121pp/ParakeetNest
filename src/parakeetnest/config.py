@@ -39,7 +39,14 @@ class SecFilingConfig:
     """SEC filing provider configuration."""
 
     provider: str = "mock"
+    user_agent: str | None = None
+    timeout: float = 10.0
     sec_edgar_user_agent: str | None = None
+
+    def __post_init__(self) -> None:
+        """Preserve legacy SEC EDGAR config while supporting provider-neutral keys."""
+        if self.user_agent is None and self.sec_edgar_user_agent is not None:
+            object.__setattr__(self, "user_agent", self.sec_edgar_user_agent)
 
 
 @dataclass(frozen=True)
@@ -83,7 +90,8 @@ class AppConfig:
         default_factory=MarketDataConfig
     )
     news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)
-    sec_filings: SecFilingConfig | Mapping[str, str | None] = field(
+    sec: SecFilingConfig | Mapping[str, str | float | None] | None = None
+    sec_filings: SecFilingConfig | Mapping[str, str | float | None] = field(
         default_factory=SecFilingConfig
     )
     financials: FinancialStatementConfig | Mapping[str, str] = field(
@@ -130,6 +138,16 @@ class AppConfig:
                 "sec_filings",
                 SecFilingConfig(**dict(self.sec_filings)),
             )
+        if self.sec is not None:
+            sec_config = (
+                SecFilingConfig(**dict(self.sec))
+                if isinstance(self.sec, Mapping)
+                else self.sec
+            )
+            object.__setattr__(self, "sec_filings", sec_config)
+            object.__setattr__(self, "sec", sec_config)
+        else:
+            object.__setattr__(self, "sec", self.sec_filings)
         if isinstance(self.financials, Mapping):
             object.__setattr__(
                 self,

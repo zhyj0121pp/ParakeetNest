@@ -33,6 +33,7 @@
 | [Epic 041](epic-041-openai-provider.md) | OpenAI Provider | Completed |
 | [Epic 042](epic-042-yahoo-finance-provider.md) | Yahoo Finance Provider | Completed |
 | [Epic 043](epic-043-robinhood-portfolio-provider.md) | Robinhood Portfolio Provider | Completed |
+| [Epic 044](epic-044-sec-edgar-provider.md) | SEC EDGAR Provider | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from parakeetnest.exceptions import ConfigurationError
-from parakeetnest.sec.edgar import EdgarSecFilingProvider
+from parakeetnest.sec.edgar import SECEDGARProvider
 from parakeetnest.sec.mock import MockSecFilingProvider
 from parakeetnest.sec.provider import SecFilingProvider
 
@@ -65,17 +65,23 @@ class SecFilingProviderRegistry:
 
 def create_sec_filing_provider_registry(
     *,
+    user_agent: str | None = None,
+    timeout: float = 10.0,
     sec_edgar_user_agent: str | None = None,
 ) -> SecFilingProviderRegistry:
     """Create the default SEC filing provider registry."""
     registry = SecFilingProviderRegistry(default_provider_id="mock")
     registry.register("mock", MockSecFilingProvider())
-    normalized_sec_edgar_user_agent = _normalize_optional_string(sec_edgar_user_agent)
-    if normalized_sec_edgar_user_agent is not None:
-        registry.register(
-            "sec_edgar",
-            EdgarSecFilingProvider(user_agent=normalized_sec_edgar_user_agent),
+    normalized_user_agent = _normalize_optional_string(user_agent)
+    if normalized_user_agent is None:
+        normalized_user_agent = _normalize_optional_string(sec_edgar_user_agent)
+    if normalized_user_agent is not None:
+        provider = SECEDGARProvider(
+            user_agent=normalized_user_agent,
+            timeout_seconds=timeout,
         )
+        registry.register("edgar", provider)
+        registry.register("sec_edgar", provider)
     return registry
 
 

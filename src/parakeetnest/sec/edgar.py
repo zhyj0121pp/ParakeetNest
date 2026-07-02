@@ -26,10 +26,10 @@ from parakeetnest.sec.provider import (
 HttpGet = Callable[[str, Mapping[str, str]], bytes]
 
 
-class EdgarSecFilingProvider:
+class SECEDGARProvider:
     """SEC filing provider backed by official EDGAR JSON endpoints."""
 
-    provider_name = "sec_edgar"
+    provider_name = "edgar"
 
     _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
     _SUBMISSIONS_BASE_URL = "https://data.sec.gov/submissions"
@@ -322,4 +322,7 @@ class _TickerCik:
         self.company_name = company_name
 
 
-__all__ = ["EdgarSecFilingProvider"]
+EdgarSecFilingProvider = SECEDGARProvider
+
+
+__all__ = ["EdgarSecFilingProvider", "SECEDGARProvider"]

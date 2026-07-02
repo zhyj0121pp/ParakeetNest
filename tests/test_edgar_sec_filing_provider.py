@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
 import json
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -76,7 +76,7 @@ def test_edgar_provider_searches_filings_by_symbol_type_and_limit() -> None:
         "https://www.sec.gov/Archives/edgar/data/320193/"
         "000032019326000010/aapl-20251227.htm"
     )
-    assert filings[0].provider == "sec_edgar"
+    assert filings[0].provider == "edgar"
 
 
 def test_edgar_provider_sends_configured_user_agent_to_all_sec_endpoints() -> None:
@@ -185,6 +185,20 @@ def test_edgar_provider_maps_http_failures_to_provider_neutral_error() -> None:
     provider = EdgarSecFilingProvider(user_agent="tests", http_get=transport)
 
     with pytest.raises(SecFilingHttpError, match="status 503"):
+        provider.get_company_submissions("0000320193")
+
+
+def test_edgar_provider_maps_timeout_to_provider_neutral_error() -> None:
+    transport = FakeHttpGet(
+        {
+            "https://data.sec.gov/submissions/CIK0000320193.json": URLError(
+                TimeoutError("timed out")
+            )
+        }
+    )
+    provider = EdgarSecFilingProvider(user_agent="tests", http_get=transport)
+
+    with pytest.raises(SecFilingHttpError, match="HTTP request failed"):
         provider.get_company_submissions("0000320193")
 
 

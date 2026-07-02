@@ -242,18 +242,18 @@ def _create_market_breadth_service() -> MarketBreadthService:
 
 
 def _create_sec_filing_service(config: AppConfig) -> SecFilingService:
-    sec_edgar_user_agent = _normalize_optional_string(
-        config.sec_filings.sec_edgar_user_agent
-    )
-    if config.sec_filings.provider.strip().lower() == "sec_edgar":
-        if sec_edgar_user_agent is None:
+    sec_user_agent = _normalize_optional_string(config.sec_filings.user_agent)
+    provider_id = config.sec_filings.provider.strip().lower()
+    if provider_id in {"edgar", "sec_edgar"}:
+        if sec_user_agent is None:
             raise ConfigurationError(
-                "SEC filing provider 'sec_edgar' requires "
-                "sec_filings.sec_edgar_user_agent."
+                "SEC filing provider 'edgar' requires sec.user_agent "
+                "or sec_filings.user_agent."
             )
 
     sec_filing_provider_registry = create_sec_filing_provider_registry(
-        sec_edgar_user_agent=sec_edgar_user_agent
+        user_agent=sec_user_agent,
+        timeout=config.sec_filings.timeout,
     )
     sec_filing_provider = sec_filing_provider_registry.get(config.sec_filings.provider)
     return SecFilingService(sec_filing_provider)

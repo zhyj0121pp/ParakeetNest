@@ -1,6 +1,6 @@
 """Provider-agnostic SEC Filing Layer interfaces and domain models."""
 
-from parakeetnest.sec.edgar import EdgarSecFilingProvider
+from parakeetnest.sec.edgar import EdgarSecFilingProvider, SECEDGARProvider
 from parakeetnest.sec.mock import MockSecFilingProvider
 from parakeetnest.sec.models import (
     FilingType,
@@ -25,6 +25,7 @@ from parakeetnest.sec.service import SecFilingService
 __all__ = [
     "FilingType",
     "EdgarSecFilingProvider",
+    "SECEDGARProvider",
     "MockSecFilingProvider",
     "ProviderError",
     "SecFiling",

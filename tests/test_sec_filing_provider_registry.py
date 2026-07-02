@@ -9,6 +9,7 @@ from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.sec import (
     EdgarSecFilingProvider,
     MockSecFilingProvider,
+    SECEDGARProvider,
     SecFiling,
     SecFilingContent,
     SecFilingProviderRegistry,
@@ -100,18 +101,46 @@ def test_sec_filing_config_accepts_sec_edgar_user_agent_mapping() -> None:
 
     assert config.sec_filings == SecFilingConfig(
         provider="sec_edgar",
+        user_agent="ParakeetNest tests test@example.com",
         sec_edgar_user_agent="ParakeetNest tests test@example.com",
     )
 
 
-def test_default_registry_includes_sec_edgar_provider() -> None:
+def test_sec_filing_config_accepts_canonical_edgar_mapping() -> None:
+    config = AppConfig(
+        sec={
+            "provider": "edgar",
+            "user_agent": "ParakeetNest tests test@example.com",
+            "timeout": 3.5,
+        }
+    )
+
+    assert config.sec_filings == SecFilingConfig(
+        provider="edgar",
+        user_agent="ParakeetNest tests test@example.com",
+        timeout=3.5,
+    )
+    assert config.sec == config.sec_filings
+
+
+def test_default_registry_includes_edgar_provider() -> None:
+    registry = create_sec_filing_provider_registry(
+        user_agent="ParakeetNest tests test@example.com",
+        timeout=3.5,
+    )
+
+    provider = registry.get("edgar")
+
+    assert isinstance(provider, SECEDGARProvider)
+    assert provider._timeout_seconds == 3.5
+
+
+def test_default_registry_keeps_legacy_sec_edgar_alias() -> None:
     registry = create_sec_filing_provider_registry(
         sec_edgar_user_agent="ParakeetNest tests test@example.com"
     )
 
-    provider = registry.get("sec_edgar")
-
-    assert isinstance(provider, EdgarSecFilingProvider)
+    assert isinstance(registry.get("sec_edgar"), EdgarSecFilingProvider)
 
 
 def test_selecting_configured_sec_filing_provider_works() -> None:

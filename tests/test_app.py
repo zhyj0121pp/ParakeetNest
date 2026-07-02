@@ -329,9 +329,10 @@ def test_create_app_wires_sec_edgar_provider_when_configured(tmp_path: Path) -> 
     app = create_app(
         AppConfig(
             database_path=tmp_path / "app.sqlite3",
-            sec_filings={
-                "provider": "sec_edgar",
-                "sec_edgar_user_agent": "ParakeetNest tests test@example.com",
+            sec={
+                "provider": "edgar",
+                "user_agent": "ParakeetNest tests test@example.com",
+                "timeout": 2.5,
             },
         )
     )
@@ -341,6 +342,7 @@ def test_create_app_wires_sec_edgar_provider_when_configured(tmp_path: Path) -> 
         app.close()
 
     assert isinstance(provider, EdgarSecFilingProvider)
+    assert provider._timeout_seconds == 2.5
 
 
 def test_create_app_wires_financial_statement_context_provider(
@@ -429,14 +431,14 @@ def test_create_app_rejects_sec_edgar_without_user_agent(tmp_path: Path) -> None
     """SEC EDGAR requires an explicit app identity before bootstrap succeeds."""
     with pytest.raises(
         ConfigurationError,
-        match="sec_filings.sec_edgar_user_agent",
+        match="sec.user_agent",
     ):
         create_app(
             AppConfig(
                 database_path=tmp_path / "app.sqlite3",
-                sec_filings={
-                    "provider": "sec_edgar",
-                    "sec_edgar_user_agent": "   ",
+                sec={
+                    "provider": "edgar",
+                    "user_agent": "   ",
                 },
             )
         )

@@ -60,6 +60,22 @@ def test_create_test_app_uses_mock_llm_provider() -> None:
         app.close()
 
 
+def test_create_app_wires_configured_llm_model_and_temperature(tmp_path: Path) -> None:
+    """The app runtime should read model settings from provider-neutral config."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            llm={"provider": "mock", "model": "unit-committee", "temperature": 0.15},
+        )
+    )
+    try:
+        assert isinstance(app.llm_provider, MockLLMProvider)
+        assert app.agent_runtime.model == "unit-committee"
+        assert app.agent_runtime.temperature == 0.15
+    finally:
+        app.close()
+
+
 def test_create_app_wires_sqlite_committee_memory_service(tmp_path: Path) -> None:
     """The app factory should create durable committee memory when it owns a session."""
     app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))

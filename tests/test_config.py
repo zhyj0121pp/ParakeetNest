@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from parakeetnest.config import Settings, get_settings
+from parakeetnest.config import AppConfig, Settings, get_settings
 
 
 def test_settings_defaults_are_safe() -> None:
@@ -70,3 +70,29 @@ def test_get_settings_cache_can_be_cleared(monkeypatch) -> None:
 
     assert settings.environment == "test"
     get_settings.cache_clear()
+
+
+def test_app_config_supports_llm_mapping() -> None:
+    """App config should normalize provider-neutral LLM settings."""
+    config = AppConfig(
+        llm={
+            "provider": "openai",
+            "model": "gpt-test",
+            "api_key_env_var": "PARAKEETNEST_TEST_OPENAI_API_KEY",
+            "temperature": 0.1,
+        }
+    )
+
+    assert config.llm_provider == "openai"
+    assert config.llm.provider == "openai"
+    assert config.llm.model == "gpt-test"
+    assert config.llm.api_key_env_var == "PARAKEETNEST_TEST_OPENAI_API_KEY"
+    assert config.llm.temperature == 0.1
+
+
+def test_app_config_preserves_legacy_llm_provider_field() -> None:
+    """Older llm_provider configuration should still select the provider."""
+    config = AppConfig(llm_provider="mock")
+
+    assert config.llm.provider == "mock"
+    assert config.llm_provider == "mock"

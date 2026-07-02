@@ -1,7 +1,7 @@
 """Application configuration for ParakeetNest."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -48,13 +48,24 @@ class FinancialStatementConfig:
 
 
 @dataclass(frozen=True)
+class LLMConfig:
+    """Language model provider configuration."""
+
+    provider: str = "mock"
+    model: str = "mock-committee"
+    api_key_env_var: str = "OPENAI_API_KEY"
+    temperature: float = 0.0
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Application container configuration."""
 
     database_path: Path | None = None
     database_url: str | None = None
     watchlist_seed_path: Path | None = None
-    llm_provider: str = "mock"
+    llm: LLMConfig | Mapping[str, str | float] = field(default_factory=LLMConfig)
+    llm_provider: str | None = None
     market_data: MarketDataConfig | Mapping[str, str] = field(
         default_factory=MarketDataConfig
     )
@@ -72,6 +83,19 @@ class AppConfig:
 
     def __post_init__(self) -> None:
         """Normalize nested configuration supplied as plain mappings."""
+        if isinstance(self.llm, Mapping):
+            object.__setattr__(
+                self,
+                "llm",
+                LLMConfig(**dict(self.llm)),
+            )
+        if self.llm_provider is not None:
+            object.__setattr__(
+                self,
+                "llm",
+                replace(self.llm, provider=self.llm_provider),
+            )
+        object.__setattr__(self, "llm_provider", self.llm.provider)
         if isinstance(self.market_data, Mapping):
             object.__setattr__(
                 self,

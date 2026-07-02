@@ -7,6 +7,8 @@ import json
 import pytest
 
 from parakeetnest.committee.models import InvestmentContext
+from parakeetnest.config import LLMConfig
+from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.llm import (
     CHAIRMAN_SUMMARY_SCHEMA,
     COMMITTEE_OPINION_SCHEMA,
@@ -14,9 +16,11 @@ from parakeetnest.llm import (
     LLMProvider,
     LLMRequest,
     MockLLMProvider,
+    OpenAIProvider,
     OutputParser,
     OutputParserError,
     PromptContextBuilder,
+    create_llm_provider_registry,
 )
 from parakeetnest.llm.prompts import TextPromptBuilder
 from parakeetnest.models import ConfidenceLevel, RecommendationAction
@@ -36,6 +40,83 @@ def test_mock_llm_provider_implements_provider_protocol_without_network() -> Non
     assert json.loads(response.content) == {"member_name": "Xixi"}
     assert isinstance(provider, MockLLMProvider)
     assert provider.requests == [request]
+
+
+def test_openai_provider_constructs_chat_completion_request_with_fake_client() -> None:
+    """The OpenAI provider should translate neutral requests at the provider edge."""
+    client = _FakeOpenAIClient(
+        {
+            "choices": [
+                {
+                    "message": {"content": json.dumps({"action": "watch"})},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15,
+            },
+        }
+    )
+    provider = OpenAIProvider(client=client, default_model="gpt-test")
+    request = LLMRequest(
+        prompt="Return JSON.",
+        model="gpt-override",
+        system_prompt="You are ParakeetNest.",
+        temperature=0.2,
+        response_schema={"type": "object", "required": ["action"]},
+        timeout_seconds=12.5,
+    )
+
+    response = provider.complete(request)
+
+    assert response.ok is True
+    assert response.provider_name == "openai"
+    assert response.model == "gpt-override"
+    assert json.loads(response.content) == {"action": "watch"}
+    assert response.metadata["total_tokens"] == "15"
+    assert client.kwargs == {
+        "model": "gpt-override",
+        "messages": [
+            {"role": "system", "content": "You are ParakeetNest."},
+            {"role": "user", "content": "Return JSON."},
+        ],
+        "temperature": 0.2,
+        "timeout": 12.5,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "parakeetnest_response",
+                "schema": {"type": "object", "required": ["action"]},
+                "strict": True,
+            },
+        },
+    }
+
+
+def test_openai_provider_requires_api_key_without_injected_client() -> None:
+    """OpenAI should fail configuration early when no API key is supplied."""
+    with pytest.raises(ConfigurationError, match="requires an API key"):
+        OpenAIProvider(api_key=None)
+
+
+def test_llm_provider_registry_selects_mock_provider() -> None:
+    """Provider selection should be registry-based and keep mock available."""
+    registry = create_llm_provider_registry()
+
+    provider = registry.resolve(LLMConfig(provider="mock", model="unit-model"))
+
+    assert isinstance(provider, MockLLMProvider)
+    response = provider.complete(LLMRequest(prompt="x", model=""))
+    assert response.model == "unit-model"
+
+
+def test_llm_provider_registry_mock_is_default() -> None:
+    """The default LLM provider should remain the deterministic mock."""
+    provider = create_llm_provider_registry().default()
+
+    assert isinstance(provider, MockLLMProvider)
 
 
 def test_prompt_context_builder_preserves_memory_before_current_facts() -> None:
@@ -179,3 +260,15 @@ def test_daily_report_schema_validates_report_shape() -> None:
     assert report["recommendations"][0]["action"] == "watch"
     assert DAILY_REPORT_SCHEMA["required"]
     assert CHAIRMAN_SUMMARY_SCHEMA["required"]
+
+
+class _FakeOpenAIClient:
+    def __init__(self, response: dict) -> None:
+        self.response = response
+        self.kwargs: dict | None = None
+        self.chat = self
+        self.completions = self
+
+    def create(self, **kwargs: object) -> dict:
+        self.kwargs = kwargs
+        return self.response

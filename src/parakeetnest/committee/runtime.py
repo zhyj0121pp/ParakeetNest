@@ -161,6 +161,7 @@ class AgentRuntime:
 
     llm_provider: LLMProvider
     model: str = "mock-committee"
+    temperature: float = 0.0
     prompt_renderer: PromptRenderer = field(default_factory=PromptRenderer)
     parser: OutputParser = field(default_factory=OutputParser)
     execution_runtime: PreparedAgentRuntime | None = None
@@ -214,6 +215,7 @@ class AgentRuntime:
         return DefaultAgentRuntime(
             llm_provider=self.llm_provider,
             model=self.model,
+            temperature=self.temperature,
             response_schemas={
                 "committee_opinion": COMMITTEE_OPINION_SCHEMA,
                 "portfolio_committee_observation": (

@@ -56,7 +56,7 @@ from parakeetnest.intelligence.sector_rotation import (
 from parakeetnest.intelligence.sector_rotation.context_provider import (
     SectorRotationContextProvider,
 )
-from parakeetnest.llm import LLMProvider, MockLLMProvider
+from parakeetnest.llm import LLMProvider, create_llm_provider_registry
 from parakeetnest.market_data import (
     MarketDataService,
     create_market_data_provider_registry,
@@ -156,7 +156,8 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     llm_provider = _create_llm_provider(resolved_config)
     agent_runtime = AgentRuntime(
         llm_provider=llm_provider,
-        model="mock-committee",
+        model=resolved_config.llm.model,
+        temperature=resolved_config.llm.temperature,
         prompt_renderer=prompt_renderer,
         memory_service=memory_service,
     )
@@ -214,9 +215,8 @@ def create_test_app() -> ParakeetNestApp:
 
 
 def _create_llm_provider(config: AppConfig) -> LLMProvider:
-    if config.llm_provider == "mock":
-        return MockLLMProvider()
-    raise ValueError(f"Unsupported LLM provider: {config.llm_provider}")
+    llm_provider_registry = create_llm_provider_registry()
+    return llm_provider_registry.resolve(config.llm)
 
 
 def _create_news_service(config: AppConfig) -> NewsService:

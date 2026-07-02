@@ -212,6 +212,115 @@ def test_custom_output_path_works(
     assert output_path.read_text(encoding="utf-8") == "daily report body\n"
 
 
+def test_morning_archive_path_uses_report_date(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    exit_code = daily_report.main(
+        [
+            "--mode",
+            "morning",
+            "--tickers",
+            "NVDA",
+            "--as-of-date",
+            "2026-07-01",
+            "--archive",
+        ]
+    )
+
+    archive_path = (
+        tmp_path
+        / "reports"
+        / "2026-07-01"
+        / "morning-investment-brief.md"
+    )
+    assert exit_code == 0
+    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+
+
+def test_evening_archive_path_uses_report_date(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    exit_code = daily_report.main(
+        [
+            "--mode",
+            "evening",
+            "--tickers",
+            "NVDA",
+            "--as-of-date",
+            "2026-07-01",
+            "--archive",
+        ]
+    )
+
+    archive_path = (
+        tmp_path
+        / "reports"
+        / "2026-07-01"
+        / "evening-investment-review.md"
+    )
+    assert exit_code == 0
+    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+
+
+def test_archive_and_output_together_write_both_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+    output_path = tmp_path / "custom" / "daily-report.md"
+
+    exit_code = daily_report.main(
+        [
+            "--mode",
+            "morning",
+            "--tickers",
+            "NVDA",
+            "--as-of-date",
+            "2026-07-01",
+            "--archive",
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    archive_path = (
+        tmp_path
+        / "reports"
+        / "2026-07-01"
+        / "morning-investment-brief.md"
+    )
+    assert exit_code == 0
+    assert output_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+
+
 def test_ticker_arguments_are_passed_through(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

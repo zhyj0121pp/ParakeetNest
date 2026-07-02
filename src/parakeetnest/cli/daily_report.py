@@ -15,6 +15,11 @@ from parakeetnest.research.service import InvestmentResearchService
 
 
 DEFAULT_OUTPUT_PATH = Path("reports/daily-report.md")
+DEFAULT_ARCHIVE_ROOT = Path("reports")
+ARCHIVE_FILENAMES = {
+    ReportMode.MORNING: "morning-investment-brief.md",
+    ReportMode.EVENING: "evening-investment-review.md",
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,6 +44,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Optional Markdown path to also write the generated report.",
+    )
+    parser.add_argument(
+        "--archive",
+        action="store_true",
+        help="Also write the generated report to the local daily archive.",
     )
     parser.add_argument(
         "--account-id",
@@ -91,6 +101,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if args.output is not None:
             write_daily_report_body(body, args.output)
+        if args.archive:
+            write_daily_report_body(
+                body,
+                build_archive_output_path(
+                    mode=report_mode,
+                    as_of_date=args.as_of_date,
+                ),
+            )
     except ValueError as exc:
         parser.error(str(exc))
     except Exception as exc:
@@ -146,6 +164,18 @@ def write_daily_report_body(body: str, output_path: Path = DEFAULT_OUTPUT_PATH) 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(body, encoding="utf-8")
     return output_path
+
+
+def build_archive_output_path(
+    *,
+    mode: ReportMode | str,
+    as_of_date: date | None = None,
+    archive_root: Path = DEFAULT_ARCHIVE_ROOT,
+) -> Path:
+    """Build the conventional local archive path for a daily report."""
+    report_mode = ReportMode.from_value(mode)
+    report_date = as_of_date or date.today()
+    return archive_root / report_date.isoformat() / ARCHIVE_FILENAMES[report_mode]
 
 
 def _build_app_config(

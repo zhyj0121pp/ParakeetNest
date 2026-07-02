@@ -1,54 +1,72 @@
-# RFC-001: Architecture Freeze After Milestone 6
+# RFC-001: v1.0 Architecture Freeze
 
 Status: Accepted
 Date: 2026-06-29
-Milestone: 6.5
+Updated: 2026-07-02
+Milestone: v1.0
 
 ## Summary
 
-ParakeetNest is frozen around a memory-first investment research architecture.
-The system collects and validates normalized investment facts, stores
-historical records in SQLite, recalls investment memory, runs a deterministic
-committee workflow, and produces conservative recommendation objects.
+ParakeetNest v1.0 is frozen around a memory-first, committee-driven investment
+advisory architecture. The platform prepares facts into context, recalls
+committee memory before reasoning, runs an LLM-backed investment committee, and
+returns advisory investment judgment for a human operator.
 
-This RFC freezes the package boundaries before OpenAI, real market data,
-scheduling, report generation, and email are added. The main rule is:
+The main rule is:
 
 The committee remembers before it reasons.
 
-## Current Architecture After Milestone 6
+The v1.0 product thesis is:
 
-The current implementation contains no automatic trading, no external API
-calls, no OpenAI calls, and no hard-coded API keys. Deterministic mock services
-are used until real providers are introduced.
+```text
+Facts -> Context -> LLM Committee -> Investment Judgment -> Human Decision
+```
+
+ParakeetNest is not a research-pipeline-first system and is not an autonomous
+trading system. Reports present committee judgment. Human decision remains
+final.
+
+## Current Architecture At v1.0
+
+The current implementation contains no automatic trading and no hard-coded API
+keys. Provider-specific integrations are isolated behind provider protocols and
+registries. Deterministic mock providers remain first-class for local
+development and tests.
 
 Current flow:
 
-1. `services` collect normalized snapshots from deterministic mock services.
-2. `services.data_quality` validates source, fetch time, freshness, required
-   fields, missing fields, numeric sanity, and confidence.
-3. `services.orchestrator` coordinates collection and validation.
-4. `database.snapshot_repository` persists validated snapshots and their data
-   quality metadata to SQLite.
-5. `memory.knowledge_base` stores accumulated investment knowledge, including
-   thesis history, committee discussions, research notes, and lessons learned.
-6. `committee.secretary` recalls thesis and discussion context before any
-   committee member reviews a symbol.
-7. `committee` members produce deterministic opinions.
-8. `committee.chairman` summarizes the opinions into a typed committee output.
-9. `committee.secretary` records the discussion back into memory.
-10. `decision` currently exposes a conservative placeholder recommendation
-    engine.
-11. `reports` remains a placeholder for future milestones.
+1. Fact providers and source services normalize market, news, SEC filing,
+   financial statement, valuation, macro, portfolio, watchlist, and investment
+   intelligence inputs.
+2. Context providers adapt those facts into `MeetingContext` sections.
+3. `ContextService` merges enabled context providers into one prepared meeting
+   context.
+4. Committee memory is recalled before agent reasoning.
+5. The LLM committee runtime gives Xixi, Dongdong, Yoyo, and the Chairman
+   prompt-ready context and memory.
+6. The Chairman produces an investment judgment with action, confidence,
+   horizon, evidence, risks, and catalysts.
+7. The Investment Secretary records committee memory.
+8. Local daily reports and research outputs present committee judgment for
+   human review.
+
+Retained v1 compatibility flow:
+
+1. `services` still contains deterministic mock collection services, data
+   quality validation, and `DataCollectionOrchestrator`.
+2. `database.snapshot_repository` still persists validated legacy snapshots and
+   their data quality metadata to SQLite.
+3. This legacy collection path is retained for compatibility and tests. It is
+   not the main v1 product flow.
 
 ## Package Responsibilities
 
 ### `parakeetnest.domain`
 
-Defines normalized data snapshots shared between collection, validation,
-persistence, and future analyzers. These are provider-neutral facts such as
+Defines legacy normalized data snapshots shared between collection,
+validation, and snapshot persistence. These are provider-neutral facts such as
 portfolio holdings, market data, financials, news, macro observations, and
-calendar events.
+calendar events. The package is retained for v1 compatibility.
 
 ### `parakeetnest.models`
 
@@ -58,9 +76,12 @@ committee memos.
 
 ### `parakeetnest.services`
 
-Owns data-service protocols, deterministic mock implementations, data quality,
-and collection orchestration. Services return normalized domain snapshots and
-do not return provider-specific payloads.
+Owns two v1 responsibilities:
+
+- `MeetingService`, the current application service for running committee
+  meetings.
+- Retained legacy data-service protocols, deterministic mock implementations,
+  data quality, and collection orchestration.
 
 The services package must not know SQLAlchemy ORM models, OpenAI clients, email
 clients, or trading/broker execution APIs.
@@ -68,16 +89,17 @@ clients, or trading/broker execution APIs.
 ### `parakeetnest.database`
 
 Owns SQLite v1 persistence, SQLAlchemy models, engine/session setup, schema
-initialization, generic repositories, and snapshot persistence adapters.
+initialization, meeting repositories, committee memory repositories, and
+snapshot persistence adapters.
 
 This package is allowed to map normalized domain snapshots into ORM rows. It is
 also allowed to persist data quality reports. It should not collect market data,
 call LLMs, run committee reasoning, or make recommendation policy decisions.
 
-### `parakeetnest.memory`
+### `parakeetnest.memory` and `parakeetnest.committee.memory`
 
-Owns investment memory: append-only thesis history, committee discussions,
-research notes, lessons learned, and recall helpers.
+Own investment memory: append-only thesis history, committee discussions,
+research notes, lessons learned, committee memory records, and recall helpers.
 
 The knowledge base is intentionally separate from the historical database. It
 stores interpreted investment knowledge, not raw market facts.
@@ -92,27 +114,43 @@ Owns the investment committee workflow and member roles:
 - Chairman: final committee summarizer.
 - Investment Secretary: memory keeper.
 
-The committee consumes recalled memory and current facts. It does not fetch
-external data directly and does not persist raw market snapshots.
+The committee consumes recalled memory and prepared context. It does not fetch
+external data directly, query provider registries, or persist raw market
+snapshots.
+
+### `parakeetnest.context`
+
+Owns `ContextRequest`, `MeetingContext`, context providers, context provider
+registry, context assembly, and prompt rendering. This is the bridge between
+facts and committee reasoning.
+
+### `parakeetnest.llm`
+
+Owns the LLM provider boundary, mock LLM provider, parsing, schemas, and prompt
+support. LLM behavior is accessed through explicit interfaces and deterministic
+test doubles.
+
+### Data Source and Intelligence Packages
+
+Packages such as `market_data`, `news`, `sec`, `financials`, `macro`,
+`valuation`, `portfolio`, `watchlist`, `regime`, and `intelligence` own
+provider-neutral source models, provider protocols, services, calculators, and
+context adapters. They prepare facts for context and do not make final
+investment decisions.
 
 ### `parakeetnest.decision`
 
-Owns recommendation policy and recommendation exports. Today it is a
-conservative placeholder. Future versions should consume typed committee
-outputs and validated evidence, then produce recommendations that include
-action, confidence, horizon, evidence, risks, and catalysts.
+Owns shared recommendation model exports. Final v1 investment judgment is
+committee-led and human-reviewed.
 
-### `parakeetnest.analyzers`
+### `parakeetnest.research` and `parakeetnest.reports`
 
-Reserved for typed analysis modules such as portfolio, stock, market, risk,
-opportunity, catalyst, and thesis analysis. These modules should consume
-validated domain data and memory context rather than provider-specific data.
+Own research report composition, rendering, local daily report orchestration,
+local archive writes, explicit output writes, and provider-neutral email
+handoff.
 
-### `parakeetnest.reports`
-
-Reserved for daily, weekly, and monthly research report generation. Report
-generation should consume recommendations, committee outputs, evidence, and
-memory. It should not fetch data or call trading systems.
+Reports present committee judgment. They should not fetch raw data directly,
+invent recommendation policy outside the committee, or call trading systems.
 
 ### Foundation Packages
 
@@ -133,13 +171,15 @@ config / logging / exceptions
         |
 domain and shared models
         |
-services protocols and data quality
+source services, intelligence services, and legacy data quality
         |
-database persistence adapters
+context providers and ContextService
         |
-memory, analyzers, committee, decision
+committee memory and LLM committee runtime
         |
-reports workflows
+investment judgment and local report workflows
+        |
+human decision
 ```
 
 Important boundary:
@@ -148,14 +188,15 @@ Important boundary:
 SQLAlchemy ORM models. The concrete implementation currently lives in
 `database.snapshot_repository`.
 
-## Why Data Services Do Not Call LLM
+## Why Fact Services Do Not Call LLM
 
-Data services are responsible for collection, normalization, and validation.
-They should return facts with source and freshness metadata.
+Fact services are responsible for provider access, normalization, calculations,
+and source metadata. Legacy data services additionally validate retained
+snapshot objects.
 
-LLM calls belong behind a future LLM provider interface and should be used by
-committee reasoning or report generation, not by raw data services. Keeping
-LLMs out of services prevents:
+LLM calls belong behind the LLM provider interface and are used by committee
+reasoning, not by raw data services. Keeping LLMs out of fact services
+prevents:
 
 - fabricated facts entering the historical database;
 - hidden reasoning inside collection code;
@@ -163,9 +204,8 @@ LLMs out of services prevents:
 - provider-specific prompts leaking into normalized data models;
 - confusion between observed facts and interpreted conclusions.
 
-Data services may collect text such as news summaries in the future, but they
-must preserve source attribution and must not turn that text into committee
-judgment.
+Fact services may collect text such as news summaries, but they must preserve
+source attribution and must not turn that text into committee judgment.
 
 ## Why Committee Engine Does Not Access External APIs Directly
 
@@ -181,9 +221,9 @@ This keeps the committee:
 - protected from mixing unvalidated data into reasoning;
 - compatible with the memory-first rule.
 
-External data must first pass through service interfaces, normalized snapshots,
-and data quality checks. The committee receives current facts and data quality
-notes after those boundaries have done their job.
+External data must first pass through provider interfaces, source services, and
+context providers. The committee receives prepared context after those
+boundaries have done their job.
 
 ## Why Knowledge Base Is Separate From Historical Database
 
@@ -211,70 +251,40 @@ memory.
 
 ## How Remember Before Reasoning Is Implemented
 
-Milestone 6 implements the rule directly in `CommitteeMeeting.run`.
+v1.0 implements the rule in committee runtime and meeting orchestration.
 
-1. `CommitteeMeeting.run` calls `InvestmentSecretary.load_context`.
-2. The secretary recalls thesis history and committee discussion history from
-   `KnowledgeBase`.
-3. The secretary builds an `InvestmentContext` containing:
-   - `historical_thesis`;
-   - `historical_discussions`;
-   - `current_facts`;
-   - `data_quality_notes`.
-4. Xixi, Dongdong, and Yoyo review the already-loaded context.
-5. The Chairman summarizes the opinions.
-6. The secretary records the discussion back to the knowledge base.
+1. `MeetingService` creates the meeting lifecycle and builds `ContextRequest`.
+2. `ContextService` assembles prepared context from registered context
+   providers.
+3. Committee memory is searched before agent prompt execution.
+4. Xixi, Dongdong, and Yoyo review the already-loaded context and remembered
+   history.
+5. The Chairman summarizes the opinions into investment judgment.
+6. The Investment Secretary records the discussion back to committee memory.
 
-The important invariant is that committee members receive `InvestmentContext`
+The important invariant is that committee members receive prepared context
 after memory has been loaded. They do not independently query memory or fetch
 new external facts while reviewing.
 
 ## Known Tradeoffs
 
-- The committee is deterministic and rule-based until LLM integration exists.
-  This preserves testability but limits reasoning depth.
-- Mock services are intentionally deterministic. They make development stable
-  but do not represent real market coverage.
+- Mock providers are intentionally deterministic. They make development stable
+  but do not represent complete market coverage.
 - SQLite v1 is simple and portable, but schema evolution will need migrations
   before real long-lived data accumulates.
 - `parakeetnest.models`, `parakeetnest.domain`, `committee.models`, and
   `memory.models` define separate model vocabularies. The separation is useful,
   but future contributors must keep boundaries clear.
-- The knowledge base is currently in-memory. Persistence exists in database
-  models for memory-like records, but repository-backed knowledge recall is not
-  complete.
-- Report generation and analyzers are placeholders.
+- Legacy `services` data collection remains in the tree for v1 compatibility
+  and tests, but it is not the main product flow.
 - Data quality metadata is persisted for saved snapshots, but richer quality
   policy and provider-specific diagnostics are still future work.
 - The current application has package boundaries but not a full import-linter
-  configuration. Tests cover the most important services-to-database boundary.
-
-## Open Questions Before OpenAI Integration
-
-- What exact `LLMProvider` protocol should the committee use?
-- Should the provider interface accept raw prompts, typed request objects, or
-  role-specific committee tasks?
-- What JSON schema should each committee member return?
-- How strict should schema validation be when an LLM returns partial or invalid
-  output?
-- Where should prompt templates live?
-- How should cited evidence be represented so the Chairman cannot invent
-  unsupported conclusions?
-- Should OpenAI calls happen only in committee members, only in a committee
-  engine, or behind a separate reasoning service?
-- How should LLM outputs be logged without leaking secrets or excessive
-  personal financial data?
-- What retry, timeout, and fallback behavior should be used?
-- How should deterministic tests cover LLM-backed behavior?
-- Which memory records should be included in prompts, and how should recall be
-  capped?
-- How will recommendation confidence distinguish data quality confidence from
-  committee reasoning confidence?
+  configuration. Tests cover the most important boundaries.
 
 ## Non-Goals
 
-- Do not implement OpenAI in this milestone.
-- Do not implement external market data APIs in this milestone.
-- Do not implement email delivery in this milestone.
 - Do not implement automatic trading.
 - Do not store API keys in code.
+- Do not let reports or CLI workflows make autonomous investment decisions.
+- Do not let committee agents fetch provider data directly.

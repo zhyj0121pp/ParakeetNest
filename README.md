@@ -10,14 +10,25 @@ evidence, risks, and catalysts.
 ## Current Status
 
 ParakeetNest v1.0 is complete and frozen as the Phase I architecture baseline.
-The platform now has a memory-first committee workflow, SQLite-backed
-persistence, a provider-neutral Context Layer, and repeatable Data Source Layer
-patterns for market data, Yahoo Finance, news, SEC filings, financial
-statements, valuation, and macro context.
+The platform is a committee-driven investment advisory system, not a
+research-pipeline-first system. The governing product flow is:
 
-The committee still produces investment research outputs only. Automatic
-trading is not implemented, API keys are not hard-coded, and deterministic mock
-providers remain first-class for local development and tests.
+```text
+Facts -> Context -> LLM Committee -> Investment Judgment -> Human Decision
+```
+
+The platform now has a memory-first committee workflow, SQLite-backed
+committee memory and meeting persistence, a provider-neutral Context Layer,
+an LLM runtime boundary with deterministic mock support, and repeatable Data
+Source Layer patterns for market data, Yahoo Finance, news, SEC filings,
+financial statements, valuation, portfolio context, watchlists, and macro and
+investment-intelligence context.
+
+The committee produces advisory investment judgments and local daily reports.
+Reports present committee judgment; they do not replace the operator. Human
+decision remains final. Automatic trading is not implemented, API keys are not
+hard-coded, and deterministic mock providers remain first-class for local
+development and tests.
 
 Phase II planning starts after this v1.0 architecture freeze. New work should
 build on the completed boundaries instead of changing the v1.0 model contracts
@@ -25,25 +36,38 @@ without an explicit architecture decision.
 
 ## Project Layout
 
-- `src/parakeetnest/committee`: committee roles and meeting orchestration.
+- `src/parakeetnest/app.py`: application bootstrap and dependency wiring.
+- `src/parakeetnest/committee`: committee roles, prompts, runtime, memory, and
+  meeting orchestration.
 - `src/parakeetnest/context`: context provider registry, provider contracts,
   context assembly, and prompt rendering for committee meetings.
+- `src/parakeetnest/llm`: LLM provider boundary, mock provider, schemas, and
+  parsing utilities.
+- `src/parakeetnest/intelligence`: investment-intelligence services and
+  context adapters for regime, sector rotation, breadth, momentum, sentiment,
+  health, and risk.
+- `src/parakeetnest/portfolio`: portfolio provider, models, service, context
+  adapter, and portfolio committee support.
+- `src/parakeetnest/market_data`, `src/parakeetnest/news`,
+  `src/parakeetnest/macro`, `src/parakeetnest/valuation`,
+  `src/parakeetnest/watchlist`: provider-neutral fact and context layers.
 - `src/parakeetnest/sec`: SEC filing domain models, provider protocol, mock and
   EDGAR providers, registry, and service boundary.
 - `src/parakeetnest/financials`: financial statement domain models, provider
   interface, mock provider, registry, service boundary, and context adapter.
-- `src/parakeetnest/services`: data collection and validation boundaries.
+- `src/parakeetnest/services`: retained v1 compatibility package for legacy
+  data collection, validation, and `MeetingService` application orchestration.
 - `src/parakeetnest/domain.py`: legacy normalized snapshot boundary for the
   original collection and persistence path.
-- `src/parakeetnest/analyzers`: portfolio, stock, market, catalyst, risk,
-  opportunity, and thesis analyzers.
-- `src/parakeetnest/decision`: recommendation and policy engine skeletons.
+- `src/parakeetnest/decision`: shared recommendation model exports.
 - `src/parakeetnest/memory`: investment knowledge base and historical memory.
 - `src/parakeetnest/database`: SQLite v1 connection, schema, and repository
-  scaffolding.
-- `src/parakeetnest/reports`: daily report orchestration, local archive writes,
+  adapters.
+- `src/parakeetnest/research`: committee-centered research report composition,
+  rendering, and delivery services.
+- `src/parakeetnest/reports`: local daily report orchestration, archive writes,
   explicit output writes, and provider-neutral email handoff.
-- `tests`: basic pytest coverage for the skeleton.
+- `tests`: pytest coverage for architecture boundaries and v1 behavior.
 
 ## Development
 
@@ -56,7 +80,7 @@ python -m venv .venv
 ## Documentation
 
 - [Documentation Overview](docs/README.md)
-- [Automated Daily Report Flow](docs/architecture/automated-daily-report-flow.md)
+- [Local Daily Report Workflow](docs/architecture/automated-daily-report-flow.md)
 - [Context Layer Architecture](docs/architecture/context-layer.md)
 - [Domain Model Boundary](docs/architecture/domain-model-boundary.md)
 - [Market Data Layer Architecture](docs/architecture/market-data-layer.md)
@@ -120,10 +144,16 @@ quality service returns:
 - `confidence_score`
 
 Validation currently covers required fields, stale data, empty values, and
-invalid numeric values. External providers are still intentionally absent; tests
-use manually constructed snapshots.
+invalid numeric values for the retained legacy snapshot path. Tests use
+manually constructed snapshots and deterministic mock data.
 
-## Mock Data Collection
+## Legacy Mock Data Collection
+
+This package is retained for v1 compatibility and historical data-quality
+coverage. It is not the main product flow. The main v1 flow is committee-first:
+facts are adapted into context, the LLM committee reasons over that prepared
+context and memory, reports present committee judgment, and the human operator
+makes the final decision.
 
 Mock services are deterministic and do not call Robinhood, Yahoo Finance, FRED,
 OpenAI, or any network service. Run a local mock collection against the
@@ -155,14 +185,16 @@ PY
 
 ## Architecture Boundaries
 
-The collection layer owns service interfaces, mock services, validation, and
-orchestration. It does not import SQLAlchemy ORM models. Persistence mapping
-lives in `src/parakeetnest/database/snapshot_repository.py`, where validated
-domain snapshots are converted into SQLite records and `data_quality_reports`
+The retained collection layer owns service interfaces, mock services,
+validation, and orchestration for the legacy snapshot path. It does not import
+SQLAlchemy ORM models. Persistence mapping lives in
+`src/parakeetnest/database/snapshot_repository.py`, where validated domain
+snapshots are converted into SQLite records and `data_quality_reports`
 metadata rows.
 
-Future provider integrations should implement the explicit service protocols
-from `src/parakeetnest/services/base.py` and return typed domain snapshots.
+New v1 product work should follow the provider -> service -> context provider
+pattern documented in the Data Source Layer, not add new product behavior to
+the legacy collection package.
 
 The Context Layer is documented in
 [`docs/architecture/context-layer.md`](docs/architecture/context-layer.md). It
@@ -182,8 +214,12 @@ Epic 003 summarizes the Context Pipeline Refinement work in
 
 ## Committee Flow
 
-The committee engine is deterministic for now and does not call OpenAI or any
-external market service. A meeting follows the required memory-first sequence:
+Committee meetings are the center of the product. Source-specific providers and
+intelligence services prepare facts, `ContextService` assembles prompt-ready
+context, the committee reasons over that context and remembered history, and
+the Chairman produces an investment judgment for a human operator.
+
+A meeting follows the required memory-first sequence:
 
 1. Investment Secretary loads historical thesis and discussion context.
 2. Xixi reviews fundamentals.
@@ -191,6 +227,10 @@ external market service. A meeting follows the required memory-first sequence:
 4. Yoyo reviews risk.
 5. Chairman summarizes the committee opinions.
 6. Investment Secretary records the discussion.
+
+The local runtime can use deterministic mock LLM/provider implementations for
+tests and development. No committee path places trades or performs autonomous
+brokerage activity.
 
 Example:
 

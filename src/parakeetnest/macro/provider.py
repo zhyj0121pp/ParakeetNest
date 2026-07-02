@@ -37,4 +37,26 @@ class MacroDataProvider(ABC):
         """Return a point-in-time snapshot for the requested indicators."""
 
 
-__all__ = ["MacroDataProvider"]
+class MacroDataError(Exception):
+    """Base class for provider-independent macro data failures."""
+
+
+class MacroDataConfigurationError(MacroDataError):
+    """Raised when a configured macro provider cannot be used."""
+
+
+class MacroDataHttpError(MacroDataError):
+    """Provider-independent error for macro data HTTP failures."""
+
+
+class MacroDataParsingError(MacroDataError):
+    """Provider-independent error for macro data response parsing failures."""
+
+
+__all__ = [
+    "MacroDataConfigurationError",
+    "MacroDataError",
+    "MacroDataHttpError",
+    "MacroDataParsingError",
+    "MacroDataProvider",
+]

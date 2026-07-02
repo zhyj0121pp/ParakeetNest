@@ -23,6 +23,7 @@ from parakeetnest.intelligence.market_breadth import (
     MockMarketBreadthProvider,
 )
 from parakeetnest.llm import MockLLMProvider
+from parakeetnest.macro import FREDMacroProvider, MockMacroDataProvider
 from parakeetnest.news import NewsQuery
 from parakeetnest.sec import EdgarSecFilingProvider, MockSecFilingProvider
 from parakeetnest.watchlist import (
@@ -262,6 +263,45 @@ def test_create_app_wires_configured_news_service(tmp_path: Path) -> None:
     assert len(articles) == 1
     assert articles[0].provider == "mock"
     assert articles[0].symbols == ["POET"]
+
+
+def test_create_app_defaults_to_mock_macro_provider(tmp_path: Path) -> None:
+    """The app factory should keep deterministic macro facts as the default."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        provider = app.macro_data_service._provider
+        context = app.context_service.build_context(
+            ContextRequest(question="Review macro.", symbols=())
+        )
+    finally:
+        app.close()
+
+    assert isinstance(provider, MockMacroDataProvider)
+    assert context.macro is not None
+    assert context.macro.source == "macro"
+    assert any("Federal Funds Rate" in item for item in context.macro.indicators)
+
+
+def test_create_app_wires_configured_fred_macro_provider(tmp_path: Path) -> None:
+    """The app factory should resolve FRED without making live requests."""
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            macro={
+                "provider": "fred",
+                "fred_api_key_env_var": "TEST_FRED_API_KEY",
+                "timeout": 2.5,
+            },
+        )
+    )
+    try:
+        provider = app.macro_data_service._provider
+    finally:
+        app.close()
+
+    assert isinstance(provider, FREDMacroProvider)
+    assert provider._api_key_env_var == "TEST_FRED_API_KEY"
+    assert provider._timeout_seconds == 2.5
 
 
 def test_create_app_wires_news_context_provider_through_news_service(

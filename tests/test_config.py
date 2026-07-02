@@ -4,6 +4,7 @@ from pathlib import Path
 
 from parakeetnest.config import (
     AppConfig,
+    MacroConfig,
     MarketDataConfig,
     PortfolioConfig,
     Settings,
@@ -118,6 +119,23 @@ def test_app_config_supports_market_data_mapping() -> None:
         provider="yahoo",
         max_attempts=2,
         retry_delay_seconds=0.0,
+    )
+
+
+def test_app_config_supports_macro_mapping() -> None:
+    """App config should normalize provider-neutral macro settings."""
+    config = AppConfig(
+        macro={
+            "provider": "fred",
+            "fred_api_key_env_var": "TEST_FRED_API_KEY",
+            "timeout": 2.5,
+        }
+    )
+
+    assert config.macro == MacroConfig(
+        provider="fred",
+        fred_api_key_env_var="TEST_FRED_API_KEY",
+        timeout=2.5,
     )
 
 

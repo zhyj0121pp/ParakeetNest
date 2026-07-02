@@ -35,6 +35,15 @@ class NewsConfig:
 
 
 @dataclass(frozen=True)
+class MacroConfig:
+    """Macro data provider configuration."""
+
+    provider: str = "mock"
+    fred_api_key_env_var: str = "FRED_API_KEY"
+    timeout: float = 10.0
+
+
+@dataclass(frozen=True)
 class SecFilingConfig:
     """SEC filing provider configuration."""
 
@@ -90,6 +99,7 @@ class AppConfig:
         default_factory=MarketDataConfig
     )
     news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)
+    macro: MacroConfig | Mapping[str, str | float] = field(default_factory=MacroConfig)
     sec: SecFilingConfig | Mapping[str, str | float | None] | None = None
     sec_filings: SecFilingConfig | Mapping[str, str | float | None] = field(
         default_factory=SecFilingConfig
@@ -131,6 +141,12 @@ class AppConfig:
                 self,
                 "news",
                 NewsConfig(**dict(self.news)),
+            )
+        if isinstance(self.macro, Mapping):
+            object.__setattr__(
+                self,
+                "macro",
+                MacroConfig(**dict(self.macro)),
             )
         if isinstance(self.sec_filings, Mapping):
             object.__setattr__(

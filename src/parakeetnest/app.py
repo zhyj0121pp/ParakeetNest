@@ -61,7 +61,7 @@ from parakeetnest.market_data import (
     MarketDataService,
     create_market_data_provider_registry,
 )
-from parakeetnest.macro import MacroDataService, MockMacroDataProvider
+from parakeetnest.macro import MacroDataService, create_macro_data_provider_registry
 from parakeetnest.news import NewsService, create_news_provider_registry
 from parakeetnest.portfolio import create_portfolio_provider_registry
 from parakeetnest.portfolio.provider import PortfolioProvider
@@ -130,7 +130,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     memory_service = CommitteeMemoryService(memory_repository)
     prompt_renderer = PromptRenderer(prompt_dir=resolved_config.prompt_dir)
     news_service = _create_news_service(resolved_config)
-    macro_data_service = _create_macro_data_service()
+    macro_data_service = _create_macro_data_service(resolved_config)
     economic_regime_service = EconomicRegimeService(macro_data_service)
     sector_rotation_service = _create_sector_rotation_service()
     market_breadth_service = _create_market_breadth_service()
@@ -226,8 +226,10 @@ def _create_news_service(config: AppConfig) -> NewsService:
     return NewsService(news_provider)
 
 
-def _create_macro_data_service() -> MacroDataService:
-    return MacroDataService(MockMacroDataProvider())
+def _create_macro_data_service(config: AppConfig) -> MacroDataService:
+    macro_provider_registry = create_macro_data_provider_registry()
+    macro_provider = macro_provider_registry.resolve(config.macro)
+    return MacroDataService(macro_provider)
 
 
 def _create_sector_rotation_service() -> SectorRotationService:

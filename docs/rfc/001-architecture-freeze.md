@@ -39,7 +39,7 @@ Current flow:
 9. `committee.secretary` records the discussion back into memory.
 10. `decision` currently exposes a conservative placeholder recommendation
     engine.
-11. `reports` and `scheduler` remain placeholders for future milestones.
+11. `reports` remains a placeholder for future milestones.
 
 ## Package Responsibilities
 
@@ -114,12 +114,6 @@ Reserved for daily, weekly, and monthly research report generation. Report
 generation should consume recommendations, committee outputs, evidence, and
 memory. It should not fetch data or call trading systems.
 
-### `parakeetnest.scheduler`
-
-Reserved for scheduled research workflows. The scheduler may trigger
-application-level workflows, but it should not contain investment logic,
-provider-specific data mapping, or LLM prompts.
-
 ### Foundation Packages
 
 - `config` loads application settings.
@@ -145,7 +139,7 @@ database persistence adapters
         |
 memory, analyzers, committee, decision
         |
-reports and scheduler workflows
+reports workflows
 ```
 
 Important boundary:
@@ -249,7 +243,7 @@ new external facts while reviewing.
 - The knowledge base is currently in-memory. Persistence exists in database
   models for memory-like records, but repository-backed knowledge recall is not
   complete.
-- Report generation, scheduler jobs, and analyzers are placeholders.
+- Report generation and analyzers are placeholders.
 - Data quality metadata is persisted for saved snapshots, but richer quality
   policy and provider-specific diagnostics are still future work.
 - The current application has package boundaries but not a full import-linter

@@ -43,7 +43,6 @@ without an explicit architecture decision.
   scaffolding.
 - `src/parakeetnest/reports`: daily report orchestration, local archive writes,
   explicit output writes, and provider-neutral email handoff.
-- `src/parakeetnest/scheduler`: scheduler-compatible daily report job wrapper.
 - `tests`: basic pytest coverage for the skeleton.
 
 ## Development

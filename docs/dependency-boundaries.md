@@ -28,8 +28,7 @@ Must not import:
 - `committee`;
 - `memory`;
 - `decision`;
-- `reports`;
-- `scheduler`.
+- `reports`.
 
 ### Stable Models
 
@@ -101,8 +100,7 @@ Must not import:
 - `parakeetnest.services.orchestrator`;
 - real provider clients;
 - OpenAI clients;
-- email clients;
-- scheduler jobs.
+- email clients.
 
 Notes:
 
@@ -237,39 +235,12 @@ Must not import:
 
 - concrete provider clients;
 - OpenAI clients directly;
-- trading clients;
-- scheduler internals.
+- trading clients.
 
 Notes:
 
 - Reports present evidence and conclusions.
 - Reports do not create new investment facts or execute trades.
-
-### Scheduler
-
-Packages:
-
-- `parakeetnest.scheduler`
-
-Allowed imports:
-
-- top-level workflow functions;
-- configuration and logging;
-- service orchestrators through application workflow composition;
-- report generation workflows.
-
-Must not import:
-
-- SQLAlchemy ORM models directly;
-- OpenAI clients directly;
-- provider-specific payload mappers;
-- trading clients.
-
-Notes:
-
-- Scheduler code triggers workflows.
-- Scheduler code should not contain investment analysis, recommendation policy,
-  or prompt logic.
 
 ## Forbidden Dependencies
 
@@ -375,4 +346,4 @@ The test suite currently includes a boundary test that verifies
 ORM models.
 
 Future milestones should add broader import-boundary tests when new provider,
-LLM, report, and scheduler modules are introduced.
+LLM, and report modules are introduced.

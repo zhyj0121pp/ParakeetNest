@@ -7,6 +7,8 @@ from typing import Mapping
 
 from parakeetnest.portfolio.exceptions import PortfolioAccountNotFoundError
 from parakeetnest.portfolio.models import (
+    Holding,
+    Portfolio,
     PortfolioAssetType,
     PortfolioCashBalance,
     PortfolioHolding,
@@ -23,14 +25,33 @@ class MockPortfolioProvider:
     def __init__(
         self,
         snapshots: Mapping[str, PortfolioSnapshot] | None = None,
+        portfolios: Mapping[str, Portfolio] | None = None,
     ) -> None:
         self._snapshots = (
             dict(snapshots) if snapshots is not None else _default_snapshots()
         )
+        self._portfolios = (
+            dict(portfolios)
+            if portfolios is not None
+            else {
+                account_id: _portfolio_from_snapshot(snapshot)
+                for account_id, snapshot in self._snapshots.items()
+            }
+        )
 
     def list_accounts(self) -> tuple[str, ...]:
         """Return deterministic mock account ids."""
-        return tuple(self._snapshots)
+        account_ids = dict.fromkeys((*self._portfolios, *self._snapshots))
+        return tuple(account_ids)
+
+    def get_portfolio(self, account_id: str) -> Portfolio:
+        """Return a stored minimal portfolio or raise a provider-neutral error."""
+        try:
+            return self._portfolios[account_id]
+        except KeyError as exc:
+            raise PortfolioAccountNotFoundError(
+                f"portfolio account not found: {account_id}"
+            ) from exc
 
     def get_snapshot(self, account_id: str) -> PortfolioSnapshot:
         """Return a stored snapshot or raise a provider-neutral not-found error."""
@@ -129,6 +150,25 @@ def _default_snapshots() -> dict[str, PortfolioSnapshot]:
             cash_balances=(PortfolioCashBalance(amount=2500.0, currency="USD"),),
         )
     }
+
+
+def _portfolio_from_snapshot(snapshot: PortfolioSnapshot) -> Portfolio:
+    total_equity = snapshot.total_equity or 0.0
+    return Portfolio(
+        cash_balance=snapshot.total_cash or 0.0,
+        total_market_value=snapshot.total_market_value or 0.0,
+        holdings=tuple(
+            Holding(
+                ticker=holding.symbol,
+                quantity=holding.quantity,
+                market_value=holding.market_value or 0.0,
+                portfolio_weight=holding.weight_in_portfolio(total_equity),
+                average_cost=holding.average_cost,
+                unrealized_gain_loss=holding.unrealized_gain_loss,
+            )
+            for holding in snapshot.holdings
+        ),
+    )
 
 
 __all__ = ["MockPortfolioProvider"]

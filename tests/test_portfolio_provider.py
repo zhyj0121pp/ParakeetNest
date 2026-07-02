@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 import pytest
 
 from parakeetnest.portfolio import (
+    Holding,
+    Portfolio,
     PortfolioAccountNotFoundError,
     PortfolioCashBalance,
     PortfolioDataUnavailableError,
@@ -34,6 +36,27 @@ class InMemoryPortfolioProvider:
     def list_accounts(self) -> tuple[str, ...]:
         """Return account ids without exposing provider-specific account data."""
         return tuple(self._snapshots)
+
+    def get_portfolio(self, account_id: str) -> Portfolio:
+        """Return a minimal provider-neutral portfolio."""
+        snapshot = self.get_snapshot(account_id)
+        return Portfolio(
+            cash_balance=snapshot.total_cash,
+            total_market_value=snapshot.total_market_value,
+            holdings=tuple(
+                Holding(
+                    ticker=holding.symbol,
+                    quantity=holding.quantity,
+                    market_value=holding.market_value,
+                    portfolio_weight=holding.weight_in_portfolio(
+                        snapshot.total_equity or 0.0
+                    ),
+                    average_cost=holding.average_cost,
+                    unrealized_gain_loss=holding.unrealized_gain_loss,
+                )
+                for holding in snapshot.holdings
+            ),
+        )
 
     def get_snapshot(self, account_id: str) -> PortfolioSnapshot:
         """Return a stored snapshot or raise provider-neutral errors."""
@@ -98,6 +121,25 @@ def test_get_snapshot_returns_portfolio_snapshot() -> None:
     assert result.total_equity == 1250.0
 
 
+def test_get_portfolio_returns_minimal_portfolio() -> None:
+    """Providers should expose the provider-neutral Portfolio architecture."""
+    provider = InMemoryPortfolioProvider({"taxable": _snapshot("taxable")})
+
+    portfolio = provider.get_portfolio("taxable")
+
+    assert portfolio.cash_balance == 250.0
+    assert portfolio.total_market_value == 1000.0
+    assert portfolio.tickers() == ("AAPL",)
+    assert portfolio.holdings[0] == Holding(
+        ticker="AAPL",
+        quantity=5.0,
+        market_value=1000.0,
+        portfolio_weight=0.8,
+        average_cost=180.0,
+        unrealized_gain_loss=100.0,
+    )
+
+
 def test_get_snapshot_raises_account_not_found_error() -> None:
     """Missing accounts should use the provider-neutral not-found error."""
     provider = InMemoryPortfolioProvider({"taxable": _snapshot("taxable")})
@@ -128,6 +170,8 @@ def test_provider_neutral_imports_are_available() -> None:
     import parakeetnest.portfolio as portfolio
 
     assert portfolio.PortfolioProvider is PortfolioProvider
+    assert portfolio.Portfolio is Portfolio
+    assert portfolio.Holding is Holding
     assert portfolio.PortfolioProviderError is PortfolioProviderError
     assert portfolio.PortfolioAccountNotFoundError is PortfolioAccountNotFoundError
     assert portfolio.PortfolioDataUnavailableError is PortfolioDataUnavailableError

@@ -1,6 +1,8 @@
 """Portfolio Intelligence domain model package."""
 
 from parakeetnest.portfolio.models import (
+    Holding,
+    Portfolio,
     PortfolioAllocation,
     PortfolioAssetType,
     PortfolioCashBalance,
@@ -33,11 +35,13 @@ from parakeetnest.portfolio.provider import PortfolioProvider
 from parakeetnest.portfolio.service import PortfolioService
 
 __all__ = [
+    "Holding",
     "MACRO_STRATEGIST_PROFILE",
     "MockPortfolioProvider",
     "PORTFOLIO_COMMITTEE_AGENT_PROFILES",
     "PORTFOLIO_MANAGER_PROFILE",
     "PORTFOLIO_RISK_MANAGER_PROFILE",
+    "Portfolio",
     "PortfolioAllocation",
     "PortfolioAccountNotFoundError",
     "PortfolioAssetType",

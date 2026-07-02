@@ -8,6 +8,52 @@ from decimal import Decimal
 from enum import Enum
 
 
+@dataclass(frozen=True)
+class Holding:
+    """Minimal provider-neutral portfolio holding."""
+
+    ticker: str
+    quantity: float
+    market_value: float
+    portfolio_weight: float
+    average_cost: float | None = None
+    unrealized_gain_loss: float | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize broker-neutral holding values."""
+        object.__setattr__(self, "ticker", self.ticker.strip().upper())
+        object.__setattr__(self, "quantity", float(self.quantity))
+        object.__setattr__(self, "market_value", float(self.market_value))
+        object.__setattr__(self, "portfolio_weight", float(self.portfolio_weight))
+        if self.average_cost is not None:
+            object.__setattr__(self, "average_cost", float(self.average_cost))
+        if self.unrealized_gain_loss is not None:
+            object.__setattr__(
+                self,
+                "unrealized_gain_loss",
+                float(self.unrealized_gain_loss),
+            )
+
+
+@dataclass(frozen=True)
+class Portfolio:
+    """Minimal provider-neutral portfolio snapshot."""
+
+    cash_balance: float
+    total_market_value: float
+    holdings: tuple[Holding, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        """Normalize portfolio values and immutable holdings collection."""
+        object.__setattr__(self, "cash_balance", float(self.cash_balance))
+        object.__setattr__(self, "total_market_value", float(self.total_market_value))
+        object.__setattr__(self, "holdings", tuple(self.holdings))
+
+    def tickers(self) -> tuple[str, ...]:
+        """Return normalized holding tickers in portfolio order."""
+        return tuple(holding.ticker for holding in self.holdings)
+
+
 class PortfolioAssetType(str, Enum):
     """Provider-neutral asset classes supported by portfolio v1."""
 
@@ -306,6 +352,8 @@ def _decimal(value: Decimal | float | int | str) -> Decimal:
 
 
 __all__ = [
+    "Holding",
+    "Portfolio",
     "PortfolioAllocation",
     "PortfolioAssetType",
     "PortfolioCashBalance",

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 from datetime import UTC, datetime
 
 import pytest
 
 from parakeetnest.portfolio import (
+    Holding,
+    Portfolio,
     PortfolioAllocation,
     PortfolioAssetType,
     PortfolioCashBalance,
@@ -20,6 +22,85 @@ from parakeetnest.portfolio import (
 
 
 AS_OF = datetime(2026, 7, 1, 13, 30, tzinfo=UTC)
+
+
+def test_holding_model_has_story_39_1_field_boundary() -> None:
+    """Holding should expose only the provider-neutral portfolio fields."""
+    assert tuple(field.name for field in fields(Holding)) == (
+        "ticker",
+        "quantity",
+        "market_value",
+        "portfolio_weight",
+        "average_cost",
+        "unrealized_gain_loss",
+    )
+
+
+def test_holding_normalizes_minimal_provider_neutral_values() -> None:
+    """Minimal holdings should normalize broker-neutral values."""
+    holding = Holding(
+        ticker=" nvda ",
+        quantity=3,
+        market_value=600,
+        portfolio_weight=0.25,
+        average_cost=150,
+        unrealized_gain_loss=150,
+    )
+
+    assert holding.ticker == "NVDA"
+    assert holding.quantity == 3.0
+    assert holding.market_value == 600.0
+    assert holding.portfolio_weight == 0.25
+    assert holding.average_cost == 150.0
+    assert holding.unrealized_gain_loss == 150.0
+
+    with pytest.raises(FrozenInstanceError):
+        holding.ticker = "AMD"
+
+
+def test_holding_optional_fields_default_to_none() -> None:
+    """Cost and gain/loss should be optional at the provider boundary."""
+    holding = Holding(
+        ticker="MSFT",
+        quantity=2,
+        market_value=1000,
+        portfolio_weight=0.4,
+    )
+
+    assert holding.average_cost is None
+    assert holding.unrealized_gain_loss is None
+
+
+def test_portfolio_model_has_story_39_1_field_boundary() -> None:
+    """Portfolio should expose only the minimal portfolio architecture fields."""
+    assert tuple(field.name for field in fields(Portfolio)) == (
+        "cash_balance",
+        "total_market_value",
+        "holdings",
+    )
+
+
+def test_portfolio_normalizes_holdings_and_tickers() -> None:
+    """Portfolios should keep holdings immutable and provider-neutral."""
+    nvda = Holding(
+        ticker="nvda",
+        quantity=1,
+        market_value=200,
+        portfolio_weight=0.2,
+    )
+    portfolio = Portfolio(
+        cash_balance=500,
+        total_market_value=1000,
+        holdings=[nvda],
+    )
+
+    assert portfolio.cash_balance == 500.0
+    assert portfolio.total_market_value == 1000.0
+    assert portfolio.holdings == (nvda,)
+    assert portfolio.tickers() == ("NVDA",)
+
+    with pytest.raises(FrozenInstanceError):
+        portfolio.cash_balance = 0
 
 
 def test_portfolio_asset_type_values_are_stable() -> None:
@@ -221,6 +302,8 @@ def test_public_models_are_exported_from_portfolio_package() -> None:
     import parakeetnest.portfolio as portfolio
 
     assert portfolio.PortfolioHolding is PortfolioHolding
+    assert portfolio.Holding is Holding
+    assert portfolio.Portfolio is Portfolio
     assert portfolio.PortfolioSnapshot is PortfolioSnapshot
     assert portfolio.PortfolioPositionType is PortfolioPositionType
     assert portfolio.PortfolioAssetType is PortfolioAssetType

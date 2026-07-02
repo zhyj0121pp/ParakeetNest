@@ -145,6 +145,21 @@ def test_empty_portfolio_returns_empty_snapshot() -> None:
     assert snapshot.cash_balances == ()
 
 
+def test_default_account_alias_uses_first_available_robinhood_account() -> None:
+    client = FakeRobinhoodClient(accounts=("RH123",))
+    provider = _provider(client)
+
+    snapshot = provider.get_snapshot("default")
+
+    assert snapshot.account_id == "RH123"
+    assert client.calls == [
+        ("list_accounts", None),
+        ("get_holdings", "RH123"),
+        ("get_cash", "RH123"),
+        ("get_account_summary", "RH123"),
+    ]
+
+
 def test_missing_credentials_fail_gracefully() -> None:
     provider = RobinhoodPortfolioProvider()
 
@@ -152,11 +167,11 @@ def test_missing_credentials_fail_gracefully() -> None:
         provider.list_accounts()
 
 
-def test_missing_account_raises_provider_neutral_not_found_error() -> None:
+def test_missing_explicit_account_raises_provider_neutral_not_found_error() -> None:
     provider = _provider(FakeRobinhoodClient(accounts=("ira",)))
 
     with pytest.raises(PortfolioAccountNotFoundError, match="account not found"):
-        provider.get_snapshot("default")
+        provider.get_snapshot("missing")
 
 
 def test_expired_session_client_exception_maps_to_data_unavailable() -> None:

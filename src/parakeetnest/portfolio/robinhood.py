@@ -100,15 +100,18 @@ class RobinhoodPortfolioProvider:
         def load_snapshot() -> PortfolioSnapshot:
             client = self._client_for_use()
             accounts = client.list_accounts()
-            if normalized_account_id not in accounts:
+            resolved_account_id = normalized_account_id
+            if normalized_account_id == "default" and accounts:
+                resolved_account_id = accounts[0]
+            elif normalized_account_id not in accounts:
                 raise PortfolioAccountNotFoundError(
                     f"portfolio account not found: {normalized_account_id}"
                 )
-            raw_holdings = client.get_holdings(normalized_account_id)
-            cash = client.get_cash(normalized_account_id)
-            summary = client.get_account_summary(normalized_account_id)
+            raw_holdings = client.get_holdings(resolved_account_id)
+            cash = client.get_cash(resolved_account_id)
+            summary = client.get_account_summary(resolved_account_id)
             return _snapshot_from_payloads(
-                account_id=normalized_account_id,
+                account_id=resolved_account_id,
                 as_of=self._as_of_provider(),
                 raw_holdings=raw_holdings,
                 raw_cash=cash,

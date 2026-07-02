@@ -91,7 +91,10 @@ def create_portfolio_committee_runner(
     """Wire the local portfolio committee using mock portfolio inputs."""
     portfolio_provider = MockPortfolioProvider()
     portfolio_service = PortfolioService(portfolio_provider)
-    portfolio_context_provider = PortfolioContextProvider(portfolio_service, account_id)
+    portfolio_context_provider = PortfolioContextProvider(
+        portfolio_provider,
+        account_id,
+    )
 
     session: Session | None = None
     memory_service: CommitteeMemoryService | None = None

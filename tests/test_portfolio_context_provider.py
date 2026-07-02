@@ -1,4 +1,4 @@
-"""Tests for PortfolioContextProvider service-backed context generation."""
+"""Tests for PortfolioContextProvider provider-backed context generation."""
 
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ from parakeetnest.context import (
     UnsupportedContextRequestError,
 )
 from parakeetnest.portfolio import (
+    Portfolio,
     PortfolioCashBalance,
     PortfolioContextProvider,
     PortfolioDataUnavailableError,
     PortfolioHolding,
     PortfolioProvider,
-    PortfolioService,
     PortfolioSnapshot,
 )
 
@@ -36,6 +36,13 @@ class StaticPortfolioProvider:
     def list_accounts(self) -> tuple[str, ...]:
         return tuple(self.snapshots)
 
+    def get_portfolio(self, account_id: str) -> Portfolio:
+        snapshot = self.get_snapshot(account_id)
+        return Portfolio(
+            cash_balance=snapshot.total_cash,
+            total_market_value=snapshot.total_market_value,
+        )
+
     def get_snapshot(self, account_id: str) -> PortfolioSnapshot:
         return self.snapshots[account_id]
 
@@ -45,6 +52,9 @@ class FailingPortfolioProvider:
 
     def list_accounts(self) -> tuple[str, ...]:
         return ("main",)
+
+    def get_portfolio(self, account_id: str) -> Portfolio:
+        raise PortfolioDataUnavailableError(f"portfolio unavailable: {account_id}")
 
     def get_snapshot(self, account_id: str) -> PortfolioSnapshot:
         raise PortfolioDataUnavailableError(f"portfolio unavailable: {account_id}")
@@ -85,8 +95,8 @@ def _snapshot(account_id: str = "main") -> PortfolioSnapshot:
 
 
 def _provider(snapshot: PortfolioSnapshot | None = None) -> PortfolioContextProvider:
-    service = PortfolioService(StaticPortfolioProvider({"main": snapshot or _snapshot()}))
-    return PortfolioContextProvider(service, account_id="main")
+    portfolio_provider = StaticPortfolioProvider({"main": snapshot or _snapshot()})
+    return PortfolioContextProvider(portfolio_provider, account_id="main")
 
 
 def _rendered_context(provider: PortfolioContextProvider | None = None) -> str:
@@ -97,8 +107,8 @@ def _rendered_context(provider: PortfolioContextProvider | None = None) -> str:
 
 
 def test_portfolio_context_provider_can_be_created() -> None:
-    service = PortfolioService(StaticPortfolioProvider({"main": _snapshot()}))
-    provider = PortfolioContextProvider(service, account_id="main")
+    portfolio_provider = StaticPortfolioProvider({"main": _snapshot()})
+    provider = PortfolioContextProvider(portfolio_provider, account_id="main")
 
     assert provider.provider_name == "portfolio"
     assert provider.supports(ContextRequest(question="Review.", symbols=())) is True
@@ -172,7 +182,7 @@ def test_unsupported_request_uses_context_layer_error() -> None:
 
 def test_provider_errors_propagate_consistently() -> None:
     provider = PortfolioContextProvider(
-        PortfolioService(FailingPortfolioProvider()),
+        FailingPortfolioProvider(),
         account_id="main",
     )
 
@@ -197,7 +207,7 @@ def test_portfolio_context_provider_implements_context_provider_contract() -> No
 def test_portfolio_context_provider_accepts_portfolio_provider_protocol() -> None:
     provider: PortfolioProvider = StaticPortfolioProvider({"main": _snapshot()})
     context_provider = PortfolioContextProvider(
-        PortfolioService(provider),
+        provider,
         account_id="main",
     )
 

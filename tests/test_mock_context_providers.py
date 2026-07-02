@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from parakeetnest.context import ContextRequest, ContextService, MeetingContext
 from parakeetnest.context.providers import (
     KnowledgeBaseContextProvider,
@@ -13,6 +15,12 @@ from parakeetnest.context.providers import (
 from parakeetnest.market_data import MarketDataService, MockMarketDataProvider
 from parakeetnest.macro import MacroDataService, MockMacroDataProvider
 from parakeetnest.news import MockNewsProvider, NewsService
+from parakeetnest.portfolio import (
+    MockPortfolioProvider,
+    PortfolioCashBalance,
+    PortfolioHolding,
+    PortfolioSnapshot,
+)
 
 
 SECTION_NAMES = (
@@ -53,6 +61,7 @@ def test_providers_support_expected_requests() -> None:
     assert _news_context_provider().supports(no_symbols) is False
 
     assert PortfolioContextProvider().supports(request) is True
+    assert PortfolioContextProvider().supports(no_symbols) is True
     assert PortfolioContextProvider().supports(
         ContextRequest(
             question="Review AMD without portfolio.",
@@ -142,9 +151,20 @@ def test_mock_providers_work_with_context_service() -> None:
     assert tuple(item.symbol for item in context.news.items) == ("AMD", "NVDA")
     assert context.portfolio is not None
     assert tuple(position.symbol for position in context.portfolio.positions) == (
-        "AMD",
         "NVDA",
+        "MSFT",
+        "AAPL",
+        "MU",
+        "CRDO",
+        "RKLB",
+        "OKLO",
     )
+    assert context.portfolio.cash_balance == 2500.0
+    assert context.portfolio.total_value == 36708.2
+    assert tuple(
+        allocation.category
+        for allocation in context.portfolio.allocation_by_symbol[:2]
+    ) == ("NVDA", "MSFT")
     assert context.macro is not None
     assert context.macro.summary is None
     assert context.macro.indicators[:3] == (
@@ -162,14 +182,15 @@ def test_mock_providers_work_with_context_service() -> None:
     assert context.metadata.sources == (
         "market_data",
         "news",
-        "mock_portfolio",
+        "portfolio",
         "macro",
         "mock_knowledge_base",
     )
     assert context.metadata.data_quality_notes == (
         "market_data.source=market_data_service",
         "news.source=news_service",
-        "mock_portfolio.fixture=portfolio",
+        "portfolio.account_id=mock-main",
+        "portfolio.source=mock_portfolio_provider",
         "macro.source=macro_data_service",
         "mock_knowledge_base.fixture=knowledge_base",
     )
@@ -188,3 +209,37 @@ def test_context_service_output_is_deterministic_with_mock_providers() -> None:
     assert ContextService(providers).build_context(request) == ContextService(
         providers
     ).build_context(request)
+
+
+def test_portfolio_context_provider_uses_portfolio_provider_snapshot() -> None:
+    as_of = datetime(2026, 7, 1, 12, 0, tzinfo=UTC)
+    portfolio_provider = MockPortfolioProvider(
+        snapshots={
+            "paper": PortfolioSnapshot(
+                account_id="paper",
+                as_of=as_of,
+                holdings=(
+                    PortfolioHolding(
+                        symbol="XYZ",
+                        name="Xylophone Yield Zone",
+                        quantity=2,
+                        average_cost=40,
+                        current_price=50,
+                    ),
+                ),
+                cash_balances=(PortfolioCashBalance(amount=25),),
+            )
+        }
+    )
+
+    result = PortfolioContextProvider(
+        portfolio_provider,
+        account_id="paper",
+    ).build_context(ContextRequest(question="Review portfolio.", symbols=()))
+
+    portfolio = result.partial_context.portfolio
+    assert portfolio is not None
+    assert portfolio.cash_balance == 25.0
+    assert portfolio.total_value == 125.0
+    assert portfolio.positions[0].symbol == "XYZ"
+    assert portfolio.allocation_by_symbol[0].percent == 0.8

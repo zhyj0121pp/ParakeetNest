@@ -1,7 +1,8 @@
-"""Portfolio context provider backed by the PortfolioService boundary."""
+"""Portfolio context provider backed by the PortfolioProvider abstraction."""
 
 from __future__ import annotations
 
+from collections import defaultdict
 from decimal import Decimal
 
 from parakeetnest.context.models import (
@@ -23,7 +24,7 @@ from parakeetnest.portfolio.models import (
     PortfolioRiskSummary,
     PortfolioSnapshot,
 )
-from parakeetnest.portfolio.service import PortfolioService
+from parakeetnest.portfolio.provider import PortfolioProvider
 
 
 class PortfolioContextProvider:
@@ -33,10 +34,10 @@ class PortfolioContextProvider:
 
     def __init__(
         self,
-        portfolio_service: PortfolioService,
+        portfolio_provider: PortfolioProvider,
         account_id: str,
     ) -> None:
-        self._portfolio_service = portfolio_service
+        self._portfolio_provider = portfolio_provider
         self._account_id = account_id
 
     def supports(self, request: ContextRequest) -> bool:
@@ -46,15 +47,11 @@ class PortfolioContextProvider:
         if not self.supports(request):
             raise UnsupportedContextRequestError(self.provider_name, request)
 
-        snapshot = self._portfolio_service.get_snapshot(self._account_id)
-        top_holdings = self._portfolio_service.get_top_holdings(self._account_id)
-        allocation_by_symbol = self._portfolio_service.get_allocation_by_symbol(
-            self._account_id
-        )
-        allocation_by_sector = self._portfolio_service.get_allocation_by_sector(
-            self._account_id
-        )
-        risk_summary = self._portfolio_service.get_risk_summary(self._account_id)
+        snapshot = self._portfolio_provider.get_snapshot(self._account_id)
+        top_holdings = _top_holdings(snapshot)
+        allocation_by_symbol = _allocation_by_symbol(snapshot)
+        allocation_by_sector = _allocation_by_sector(snapshot)
+        risk_summary = _risk_summary(snapshot)
 
         fetched_at = request.as_of or snapshot.as_of
         partial_context = MeetingContext(
@@ -96,7 +93,7 @@ class PortfolioContextProvider:
         return ContextProviderResult(
             provider_name=self.provider_name,
             partial_context=partial_context,
-            metadata={"source": "portfolio_service", "account_id": snapshot.account_id},
+            metadata={"source": "portfolio_provider", "account_id": snapshot.account_id},
         )
 
     @staticmethod
@@ -145,6 +142,106 @@ class PortfolioContextProvider:
 def _float(value: Decimal | float | int) -> float:
     """Return a renderer-friendly float for numeric context fields."""
     return float(value)
+
+
+def _allocation_by_symbol(
+    snapshot: PortfolioSnapshot,
+) -> tuple[PortfolioAllocation, ...]:
+    """Return holding allocations by symbol from one provider snapshot."""
+    total_equity = _decimal(snapshot.total_equity)
+    if total_equity == 0:
+        return ()
+
+    return tuple(
+        PortfolioAllocation(
+            category=holding.symbol,
+            value=_decimal(holding.market_value),
+            percent=_weight(holding.market_value, total_equity),
+        )
+        for holding in snapshot.holdings
+    )
+
+
+def _allocation_by_sector(
+    snapshot: PortfolioSnapshot,
+) -> tuple[PortfolioAllocation, ...]:
+    """Return holding allocations grouped by sector from one snapshot."""
+    total_equity = _decimal(snapshot.total_equity)
+    if total_equity == 0:
+        return ()
+
+    sector_values: defaultdict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    for holding in snapshot.holdings:
+        sector_values[holding.sector or "Unknown"] += _decimal(holding.market_value)
+
+    return tuple(
+        PortfolioAllocation(category=sector, value=value, percent=value / total_equity)
+        for sector, value in sorted(sector_values.items())
+    )
+
+
+def _top_holdings(
+    snapshot: PortfolioSnapshot,
+    limit: int = 5,
+) -> tuple[PortfolioHolding, ...]:
+    """Return largest holdings by market value from one snapshot."""
+    return tuple(
+        sorted(
+            snapshot.holdings,
+            key=lambda holding: (-_decimal(holding.market_value), holding.symbol),
+        )[:limit]
+    )
+
+
+def _risk_summary(snapshot: PortfolioSnapshot) -> PortfolioRiskSummary:
+    """Return simple provider-neutral portfolio risk context."""
+    if snapshot.is_empty():
+        return PortfolioRiskSummary()
+
+    total_equity = _decimal(snapshot.total_equity)
+    if total_equity == 0:
+        return PortfolioRiskSummary(holding_count=snapshot.holding_count())
+
+    top_holdings = _top_holdings(snapshot)
+    largest_holding = top_holdings[0] if top_holdings else None
+    largest_holding_weight = (
+        _weight(largest_holding.market_value, total_equity)
+        if largest_holding is not None
+        else Decimal("0")
+    )
+    top_5_concentration = sum(
+        (_decimal(holding.market_value) for holding in top_holdings),
+        Decimal("0"),
+    ) / total_equity
+    sectors = {holding.sector or "Unknown" for holding in snapshot.holdings}
+
+    return PortfolioRiskSummary(
+        concentration_score=float(top_5_concentration),
+        largest_position_symbol=largest_holding.symbol if largest_holding else None,
+        largest_position_weight=float(largest_holding_weight),
+        holding_count=snapshot.holding_count(),
+        largest_holding_symbol=largest_holding.symbol if largest_holding else None,
+        largest_holding_weight=largest_holding_weight,
+        top_5_concentration=top_5_concentration,
+        cash_weight=_weight(snapshot.total_cash, total_equity),
+        sector_count=len(sectors),
+    )
+
+
+def _decimal(value: Decimal | float | int | str | None) -> Decimal:
+    """Return a Decimal using string conversion for provider float values."""
+    if value is None:
+        return Decimal("0")
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
+def _weight(value: Decimal | float | int | str | None, total: Decimal) -> Decimal:
+    """Return a stable Decimal fraction for a value over total."""
+    if total == 0:
+        return Decimal("0")
+    return _decimal(value) / total
 
 
 __all__ = ["PortfolioContextProvider"]

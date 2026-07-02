@@ -63,6 +63,7 @@ from parakeetnest.market_data import (
 )
 from parakeetnest.macro import MacroDataService, MockMacroDataProvider
 from parakeetnest.news import NewsService, create_news_provider_registry
+from parakeetnest.portfolio import MockPortfolioProvider
 from parakeetnest.regime import EconomicRegimeService
 from parakeetnest.regime.context_provider import EconomicRegimeContextProvider
 from parakeetnest.sec import SecFilingService, create_sec_filing_provider_registry
@@ -307,7 +308,10 @@ def _create_context_provider_registry(
         "financial_statements",
         FinancialStatementContextProvider(financial_statement_service),
     )
-    registry.register("mock_portfolio", PortfolioContextProvider())
+    registry.register(
+        "portfolio",
+        PortfolioContextProvider(MockPortfolioProvider(), account_id="mock-main"),
+    )
     registry.register("macro", MacroContextProvider(macro_data_service))
     registry.register(
         "economic_regime",

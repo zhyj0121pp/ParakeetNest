@@ -7,6 +7,7 @@ import pytest
 
 from parakeetnest.market_data import (
     AssetType,
+    CompanyInfo,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -86,6 +87,34 @@ def test_price_bar_creation_and_immutability() -> None:
 
     with pytest.raises(FrozenInstanceError):
         bar.close = 621.0
+
+
+def test_company_info_creation_and_immutability() -> None:
+    """Company info should capture provider-neutral profile fields."""
+    company_info = CompanyInfo(
+        symbol=Symbol("aapl"),
+        name="Apple Inc.",
+        asset_type=AssetType.STOCK,
+        exchange="NASDAQ",
+        currency="USD",
+        sector="Technology",
+        industry="Consumer Electronics",
+        country="United States",
+        website="https://www.apple.com",
+        market_cap=3_200_000_000_000.0,
+        full_time_employees=164_000,
+        summary="Consumer technology company.",
+    )
+
+    assert company_info.symbol == Symbol("AAPL")
+    assert company_info.name == "Apple Inc."
+    assert company_info.asset_type is AssetType.STOCK
+    assert company_info.sector == "Technology"
+    assert company_info.market_cap == 3_200_000_000_000.0
+    assert company_info.full_time_employees == 164_000
+
+    with pytest.raises(FrozenInstanceError):
+        company_info.name = "Changed"
 
 
 def test_market_data_range_creation() -> None:

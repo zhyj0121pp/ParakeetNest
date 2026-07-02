@@ -23,6 +23,8 @@ class MarketDataConfig:
     """Market data provider configuration."""
 
     provider: str = "mock"
+    max_attempts: int = 3
+    retry_delay_seconds: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -66,7 +68,7 @@ class AppConfig:
     watchlist_seed_path: Path | None = None
     llm: LLMConfig | Mapping[str, str | float] = field(default_factory=LLMConfig)
     llm_provider: str | None = None
-    market_data: MarketDataConfig | Mapping[str, str] = field(
+    market_data: MarketDataConfig | Mapping[str, str | int | float] = field(
         default_factory=MarketDataConfig
     )
     news: NewsConfig | Mapping[str, str] = field(default_factory=NewsConfig)

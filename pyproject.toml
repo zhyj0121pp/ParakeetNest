@@ -12,7 +12,6 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.2",
     "SQLAlchemy>=2.0",
-    "yfinance>=0.2",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +20,9 @@ dev = [
 ]
 openai = [
     "openai>=1",
+]
+yahoo = [
+    "yfinance>=0.2",
 ]
 
 [tool.setuptools.packages.find]

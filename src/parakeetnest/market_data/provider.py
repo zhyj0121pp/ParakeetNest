@@ -7,6 +7,7 @@ from typing import Protocol, runtime_checkable
 
 from parakeetnest.market_data.errors import MarketDataError
 from parakeetnest.market_data.models import (
+    CompanyInfo,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -17,6 +18,7 @@ from parakeetnest.market_data.models import (
 class ProviderCapability(str, Enum):
     """Provider-agnostic capabilities a market data source may support."""
 
+    COMPANY_INFO = "company_info"
     SNAPSHOT = "snapshot"
     PRICE_HISTORY = "price_history"
 
@@ -34,6 +36,10 @@ class MarketDataProvider(Protocol):
 
     def get_snapshot(self, symbol: Symbol) -> MarketDataSnapshot:
         """Return current point-in-time market data for the symbol."""
+        ...
+
+    def get_company_info(self, symbol: Symbol) -> CompanyInfo:
+        """Return basic company profile information for the symbol."""
         ...
 
     def get_price_history(

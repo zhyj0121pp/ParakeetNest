@@ -31,6 +31,7 @@
 | [Epic 025](epic-025-investment-research-report-mvp.md) | Investment Research Report MVP | Completed |
 | [Epic 026](epic-026-investment-report-renderer.md) | Investment Report Renderer | Completed |
 | [Epic 041](epic-041-openai-provider.md) | OpenAI Provider | Completed |
+| [Epic 042](epic-042-yahoo-finance-provider.md) | Yahoo Finance Provider | Completed |
 
 Completed epics link to their detailed documentation. Planned epics are listed
 here first and should receive dedicated pages when implementation begins.

@@ -43,6 +43,23 @@ def test_selecting_yahoo_market_data_provider_works() -> None:
     assert isinstance(provider, YahooFinanceMarketDataProvider)
 
 
+def test_selecting_yahoo_market_data_provider_uses_configured_retry_options() -> None:
+    config = AppConfig(
+        market_data=MarketDataConfig(
+            provider="yahoo",
+            max_attempts=2,
+            retry_delay_seconds=0.0,
+        )
+    )
+    registry = create_market_data_provider_registry()
+
+    provider = registry.resolve(config.market_data)
+
+    assert isinstance(provider, YahooFinanceMarketDataProvider)
+    assert provider._max_attempts == 2
+    assert provider._retry_delay_seconds == 0.0
+
+
 def test_unknown_market_data_provider_raises_clear_config_error() -> None:
     registry = create_market_data_provider_registry()
 

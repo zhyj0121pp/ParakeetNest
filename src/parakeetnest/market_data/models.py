@@ -51,6 +51,24 @@ class MarketDataSnapshot:
 
 
 @dataclass(frozen=True)
+class CompanyInfo:
+    """Basic provider-neutral company profile information."""
+
+    symbol: Symbol
+    name: str
+    asset_type: AssetType = AssetType.UNKNOWN
+    exchange: str | None = None
+    currency: str | None = None
+    sector: str | None = None
+    industry: str | None = None
+    country: str | None = None
+    website: str | None = None
+    market_cap: float | None = None
+    full_time_employees: int | None = None
+    summary: str | None = None
+
+
+@dataclass(frozen=True)
 class PriceBar:
     """OHLCV market data for one time interval."""
 

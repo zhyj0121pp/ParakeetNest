@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from parakeetnest.market_data.models import (
     AssetType,
+    CompanyInfo,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -323,6 +324,93 @@ class MockMarketDataProvider:
         ),
     }
 
+    _COMPANY_INFO = {
+        "AMD": CompanyInfo(
+            symbol=Symbol("AMD"),
+            name="Advanced Micro Devices, Inc.",
+            asset_type=AssetType.STOCK,
+            exchange="NASDAQ",
+            currency="USD",
+            sector="Technology",
+            industry="Semiconductors",
+            country="United States",
+            website="https://www.amd.com",
+            market_cap=284_000_000_000.0,
+            full_time_employees=26_000,
+            summary="Mock profile for semiconductor market data tests.",
+        ),
+        "AAPL": CompanyInfo(
+            symbol=Symbol("AAPL"),
+            name="Apple Inc.",
+            asset_type=AssetType.STOCK,
+            exchange="NASDAQ",
+            currency="USD",
+            sector="Technology",
+            industry="Consumer Electronics",
+            country="United States",
+            website="https://www.apple.com",
+            market_cap=3_200_000_000_000.0,
+            full_time_employees=164_000,
+            summary="Mock profile for consumer technology market data tests.",
+        ),
+        "MSFT": CompanyInfo(
+            symbol=Symbol("MSFT"),
+            name="Microsoft Corporation",
+            asset_type=AssetType.STOCK,
+            exchange="NASDAQ",
+            currency="USD",
+            sector="Technology",
+            industry="Software - Infrastructure",
+            country="United States",
+            website="https://www.microsoft.com",
+            market_cap=3_600_000_000_000.0,
+            full_time_employees=228_000,
+            summary="Mock profile for software market data tests.",
+        ),
+        "NVDA": CompanyInfo(
+            symbol=Symbol("NVDA"),
+            name="NVIDIA Corporation",
+            asset_type=AssetType.STOCK,
+            exchange="NASDAQ",
+            currency="USD",
+            sector="Technology",
+            industry="Semiconductors",
+            country="United States",
+            website="https://www.nvidia.com",
+            market_cap=3_850_000_000_000.0,
+            full_time_employees=36_000,
+            summary="Mock profile for AI accelerator market data tests.",
+        ),
+        "SPY": CompanyInfo(
+            symbol=Symbol("SPY"),
+            name="SPDR S&P 500 ETF Trust",
+            asset_type=AssetType.ETF,
+            exchange="NYSEARCA",
+            currency="USD",
+            sector=None,
+            industry=None,
+            country="United States",
+            website="https://www.ssga.com",
+            market_cap=None,
+            full_time_employees=None,
+            summary="Mock profile for broad-market ETF tests.",
+        ),
+        "POET": CompanyInfo(
+            symbol=Symbol("POET"),
+            name="POET Technologies Inc.",
+            asset_type=AssetType.STOCK,
+            exchange="NASDAQ",
+            currency="USD",
+            sector="Technology",
+            industry="Semiconductors",
+            country="Canada",
+            website="https://www.poet-technologies.com",
+            market_cap=180_000_000.0,
+            full_time_employees=80,
+            summary="Mock profile for small-cap photonics market data tests.",
+        ),
+    }
+
     def supports(self, symbol: Symbol) -> bool:
         """Return whether embedded data exists for the symbol."""
         return symbol.ticker in self._SNAPSHOTS
@@ -331,6 +419,11 @@ class MockMarketDataProvider:
         """Return a deterministic snapshot for the symbol."""
         self._raise_if_unsupported(symbol)
         return self._SNAPSHOTS[symbol.ticker]
+
+    def get_company_info(self, symbol: Symbol) -> CompanyInfo:
+        """Return deterministic company profile information for the symbol."""
+        self._raise_if_unsupported(symbol)
+        return self._COMPANY_INFO[symbol.ticker]
 
     def get_price_history(
         self,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from parakeetnest.market_data.models import (
+    CompanyInfo,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -23,6 +24,11 @@ class MarketDataService:
         """Return a provider-backed snapshot for the symbol."""
         self._raise_if_unsupported(symbol)
         return self._provider.get_snapshot(symbol)
+
+    def get_company_info(self, symbol: Symbol) -> CompanyInfo:
+        """Return provider-backed company profile information."""
+        self._raise_if_unsupported(symbol)
+        return self._provider.get_company_info(symbol)
 
     def get_price_history(
         self,

@@ -5,13 +5,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from parakeetnest.config import MarketDataConfig
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.market_data.mock_provider import MockMarketDataProvider
 from parakeetnest.market_data.provider import MarketDataProvider
 from parakeetnest.market_data.yahoo import YahooFinanceMarketDataProvider
 
 
-MarketDataProviderFactory = Callable[[], MarketDataProvider]
+MarketDataProviderFactory = Callable[[MarketDataConfig], MarketDataProvider]
 
 
 @dataclass(frozen=True)
@@ -49,25 +50,42 @@ class MarketDataProviderRegistry:
         """Return all registered providers in registration order."""
         return tuple(self._registrations.values())
 
-    def resolve(self, provider_id: str) -> MarketDataProvider:
+    def resolve(self, config: MarketDataConfig | str) -> MarketDataProvider:
         """Create the provider selected by configuration."""
-        normalized_provider_id = provider_id.strip().lower()
+        resolved_config = self._resolve_config(config)
+        normalized_provider_id = resolved_config.provider.strip().lower()
         try:
             registration = self._registrations[normalized_provider_id]
         except KeyError as error:
             available_provider_ids = ", ".join(self._registrations) or "none"
             raise ConfigurationError(
                 "Unknown market data provider: "
-                f"{provider_id}. Available providers: {available_provider_ids}"
+                f"{resolved_config.provider}. Available providers: {available_provider_ids}"
             ) from error
-        return registration.factory()
+        return registration.factory(resolved_config)
+
+    def _resolve_config(self, config: MarketDataConfig | str) -> MarketDataConfig:
+        if isinstance(config, MarketDataConfig):
+            return config
+        return MarketDataConfig(provider=config)
+
+
+def _create_mock_provider(config: MarketDataConfig) -> MarketDataProvider:
+    return MockMarketDataProvider()
+
+
+def _create_yahoo_provider(config: MarketDataConfig) -> MarketDataProvider:
+    return YahooFinanceMarketDataProvider(
+        max_attempts=config.max_attempts,
+        retry_delay_seconds=config.retry_delay_seconds,
+    )
 
 
 def create_market_data_provider_registry() -> MarketDataProviderRegistry:
     """Create the default market data provider registry."""
     registry = MarketDataProviderRegistry()
-    registry.register("mock", MockMarketDataProvider)
-    registry.register("yahoo", YahooFinanceMarketDataProvider)
+    registry.register("mock", _create_mock_provider)
+    registry.register("yahoo", _create_yahoo_provider)
     return registry
 
 

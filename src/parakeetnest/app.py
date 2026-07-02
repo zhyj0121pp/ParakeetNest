@@ -297,9 +297,7 @@ def _create_context_provider_registry(
 ) -> ContextProviderRegistry:
     registry = ContextProviderRegistry()
     market_data_provider_registry = create_market_data_provider_registry()
-    market_data_provider = market_data_provider_registry.resolve(
-        config.market_data.provider
-    )
+    market_data_provider = market_data_provider_registry.resolve(config.market_data)
     market_data_service = MarketDataService(market_data_provider)
     registry.register("market_data", MarketContextProvider(market_data_service))
     registry.register("news", NewsContextProvider(news_service))

@@ -20,6 +20,7 @@ from parakeetnest.market_data.errors import (
 )
 from parakeetnest.market_data.models import (
     AssetType,
+    CompanyInfo,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -147,6 +148,72 @@ class YahooFinanceMarketDataProvider:
     def get_snapshot(self, symbol: Symbol) -> MarketDataSnapshot:
         """Return current point-in-time market data for the symbol."""
         return self.get_quote(symbol)
+
+    def get_company_info(self, symbol: Symbol | str) -> CompanyInfo:
+        """Return basic provider-neutral company profile information."""
+        normalized_symbol = self._normalize_symbol(symbol)
+        self._raise_if_invalid_symbol(normalized_symbol)
+        try:
+            raw_info = self._with_retries(
+                "get_company_info",
+                (normalized_symbol,),
+                lambda: getattr(self._ticker(normalized_symbol), "info", {}),
+            )
+            info = self._mapping_from(raw_info)
+            if not info:
+                raise MalformedMarketDataError(
+                    f"Yahoo Finance returned an empty company info response for {normalized_symbol.ticker}",
+                    symbol=normalized_symbol,
+                    details="empty_response",
+                )
+
+            name = self._optional_string(
+                self._first_present(
+                    {},
+                    info,
+                    "longName",
+                    "shortName",
+                    "displayName",
+                    "symbol",
+                )
+            )
+            if name is None:
+                raise MalformedMarketDataError(
+                    f"Yahoo Finance returned no usable company name for {normalized_symbol.ticker}",
+                    symbol=normalized_symbol,
+                )
+
+            return CompanyInfo(
+                symbol=normalized_symbol,
+                name=name,
+                asset_type=self._asset_type(info),
+                exchange=self._optional_string(
+                    self._first_present({}, info, "exchange", "fullExchangeName")
+                ),
+                currency=self._optional_string(
+                    self._first_present({}, info, "currency", "financialCurrency")
+                ),
+                sector=self._optional_string(info.get("sector")),
+                industry=self._optional_string(info.get("industry")),
+                country=self._optional_string(info.get("country")),
+                website=self._optional_string(info.get("website")),
+                market_cap=self._optional_float(info.get("marketCap")),
+                full_time_employees=self._optional_int(info.get("fullTimeEmployees")),
+                summary=self._optional_string(
+                    self._first_present({}, info, "longBusinessSummary", "description")
+                ),
+            )
+        except MarketDataError as error:
+            self._log_failure("get_company_info", (normalized_symbol,), error)
+            raise
+        except Exception as error:
+            mapped = MalformedMarketDataError(
+                f"Yahoo Finance returned malformed company info for {normalized_symbol.ticker}",
+                symbol=normalized_symbol,
+                cause=error,
+            )
+            self._log_failure("get_company_info", (normalized_symbol,), mapped)
+            raise mapped from error
 
     def get_price_history(
         self,
@@ -398,6 +465,18 @@ class YahooFinanceMarketDataProvider:
         if not isfinite(parsed):
             return None
         return parsed
+
+    def _optional_int(self, value: Any) -> int | None:
+        parsed = self._optional_float(value)
+        if parsed is None:
+            return None
+        return int(parsed)
+
+    def _optional_string(self, value: Any) -> str | None:
+        if value is None:
+            return None
+        parsed = str(value).strip()
+        return parsed or None
 
     def _timestamp(
         self,

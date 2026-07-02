@@ -2,6 +2,7 @@
 
 from parakeetnest.market_data.models import (
     AssetType,
+    CompanyInfo,
     MarketDataRange,
     MarketDataSnapshot,
     PriceBar,
@@ -31,6 +32,7 @@ from parakeetnest.market_data.yahoo import YahooFinanceMarketDataProvider
 
 __all__ = [
     "AssetType",
+    "CompanyInfo",
     "InvalidSymbolError",
     "MalformedMarketDataError",
     "MarketDataError",

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from parakeetnest.config import AppConfig, Settings, get_settings
+from parakeetnest.config import AppConfig, MarketDataConfig, Settings, get_settings
 
 
 def test_settings_defaults_are_safe() -> None:
@@ -96,3 +96,20 @@ def test_app_config_preserves_legacy_llm_provider_field() -> None:
 
     assert config.llm.provider == "mock"
     assert config.llm_provider == "mock"
+
+
+def test_app_config_supports_market_data_mapping() -> None:
+    """App config should normalize provider-neutral market data settings."""
+    config = AppConfig(
+        market_data={
+            "provider": "yahoo",
+            "max_attempts": 2,
+            "retry_delay_seconds": 0.0,
+        }
+    )
+
+    assert config.market_data == MarketDataConfig(
+        provider="yahoo",
+        max_attempts=2,
+        retry_delay_seconds=0.0,
+    )

@@ -6,6 +6,7 @@ from datetime import date
 
 from parakeetnest.email.models import EmailMessage
 from parakeetnest.email.provider import EmailProvider
+from parakeetnest.research.models import ReportMode
 
 
 class EmailService:
@@ -20,10 +21,11 @@ class EmailService:
         *,
         recipient: str,
         as_of_date: date | None = None,
+        mode: ReportMode | str | None = None,
     ) -> EmailMessage:
         """Send a generated daily report through the configured provider."""
         message = EmailMessage(
-            subject=self._build_subject(as_of_date=as_of_date),
+            subject=self._build_subject(as_of_date=as_of_date, mode=mode),
             body=report,
             recipient=recipient,
         )
@@ -34,6 +36,15 @@ class EmailService:
         )
         return message
 
-    def _build_subject(self, *, as_of_date: date | None = None) -> str:
+    def _build_subject(
+        self,
+        *,
+        as_of_date: date | None = None,
+        mode: ReportMode | str | None = None,
+    ) -> str:
         report_date = as_of_date or date.today()
-        return f"Daily Investment Report - {report_date.isoformat()}"
+        if mode is None:
+            title = "Daily Investment Report"
+        else:
+            title = ReportMode.from_value(mode).title
+        return f"{title} - {report_date.isoformat()}"

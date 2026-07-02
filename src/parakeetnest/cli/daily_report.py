@@ -130,6 +130,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 body,
                 recipient=args.email,
                 as_of_date=args.as_of_date,
+                mode=report_mode,
             )
         except Exception as exc:
             print(f"daily report email delivery failed: {exc}", file=sys.stderr)

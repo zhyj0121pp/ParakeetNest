@@ -153,12 +153,20 @@ def test_cli_invokes_email_service_when_email_is_specified(
         def __init__(self, provider: object) -> None:
             self.provider = provider
 
-        def send(self, report: str, *, recipient: str, as_of_date: date | None = None) -> None:
+        def send(
+            self,
+            report: str,
+            *,
+            recipient: str,
+            as_of_date: date | None = None,
+            mode: ReportMode | str | None = None,
+        ) -> None:
             sent.append(
                 {
                     "report": report,
                     "recipient": recipient,
                     "as_of_date": as_of_date,
+                    "mode": mode,
                 }
             )
 
@@ -187,8 +195,49 @@ def test_cli_invokes_email_service_when_email_is_specified(
             "report": "Market Summary\n",
             "recipient": "investor@example.com",
             "as_of_date": date(2026, 7, 1),
+            "mode": ReportMode.MORNING,
         }
     ]
+
+
+def test_cli_prints_report_and_real_console_email_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer("Market Summary\nCommittee Consensus\n")
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    exit_code = daily_report.main(
+        [
+            "--mode",
+            "evening",
+            "--tickers",
+            "NVDA",
+            "--as-of-date",
+            "2026-07-01",
+            "--email",
+            "investor@example.com",
+        ]
+    )
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == (
+        "Market Summary\n"
+        "Committee Consensus\n"
+        "==== EMAIL ====\n"
+        "To: investor@example.com\n"
+        "Subject: Evening Investment Review - 2026-07-01\n"
+        "\n"
+        "Market Summary\n"
+        "Committee Consensus\n"
+        "\n"
+        "==============\n"
+    )
 
 
 def test_cli_does_not_send_email_when_email_is_omitted(

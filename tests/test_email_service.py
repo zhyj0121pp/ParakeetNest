@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 
 from parakeetnest.email import ConsoleEmailProvider, EmailService
+from parakeetnest.research import ReportMode
 
 
 class RecordingEmailProvider:
@@ -45,6 +46,34 @@ def test_email_service_delegates_to_provider() -> None:
     ]
 
 
+def test_email_service_includes_morning_report_mode_in_subject() -> None:
+    provider = RecordingEmailProvider()
+
+    message = EmailService(provider).send(
+        "daily report body",
+        recipient="investor@example.com",
+        as_of_date=date(2026, 7, 1),
+        mode=ReportMode.MORNING,
+    )
+
+    assert message.subject == "Morning Investment Brief - 2026-07-01"
+    assert provider.calls[0]["subject"] == "Morning Investment Brief - 2026-07-01"
+
+
+def test_email_service_includes_evening_report_mode_in_subject() -> None:
+    provider = RecordingEmailProvider()
+
+    message = EmailService(provider).send(
+        "daily report body",
+        recipient="investor@example.com",
+        as_of_date=date(2026, 7, 1),
+        mode="evening",
+    )
+
+    assert message.subject == "Evening Investment Review - 2026-07-01"
+    assert provider.calls[0]["subject"] == "Evening Investment Review - 2026-07-01"
+
+
 def test_email_service_validates_recipient_before_delegating() -> None:
     provider = RecordingEmailProvider()
 
@@ -54,7 +83,9 @@ def test_email_service_validates_recipient_before_delegating() -> None:
     assert provider.calls == []
 
 
-def test_console_email_provider_prints_message(capsys: pytest.CaptureFixture[str]) -> None:
+def test_console_email_provider_prints_message(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     ConsoleEmailProvider().send(
         subject="Daily Investment Report - 2026-07-01",
         body="daily report body\n",

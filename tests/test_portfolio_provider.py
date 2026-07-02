@@ -176,3 +176,7 @@ def test_provider_neutral_imports_are_available() -> None:
     assert portfolio.PortfolioAccountNotFoundError is PortfolioAccountNotFoundError
     assert portfolio.PortfolioDataUnavailableError is PortfolioDataUnavailableError
     assert not hasattr(portfolio, "PortfolioContextProvider")
+    assert not hasattr(portfolio, "PortfolioCommitteeOrchestrator")
+    assert not hasattr(portfolio, "PortfolioCommitteeResult")
+    assert not hasattr(portfolio, "PORTFOLIO_COMMITTEE_AGENT_PROFILES")
+    assert not hasattr(portfolio, "register_portfolio_committee_agents")

@@ -27,10 +27,12 @@ from parakeetnest.context.providers import PortfolioContextProvider
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.portfolio import (
     MockPortfolioProvider,
-    PortfolioCommitteeOrchestrator,
     PortfolioService,
 )
-from parakeetnest.portfolio.orchestrator import PortfolioCommitteeResult
+from parakeetnest.portfolio.orchestrator import (
+    PortfolioCommitteeOrchestrator,
+    PortfolioCommitteeResult,
+)
 
 
 ADVISORY_DISCLAIMER = (

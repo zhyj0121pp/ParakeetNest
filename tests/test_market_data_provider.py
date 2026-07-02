@@ -10,6 +10,7 @@ import pytest
 
 from parakeetnest.market_data import (
     AssetType,
+    CompanyInfo,
     MarketDataProvider,
     MarketDataRange,
     MarketDataSnapshot,
@@ -38,6 +39,18 @@ class FakeMarketDataProvider:
             currency="USD",
             timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
             previous_close=208.0,
+        )
+
+    def get_company_info(self, symbol: Symbol) -> CompanyInfo:
+        """Return deterministic company info without external dependencies."""
+        if not self.supports(symbol):
+            raise ProviderError(f"Unsupported symbol: {symbol.ticker}")
+        return CompanyInfo(
+            symbol=symbol,
+            name="Apple Inc.",
+            asset_type=AssetType.STOCK,
+            exchange="NASDAQ",
+            currency="USD",
         )
 
     def get_price_history(

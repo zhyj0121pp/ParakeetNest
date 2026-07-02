@@ -8,6 +8,7 @@ import pytest
 
 from parakeetnest.market_data import (
     AssetType,
+    CompanyInfo,
     InvalidSymbolError,
     MalformedMarketDataError,
     MarketDataProvider,
@@ -17,6 +18,21 @@ from parakeetnest.market_data import (
     Symbol,
     YahooFinanceMarketDataProvider,
 )
+
+
+FAKE_YAHOO_COMPANY_INFO = {
+    "longName": "Apple Inc.",
+    "quoteType": "EQUITY",
+    "exchange": "NMS",
+    "currency": "USD",
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "country": "United States",
+    "website": "https://www.apple.com",
+    "marketCap": 3_200_000_000_000,
+    "fullTimeEmployees": 164_000,
+    "longBusinessSummary": "Apple designs, manufactures, and markets consumer technology.",
+}
 
 
 class FakeTicker:
@@ -34,7 +50,7 @@ class FakeTicker:
             "last_volume": 45_000_000,
             "regular_market_time": 1_782_738_000,
         }
-        self.info = {"quoteType": "EQUITY"}
+        self.info = FAKE_YAHOO_COMPANY_INFO.copy()
         self.history_calls: list[dict[str, object]] = []
 
     def history(self, **kwargs: object) -> "FakeHistory":
@@ -125,6 +141,28 @@ def test_get_snapshot_delegates_to_quote_mapping() -> None:
     assert snapshot.price == 210.25
 
 
+def test_get_company_info_maps_yfinance_info_to_domain_model() -> None:
+    """Company info should be mapped into provider-agnostic domain models."""
+    provider = YahooFinanceMarketDataProvider(FakeYFinance())
+
+    company_info = provider.get_company_info("aapl")
+
+    assert company_info == CompanyInfo(
+        symbol=Symbol("AAPL"),
+        name="Apple Inc.",
+        asset_type=AssetType.STOCK,
+        exchange="NMS",
+        currency="USD",
+        sector="Technology",
+        industry="Consumer Electronics",
+        country="United States",
+        website="https://www.apple.com",
+        market_cap=3_200_000_000_000.0,
+        full_time_employees=164_000,
+        summary="Apple designs, manufactures, and markets consumer technology.",
+    )
+
+
 def test_get_price_history_maps_dataframe_rows_to_price_bars() -> None:
     """History support should keep DataFrame-like objects inside the provider."""
     fake_yfinance = FakeYFinance()
@@ -139,6 +177,50 @@ def test_get_price_history_maps_dataframe_rows_to_price_bars() -> None:
     assert fake_yfinance.tickers[0].history_calls == [
         {"period": "5d", "interval": "1d"}
     ]
+
+
+def test_get_company_info_raises_malformed_error_for_empty_response() -> None:
+    """Empty company info responses should fail as provider-neutral errors."""
+
+    class EmptyCompanyInfoTicker(FakeTicker):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.info = {}
+
+    class EmptyCompanyInfoYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> EmptyCompanyInfoTicker:
+            ticker = EmptyCompanyInfoTicker(symbol)
+            self.tickers.append(ticker)
+            return ticker
+
+    provider = YahooFinanceMarketDataProvider(EmptyCompanyInfoYFinance())
+
+    with pytest.raises(MalformedMarketDataError, match="empty company info response"):
+        provider.get_company_info("aapl")
+
+
+def test_get_company_info_raises_malformed_error_for_missing_usable_name() -> None:
+    """Company info responses need a usable provider-neutral company name."""
+
+    class MissingNameTicker(FakeTicker):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.info = {
+                "quoteType": "EQUITY",
+                "exchange": "NMS",
+                "currency": "USD",
+            }
+
+    class MissingNameYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> MissingNameTicker:
+            ticker = MissingNameTicker(symbol)
+            self.tickers.append(ticker)
+            return ticker
+
+    provider = YahooFinanceMarketDataProvider(MissingNameYFinance())
+
+    with pytest.raises(MalformedMarketDataError, match="no usable company name"):
+        provider.get_company_info("aapl")
 
 
 def test_get_quote_raises_malformed_error_when_price_is_missing() -> None:

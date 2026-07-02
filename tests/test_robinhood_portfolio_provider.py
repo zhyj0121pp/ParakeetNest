@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import pickle
+from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
@@ -12,7 +14,10 @@ from parakeetnest.portfolio import (
     PortfolioAssetType,
     PortfolioDataUnavailableError,
 )
-from parakeetnest.portfolio.robinhood import RobinhoodPortfolioProvider
+from parakeetnest.portfolio.robinhood import (
+    RobinhoodPortfolioProvider,
+    _RobinStocksReadOnlyClient,
+)
 
 
 AS_OF = datetime(2026, 7, 2, 13, 30, tzinfo=UTC)
@@ -52,6 +57,69 @@ class FakeRobinhoodClient:
     def get_account_summary(self, account_id: str) -> Mapping[str, Any]:
         self.calls.append(("get_account_summary", account_id))
         return self.summary
+
+
+class FakeRobinStocksResponse:
+    def __init__(self, exception: Exception | None = None) -> None:
+        self.exception = exception
+
+    def raise_for_status(self) -> None:
+        if self.exception is not None:
+            raise self.exception
+
+
+class FakeRobinStocksModule:
+    def __init__(self, *, cache_exception: Exception | None = None) -> None:
+        self.login_calls: list[dict[str, Any]] = []
+        self.session_updates: list[tuple[str, str | None]] = []
+        self.login_states: list[bool] = []
+        self.cache_exception = cache_exception
+        self.profiles = self
+        self.account = self
+
+    def login(self, **kwargs: Any) -> Mapping[str, str]:
+        self.login_calls.append(kwargs)
+        if kwargs.get("store_session"):
+            cache_path = Path(kwargs["pickle_path"]) / (
+                f"robinhood{kwargs.get('pickle_name', '')}.pickle"
+            )
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with cache_path.open("wb") as session_file:
+                pickle.dump(
+                    {
+                        "token_type": "Bearer",
+                        "access_token": "cached-token",
+                        "refresh_token": "refresh-token",
+                        "device_token": "device-token",
+                    },
+                    session_file,
+                )
+        return {
+            "token_type": "Bearer",
+            "access_token": "cached-token",
+            "refresh_token": "refresh-token",
+        }
+
+    def update_session(self, key: str, value: str | None) -> None:
+        self.session_updates.append((key, value))
+
+    def set_login_state(self, value: bool) -> None:
+        self.login_states.append(value)
+
+    def positions_url(self) -> str:
+        return "https://example.invalid/positions/"
+
+    def request_get(self, *args: Any, **kwargs: Any) -> FakeRobinStocksResponse:
+        return FakeRobinStocksResponse(self.cache_exception)
+
+    def load_account_profile(self, info: Any = None) -> Mapping[str, str]:
+        return {"account_number": "RH1234"}
+
+    def load_portfolio_profile(self, info: Any = None) -> Mapping[str, str]:
+        return {"equity": "1000"}
+
+    def build_holdings(self) -> Mapping[str, Mapping[str, str]]:
+        return {}
 
 
 def _provider(client: FakeRobinhoodClient) -> RobinhoodPortfolioProvider:
@@ -165,6 +233,107 @@ def test_missing_credentials_fail_gracefully() -> None:
 
     with pytest.raises(PortfolioDataUnavailableError, match="requires credentials"):
         provider.list_accounts()
+
+
+def test_robin_stocks_client_uses_cached_session_when_available(
+    tmp_path: Path,
+) -> None:
+    cache_path = tmp_path / "robinhood.pickle"
+    with cache_path.open("wb") as session_file:
+        pickle.dump(
+            {
+                "token_type": "Bearer",
+                "access_token": "cached-token",
+                "refresh_token": "refresh-token",
+            },
+            session_file,
+        )
+    module = FakeRobinStocksModule()
+    client = _RobinStocksReadOnlyClient(
+        username=None,
+        password=None,
+        session_token=None,
+        session_cache_path=cache_path,
+        module=module,
+    )
+
+    assert client.list_accounts() == ("RH1234",)
+    assert module.login_calls == []
+    assert module.session_updates == [("Authorization", "Bearer cached-token")]
+    assert module.login_states == [True]
+
+
+def test_robin_stocks_client_falls_back_to_username_password_when_cache_missing(
+    tmp_path: Path,
+) -> None:
+    cache_path = tmp_path / "robinhood.pickle"
+    module = FakeRobinStocksModule()
+    client = _RobinStocksReadOnlyClient(
+        username="xixi",
+        password="secret",
+        session_token=None,
+        session_cache_path=cache_path,
+        module=module,
+    )
+
+    assert client.list_accounts() == ("RH1234",)
+    assert len(module.login_calls) == 1
+    assert module.login_calls[0]["username"] == "xixi"
+    assert module.login_calls[0]["password"] == "secret"
+    assert module.login_calls[0]["store_session"] is True
+    assert cache_path.exists()
+
+
+def test_robin_stocks_client_invalid_cache_triggers_relogin(tmp_path: Path) -> None:
+    cache_path = tmp_path / "robinhood.pickle"
+    with cache_path.open("wb") as session_file:
+        pickle.dump(
+            {
+                "token_type": "Bearer",
+                "access_token": "expired-token",
+                "refresh_token": "refresh-token",
+            },
+            session_file,
+        )
+    module = FakeRobinStocksModule(cache_exception=RuntimeError("expired"))
+    client = _RobinStocksReadOnlyClient(
+        username="xixi",
+        password="secret",
+        session_token=None,
+        session_cache_path=cache_path,
+        module=module,
+    )
+
+    assert client.list_accounts() == ("RH1234",)
+    assert len(module.login_calls) == 1
+    assert module.login_calls[0]["username"] == "xixi"
+    assert module.login_calls[0]["password"] == "secret"
+    assert module.login_calls[0]["store_session"] is True
+
+
+def test_robin_stocks_client_does_not_print_secrets(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cache_path = tmp_path / "robinhood.pickle"
+    module = FakeRobinStocksModule()
+    client = _RobinStocksReadOnlyClient(
+        username="xixi",
+        password="secret",
+        session_token=None,
+        session_cache_path=cache_path,
+        module=module,
+    )
+
+    client.list_accounts()
+
+    captured = capsys.readouterr()
+    assert "xixi" not in captured.out
+    assert "secret" not in captured.out
+    assert "cached-token" not in captured.out
+    assert "xixi" not in captured.err
+    assert "secret" not in captured.err
+    assert "cached-token" not in captured.err
 
 
 def test_missing_explicit_account_raises_provider_neutral_not_found_error() -> None:

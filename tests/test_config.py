@@ -146,6 +146,7 @@ def test_app_config_supports_portfolio_mapping() -> None:
         portfolio={
             "provider": "robinhood",
             "account_id": "default",
+            "robinhood_session_cache_path": ".robinhood-session/robinhood.pickle",
             "robinhood_username_env_var": "TEST_RH_USER",
             "robinhood_password_env_var": "TEST_RH_PASS",
             "robinhood_session_token_env_var": "TEST_RH_SESSION",
@@ -155,6 +156,7 @@ def test_app_config_supports_portfolio_mapping() -> None:
     assert config.portfolio == PortfolioConfig(
         provider="robinhood",
         account_id="default",
+        robinhood_session_cache_path=".robinhood-session/robinhood.pickle",
         robinhood_username_env_var="TEST_RH_USER",
         robinhood_password_env_var="TEST_RH_PASS",
         robinhood_session_token_env_var="TEST_RH_SESSION",

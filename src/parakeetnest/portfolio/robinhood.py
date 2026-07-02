@@ -6,6 +6,8 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from importlib import import_module
 from math import isfinite
+from pathlib import Path
+import pickle
 from types import ModuleType
 from typing import Any, Protocol
 
@@ -55,12 +57,14 @@ class RobinhoodPortfolioProvider:
         username: str | None = None,
         password: str | None = None,
         session_token: str | None = None,
+        session_cache_path: str | Path | None = None,
         client: RobinhoodClient | None = None,
         as_of_provider: Any | None = None,
     ) -> None:
         self._username = _normalize_secret(username)
         self._password = _normalize_secret(password)
         self._session_token = _normalize_secret(session_token)
+        self._session_cache_path = _normalize_cache_path(session_cache_path)
         self._client = client
         self._as_of_provider = as_of_provider or (lambda: datetime.now(UTC))
 
@@ -123,17 +127,18 @@ class RobinhoodPortfolioProvider:
     def _client_for_use(self) -> RobinhoodClient:
         if self._client is not None:
             return self._client
-        if self._session_token is None and (
+        if self._session_token is None and self._session_cache_path is None and (
             self._username is None or self._password is None
         ):
             raise PortfolioDataUnavailableError(
-                "Robinhood portfolio provider requires credentials or a session token "
-                "from environment variables."
+                "Robinhood portfolio provider requires credentials, a session token, "
+                "or a local session cache from configuration/environment variables."
             )
         self._client = _RobinStocksReadOnlyClient(
             username=self._username,
             password=self._password,
             session_token=self._session_token,
+            session_cache_path=self._session_cache_path,
         )
         return self._client
 
@@ -162,11 +167,13 @@ class _RobinStocksReadOnlyClient:
         username: str | None,
         password: str | None,
         session_token: str | None,
+        session_cache_path: Path | None = None,
         module: ModuleType | None = None,
     ) -> None:
         self._username = username
         self._password = password
         self._session_token = session_token
+        self._session_cache_path = session_cache_path
         self._rh = module
         self._logged_in = False
 
@@ -201,10 +208,20 @@ class _RobinStocksReadOnlyClient:
             self._restore_session_token()
             self._logged_in = True
             return
+        if self._session_cache_path is not None and self._session_cache_path.exists():
+            try:
+                self._restore_session_cache()
+                self._logged_in = True
+                return
+            except Exception:
+                self._logged_in = False
+                if self._username is None or self._password is None:
+                    raise
         self._rh.login(
             username=self._username,
             password=self._password,
-            store_session=False,
+            store_session=self._session_cache_path is not None,
+            **self._session_cache_kwargs(),
         )
         self._logged_in = True
 
@@ -220,6 +237,39 @@ class _RobinStocksReadOnlyClient:
                 "session token restore is unavailable in the installed Robinhood client"
             )
         headers.update({"Authorization": f"Bearer {self._session_token}"})
+
+    def _restore_session_cache(self) -> None:
+        if self._session_cache_path is None:
+            raise RuntimeError("Robinhood session cache path is not configured")
+        with self._session_cache_path.open("rb") as session_file:
+            pickle_data = pickle.load(session_file)
+        access_token = pickle_data["access_token"]
+        token_type = pickle_data["token_type"]
+        update_session = getattr(self._rh, "update_session")
+        set_login_state = getattr(self._rh, "set_login_state")
+        request_get = getattr(self._rh, "request_get")
+        positions_url = getattr(self._rh, "positions_url")
+        set_login_state(True)
+        update_session("Authorization", f"{token_type} {access_token}")
+        response = request_get(
+            positions_url(),
+            "pagination",
+            {"nonzero": "true"},
+            jsonify_data=False,
+        )
+        response.raise_for_status()
+
+    def _session_cache_kwargs(self) -> dict[str, str]:
+        if self._session_cache_path is None:
+            return {}
+        cache_dir, pickle_name = _robin_stocks_cache_location(
+            self._session_cache_path
+        )
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return {
+            "pickle_path": str(cache_dir),
+            "pickle_name": pickle_name,
+        }
 
 
 def _snapshot_from_payloads(
@@ -371,6 +421,25 @@ def _normalize_secret(value: str | None) -> str | None:
         return None
     stripped_value = value.strip()
     return stripped_value or None
+
+
+def _normalize_cache_path(value: str | Path | None) -> Path | None:
+    if value is None:
+        return None
+    path = Path(value).expanduser()
+    if str(path).strip() == "":
+        return None
+    return path
+
+
+def _robin_stocks_cache_location(cache_path: Path) -> tuple[Path, str]:
+    """Translate a ParakeetNest cache file path to robin-stocks cache arguments."""
+    if cache_path.name == "robinhood.pickle":
+        return cache_path.parent, ""
+    if cache_path.name.startswith("robinhood") and cache_path.suffix == ".pickle":
+        pickle_name = cache_path.name.removeprefix("robinhood").removesuffix(".pickle")
+        return cache_path.parent, pickle_name
+    return cache_path.parent, f"_{cache_path.stem}"
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

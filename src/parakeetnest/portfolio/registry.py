@@ -79,6 +79,8 @@ def _create_robinhood_provider(config: PortfolioConfig) -> PortfolioProvider:
         username=_read_env(config.robinhood_username_env_var),
         password=_read_env(config.robinhood_password_env_var),
         session_token=_read_env(config.robinhood_session_token_env_var),
+        session_cache_path=config.robinhood_session_cache_path
+        or _read_env("ROBINHOOD_SESSION_CACHE_PATH"),
     )
 
 

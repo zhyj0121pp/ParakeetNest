@@ -79,6 +79,7 @@ class PortfolioConfig:
 
     provider: str = "mock"
     account_id: str | None = None
+    robinhood_session_cache_path: str | None = None
     robinhood_username_env_var: str = "PARAKEETNEST_ROBINHOOD_USERNAME"
     robinhood_password_env_var: str = "PARAKEETNEST_ROBINHOOD_PASSWORD"
     robinhood_session_token_env_var: str = "PARAKEETNEST_ROBINHOOD_SESSION_TOKEN"

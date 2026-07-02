@@ -154,12 +154,18 @@ def _portfolio_check(
             environ,
             config.portfolio.robinhood_password_env_var,
         )
+        cache_path = config.portfolio.robinhood_session_cache_path or environ.get(
+            "ROBINHOOD_SESSION_CACHE_PATH"
+        )
+        cache_ready = bool(cache_path and Path(cache_path).expanduser().exists())
         if _env_ready(session_details) or (
             _env_ready(username_details) and _env_ready(password_details)
-        ):
+        ) or cache_ready:
             details.append("Robinhood credentials are configured.")
         else:
             details.extend(session_details + username_details + password_details)
+            if cache_path:
+                details.append("missing Robinhood session cache file.")
     return _check("portfolio", provider, configured, details)
 
 

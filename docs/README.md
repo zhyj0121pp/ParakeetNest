@@ -16,6 +16,7 @@ and lower-level design notes.
 ## Architecture Docs
 
 - [Context Layer](architecture/context-layer.md)
+- [Automated Daily Report Flow](architecture/automated-daily-report-flow.md)
 - [Data Source Layer](architecture/data-source-layer.md)
 - [Domain Model Boundary](architecture/domain-model-boundary.md)
 - [Market Data Layer](architecture/market-data-layer.md)

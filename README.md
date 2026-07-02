@@ -41,8 +41,9 @@ without an explicit architecture decision.
 - `src/parakeetnest/memory`: investment knowledge base and historical memory.
 - `src/parakeetnest/database`: SQLite v1 connection, schema, and repository
   scaffolding.
-- `src/parakeetnest/reports`: daily, weekly, and monthly report generators.
-- `src/parakeetnest/scheduler`: scheduled research workflow placeholders.
+- `src/parakeetnest/reports`: daily report orchestration, local archive writes,
+  explicit output writes, and provider-neutral email handoff.
+- `src/parakeetnest/scheduler`: scheduler-compatible daily report job wrapper.
 - `tests`: basic pytest coverage for the skeleton.
 
 ## Development
@@ -56,6 +57,7 @@ python -m venv .venv
 ## Documentation
 
 - [Documentation Overview](docs/README.md)
+- [Automated Daily Report Flow](docs/architecture/automated-daily-report-flow.md)
 - [Context Layer Architecture](docs/architecture/context-layer.md)
 - [Domain Model Boundary](docs/architecture/domain-model-boundary.md)
 - [Market Data Layer Architecture](docs/architecture/market-data-layer.md)

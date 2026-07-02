@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from parakeetnest.context.models import (
+    PortfolioAllocationContextItem,
+    PortfolioPosition,
+    PortfolioSnapshot,
+)
 from parakeetnest.research import (
     InvestmentResearchReport,
     InvestmentResearchReportRenderer,
@@ -11,6 +16,7 @@ from parakeetnest.research import (
     ResearchCatalyst,
     ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
+    ResearchCommitteePortfolioView,
     ResearchFinding,
     ResearchRisk,
     ResearchTickerReport,
@@ -37,6 +43,7 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
     assert "Tickers: NVDA, AAPL" in body
     assert "Market Setup" in body
     assert "Portfolio Watch" in body
+    assert "Portfolio Summary" in body
     assert "Watchlist Focus" in body
     assert "Today’s Focus" in body
     assert "- Coverage: 2 ticker(s)." in body
@@ -46,6 +53,7 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
     assert "Key Risks" in body
     assert "Upcoming Catalysts" in body
     assert "Dongdong’s Opportunity View (Chief Growth Officer)" in body
+    assert "Committee Portfolio View" in body
     assert "- Stance: bullish" in body
     assert "- Reasoning: Upside is supported by identifiable catalysts." in body
     assert "- Evidence:" in body
@@ -78,12 +86,27 @@ def test_renderer_supports_evening_review_mode() -> None:
     assert "Report Mode: evening" in body
     assert "Market Recap" in body
     assert "Portfolio Review" in body
+    assert "Portfolio Summary" in body
     assert "Watchlist Review" in body
     assert "What Changed" in body
     assert "Dongdong’s Opportunity Review (Chief Growth Officer)" in body
     assert "Tomorrow’s Focus" in body
     assert "Suggested Follow-ups" in body
     assert "Today's Suggested Actions" not in body
+
+
+def test_renderer_displays_portfolio_summary_and_committee_portfolio_view() -> None:
+    body = InvestmentResearchReportRenderer().render(_sample_report())
+
+    assert "- Total Portfolio Value: $12,500.00" in body
+    assert "- Cash Balance: $500.00" in body
+    assert "- Holdings:" in body
+    assert "  - NVDA: 10 shares, value $1,200.00, weight 9.6%" in body
+    assert "- Portfolio Weights:" in body
+    assert "  - NVDA: 9.6%" in body
+    assert "  - Cash: 4.0%" in body
+    assert "- Yoyo (Chief Risk Officer)" in body
+    assert "  Portfolio View: Portfolio concentration should stay visible." in body
 
 
 def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
@@ -203,6 +226,36 @@ def _sample_report(
         ticker_reports=(nvda, aapl),
         mode=mode,
         generated_at=GENERATED_AT,
+        portfolio_context=PortfolioSnapshot(
+            source="portfolio",
+            fetched_at=GENERATED_AT,
+            account_id="main",
+            total_equity=12500,
+            total_market_value=12000,
+            total_cash=500,
+            cash_balance=500,
+            total_value=12500,
+            positions=(
+                PortfolioPosition(
+                    symbol="NVDA",
+                    quantity=10,
+                    market_value=1200,
+                    weight=0.096,
+                ),
+            ),
+            allocation_by_symbol=(
+                PortfolioAllocationContextItem(
+                    category="NVDA",
+                    value=1200,
+                    percent=0.096,
+                ),
+                PortfolioAllocationContextItem(
+                    category="Cash",
+                    value=500,
+                    percent=0.04,
+                ),
+            ),
+        ),
         committee_opinions=(
             ResearchCommitteeOpinion(
                 persona_id="dongdong",
@@ -229,6 +282,13 @@ def _sample_report(
             todays_suggested_actions=(
                 "NVDA: HOLD (medium confidence) over 3-6 months; human investor decides.",
                 "AAPL: WATCH (medium confidence) over 3-6 months; human investor decides.",
+            ),
+        ),
+        committee_portfolio_views=(
+            ResearchCommitteePortfolioView(
+                agent_name="Yoyo",
+                role="Chief Risk Officer",
+                portfolio_view="Portfolio concentration should stay visible.",
             ),
         ),
         source_summaries=("portfolio: current holding context",),

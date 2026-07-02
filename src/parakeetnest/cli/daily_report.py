@@ -135,6 +135,7 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
     """Build the report composer from existing application services."""
     return DailyInvestmentReportComposer(
         research_service=InvestmentResearchService(
+            portfolio_context_provider=_context_provider(app, "portfolio"),
             watchlist_service=getattr(app, "watchlist_intelligence_service", None),
             intelligence_service=getattr(
                 app,
@@ -143,6 +144,16 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
             ),
         )
     )
+
+
+def _context_provider(app: object, provider_id: str) -> object | None:
+    registry = getattr(app, "context_provider_registry", None)
+    if registry is None or not hasattr(registry, "list_registrations"):
+        return None
+    for registration in registry.list_registrations():
+        if registration.provider_id == provider_id and registration.enabled:
+            return registration.provider
+    return None
 
 
 def _watchlist_tickers(watchlist_service: object | None) -> tuple[str, ...]:

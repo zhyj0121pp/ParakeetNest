@@ -14,6 +14,13 @@ from parakeetnest.committee.prompting import (
     CommitteePromptContext,
     PersonaDrivenCommitteePromptBuilder,
 )
+from parakeetnest.context.models import (
+    ContextRequest,
+    PortfolioAllocationContextItem,
+    PortfolioPosition,
+    PortfolioSnapshot,
+)
+from parakeetnest.context.provider import ContextProviderResult
 from parakeetnest.research.models import (
     InvestmentResearchReport,
     ReportMode,
@@ -27,6 +34,11 @@ from parakeetnest.research.models import (
 class _PortfolioService(Protocol):
     def get_snapshot(self, account_id: str) -> Any:
         """Return a portfolio snapshot for an account."""
+
+
+class _PortfolioContextProvider(Protocol):
+    def build_context(self, request: ContextRequest) -> ContextProviderResult:
+        """Return portfolio context for a context-layer request."""
 
 
 class _WatchlistService(Protocol):
@@ -66,6 +78,7 @@ class InvestmentResearchService:
         self,
         *,
         portfolio_service: _PortfolioService | None = None,
+        portfolio_context_provider: _PortfolioContextProvider | None = None,
         watchlist_service: _WatchlistService | None = None,
         intelligence_service: _IntelligenceService | None = None,
         committee_service: _PermanentCommitteeService | None = None,
@@ -73,6 +86,7 @@ class InvestmentResearchService:
         judgment_service: CommitteeJudgmentService | None = None,
     ) -> None:
         self._portfolio_service = portfolio_service
+        self._portfolio_context_provider = portfolio_context_provider
         self._watchlist_service = watchlist_service
         self._intelligence_service = intelligence_service
         self._committee_service = committee_service or PermanentCommitteeService()
@@ -95,8 +109,14 @@ class InvestmentResearchService:
         report_mode = ReportMode.from_value(mode)
 
         portfolio_snapshot = self._get_portfolio_snapshot(account_id)
+        portfolio_context = self._get_portfolio_context(
+            account_id,
+            normalized_tickers,
+            as_of=generated_at,
+            portfolio_snapshot=portfolio_snapshot,
+        )
         dependency_notes = _dependency_notes(
-            has_portfolio=self._portfolio_service is not None,
+            has_portfolio=self._has_portfolio_context(),
             has_watchlist=self._watchlist_service is not None,
             has_intelligence=self._intelligence_service is not None,
         )
@@ -104,7 +124,10 @@ class InvestmentResearchService:
             self._build_ticker_report(
                 _TickerInputs(
                     ticker=ticker,
-                    holding=_find_holding(portfolio_snapshot, ticker),
+                    holding=_find_holding(
+                        portfolio_snapshot or portfolio_context,
+                        ticker,
+                    ),
                     watchlist_insight=self._get_watchlist_insight(ticker),
                     intelligence_context=self._get_intelligence_context(
                         ticker,
@@ -131,7 +154,7 @@ class InvestmentResearchService:
         market_summary = _market_summary(ticker_reports)
         portfolio_review = _portfolio_review(
             ticker_reports,
-            has_portfolio=self._portfolio_service is not None,
+            has_portfolio=self._has_portfolio_context(),
         )
         watchlist_review = _watchlist_review(
             ticker_reports,
@@ -157,6 +180,7 @@ class InvestmentResearchService:
                 committee_prompts,
                 ticker_reports,
             ),
+            portfolio_context=portfolio_context,
             committee_consensus=self._judgment_service.build_consensus(
                 ticker_reports,
             ),
@@ -186,6 +210,34 @@ class InvestmentResearchService:
         if self._portfolio_service is None or account_id is None:
             return None
         return self._portfolio_service.get_snapshot(account_id)
+
+    def _get_portfolio_context(
+        self,
+        account_id: str | None,
+        tickers: tuple[str, ...],
+        *,
+        as_of: datetime | None,
+        portfolio_snapshot: Any | None,
+    ) -> PortfolioSnapshot | None:
+        if self._portfolio_context_provider is not None and account_id is not None:
+            result = self._portfolio_context_provider.build_context(
+                ContextRequest(
+                    question="Build portfolio context for daily report.",
+                    symbols=tickers,
+                    as_of=as_of,
+                    include_portfolio=True,
+                )
+            )
+            return result.partial_context.portfolio
+        if portfolio_snapshot is not None:
+            return _portfolio_context_from_snapshot(portfolio_snapshot)
+        return None
+
+    def _has_portfolio_context(self) -> bool:
+        return (
+            self._portfolio_service is not None
+            or self._portfolio_context_provider is not None
+        )
 
     def _get_watchlist_insight(self, ticker: str) -> Any | None:
         if self._watchlist_service is None:
@@ -268,7 +320,8 @@ def _build_risks(inputs: _TickerInputs) -> tuple[ResearchRisk, ...]:
                     "reviewed before adding exposure."
                 ),
                 evidence_notes=(
-                    f"Current holding value: {_format_money(inputs.holding.market_value)}.",
+                    "Current holding value: "
+                    f"{_format_money(inputs.holding.market_value)}.",
                 ),
             )
         )
@@ -304,7 +357,10 @@ def _build_catalysts(inputs: _TickerInputs) -> tuple[ResearchCatalyst, ...]:
     if inputs.holding is not None:
         catalysts.append(
             ResearchCatalyst(
-                summary="Portfolio review can decide whether to add, hold, or reduce exposure.",
+                summary=(
+                    "Portfolio review can decide whether to add, hold, or "
+                    "reduce exposure."
+                ),
                 horizon="next report cycle",
                 evidence_notes=("Existing portfolio holding.",),
             )
@@ -312,7 +368,10 @@ def _build_catalysts(inputs: _TickerInputs) -> tuple[ResearchCatalyst, ...]:
     if not catalysts:
         catalysts.append(
             ResearchCatalyst(
-                summary="Add thesis, signals, and portfolio context to strengthen evidence.",
+                summary=(
+                    "Add thesis, signals, and portfolio context to strengthen "
+                    "evidence."
+                ),
                 horizon="next research update",
                 evidence_notes=(),
             )
@@ -324,13 +383,11 @@ def _build_bull_case(inputs: _TickerInputs) -> tuple[str, ...]:
     bull_case: list[str] = []
     if inputs.watchlist_insight is not None:
         bull_case.extend(inputs.watchlist_insight.bullish_factors)
-    if (
-        inputs.holding is not None
-        and inputs.holding.unrealized_gain_loss_percent >= 0
-    ):
+    unrealized_return = _holding_unrealized_return(inputs.holding)
+    if unrealized_return is not None and unrealized_return >= 0:
         bull_case.append(
             "Portfolio position is up "
-            f"{_format_percent(inputs.holding.unrealized_gain_loss_percent)}."
+            f"{_format_percent(unrealized_return)}."
         )
     if not bull_case:
         bull_case.append("No connected bull-case evidence yet.")
@@ -344,10 +401,11 @@ def _build_bear_case(
     bear_case: list[str] = []
     if inputs.watchlist_insight is not None:
         bear_case.extend(inputs.watchlist_insight.bearish_factors)
-    if inputs.holding is not None and inputs.holding.unrealized_gain_loss_percent < 0:
+    unrealized_return = _holding_unrealized_return(inputs.holding)
+    if unrealized_return is not None and unrealized_return < 0:
         bear_case.append(
             "Portfolio position is down "
-            f"{_format_percent(inputs.holding.unrealized_gain_loss_percent)}."
+            f"{_format_percent(unrealized_return)}."
         )
     if not bear_case:
         bear_case.extend(risk.summary for risk in risks[:1])
@@ -356,18 +414,32 @@ def _build_bear_case(
 
 def _summary(inputs: _TickerInputs) -> str:
     if inputs.holding is not None and inputs.watchlist_insight is not None:
-        return f"{inputs.ticker} is both a portfolio holding and watchlist research item."
+        return (
+            f"{inputs.ticker} is both a portfolio holding and watchlist "
+            "research item."
+        )
     if inputs.holding is not None:
         return f"{inputs.ticker} is an existing portfolio holding."
     if inputs.watchlist_insight is not None:
         return inputs.watchlist_insight.summary
-    return f"{inputs.ticker} is included for research, but connected context is limited."
+    return (
+        f"{inputs.ticker} is included for research, but connected context is "
+        "limited."
+    )
 
 
 def _holding_summary(holding: Any) -> str:
+    symbol = _holding_symbol(holding)
+    market_value = getattr(holding, "market_value", None)
+    return_percent = getattr(holding, "unrealized_gain_loss_percent", None)
+    if return_percent is None:
+        return (
+            f"{symbol} position value is {_format_money(market_value)} "
+            "with unrealized return unknown."
+        )
     return (
-        f"{holding.symbol} position value is {_format_money(holding.market_value)} "
-        f"with unrealized return {_format_percent(holding.unrealized_gain_loss_percent)}."
+        f"{symbol} position value is {_format_money(market_value)} "
+        f"with unrealized return {_format_percent(return_percent)}."
     )
 
 
@@ -420,7 +492,10 @@ def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
 def _market_summary(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
     ticker_count = len(ticker_reports)
     if ticker_count == 1:
-        return "Market summary covers 1 requested ticker using connected research context."
+        return (
+            "Market summary covers 1 requested ticker using connected research "
+            "context."
+        )
     return (
         f"Market summary covers {ticker_count} requested tickers using connected "
         "research context."
@@ -516,10 +591,90 @@ def _normalize_tickers(tickers: tuple[str, ...] | list[str]) -> tuple[str, ...]:
 def _find_holding(portfolio_snapshot: Any | None, ticker: str) -> Any | None:
     if portfolio_snapshot is None:
         return None
-    for holding in portfolio_snapshot.holdings:
-        if holding.symbol == ticker:
+    holdings = getattr(portfolio_snapshot, "holdings", ()) or getattr(
+        portfolio_snapshot,
+        "positions",
+        (),
+    )
+    for holding in holdings:
+        if _holding_symbol(holding) == ticker:
             return holding
     return None
+
+
+def _holding_symbol(holding: Any) -> str:
+    return str(getattr(holding, "symbol", getattr(holding, "ticker", ""))).upper()
+
+
+def _holding_unrealized_return(holding: Any | None) -> float | None:
+    if holding is None:
+        return None
+    value = getattr(holding, "unrealized_gain_loss_percent", None)
+    if value is not None:
+        return float(value)
+    unrealized_pl = getattr(holding, "unrealized_pl", None)
+    cost_basis = getattr(holding, "cost_basis", None)
+    if unrealized_pl is None or cost_basis in (None, 0):
+        return None
+    return float(unrealized_pl) / float(cost_basis)
+
+
+def _portfolio_context_from_snapshot(snapshot: Any) -> PortfolioSnapshot:
+    total_equity = getattr(snapshot, "total_equity", None)
+    total_market_value = getattr(snapshot, "total_market_value", None)
+    total_cash = getattr(snapshot, "total_cash", None)
+    holdings = tuple(getattr(snapshot, "holdings", ()))
+    positions = tuple(
+        PortfolioPosition(
+            symbol=_holding_symbol(holding),
+            quantity=float(getattr(holding, "quantity", 0.0)),
+            name=getattr(holding, "name", None),
+            market_value=getattr(holding, "market_value", None),
+            cost_basis=_holding_cost_basis(holding),
+            unrealized_pl=getattr(holding, "unrealized_gain_loss", None),
+            weight=_holding_weight(holding, total_equity),
+            sector=getattr(holding, "sector", None),
+        )
+        for holding in holdings
+    )
+    return PortfolioSnapshot(
+        source="portfolio_service",
+        fetched_at=getattr(snapshot, "as_of", None),
+        account_id=getattr(snapshot, "account_id", None),
+        total_equity=total_equity,
+        total_market_value=total_market_value,
+        total_cash=total_cash,
+        holding_count=len(positions),
+        symbols=tuple(position.symbol for position in positions),
+        allocation_by_symbol=tuple(
+            PortfolioAllocationContextItem(
+                category=position.symbol,
+                value=float(position.market_value or 0.0),
+                percent=float(position.weight or 0.0),
+            )
+            for position in positions
+        ),
+        positions=positions,
+        cash_balance=total_cash,
+        total_value=total_equity,
+    )
+
+
+def _holding_cost_basis(holding: Any) -> float | None:
+    quantity = getattr(holding, "quantity", None)
+    average_cost = getattr(holding, "average_cost", None)
+    if quantity is None or average_cost is None:
+        return None
+    return float(quantity) * float(average_cost)
+
+
+def _holding_weight(holding: Any, total_equity: float | None) -> float | None:
+    if total_equity is None or float(total_equity) == 0:
+        return None
+    market_value = getattr(holding, "market_value", None)
+    if market_value is None:
+        return None
+    return float(market_value) / float(total_equity)
 
 
 def _dependency_notes(

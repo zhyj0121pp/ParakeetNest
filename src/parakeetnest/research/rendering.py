@@ -32,6 +32,7 @@ class InvestmentResearchReportRenderer:
             self._render_header(report),
             self._render_market_summary(report, label="Market Setup"),
             self._render_portfolio_review(report, label="Portfolio Watch"),
+            self._render_portfolio_summary(report),
             self._render_watchlist_review(report, label="Watchlist Focus"),
             self._render_focus(report, label="Today’s Focus"),
             self._render_ticker_reports(report.ticker_reports),
@@ -43,6 +44,7 @@ class InvestmentResearchReportRenderer:
                     "youyou": "Youyou’s Risk View",
                 },
             ),
+            self._render_committee_portfolio_view(report),
             self._render_committee_consensus(report),
             self._render_confidence(report),
             self._render_key_risks(report.ticker_reports),
@@ -56,6 +58,7 @@ class InvestmentResearchReportRenderer:
             self._render_header(report),
             self._render_market_summary(report, label="Market Recap"),
             self._render_portfolio_review(report, label="Portfolio Review"),
+            self._render_portfolio_summary(report),
             self._render_watchlist_review(report, label="Watchlist Review"),
             self._render_what_changed(report),
             self._render_ticker_reports(report.ticker_reports),
@@ -67,6 +70,7 @@ class InvestmentResearchReportRenderer:
                     "youyou": "Youyou’s Risk Review",
                 },
             ),
+            self._render_committee_portfolio_view(report),
             self._render_committee_consensus(report),
             self._render_confidence(report),
             self._render_key_risks(report.ticker_reports),
@@ -103,6 +107,50 @@ class InvestmentResearchReportRenderer:
         label: str,
     ) -> str:
         return "\n".join([label, f"- {report.portfolio_review}"])
+
+    def _render_portfolio_summary(self, report: InvestmentResearchReport) -> str:
+        lines = ["Portfolio Summary"]
+        portfolio = report.portfolio_context
+        if portfolio is None:
+            lines.append("- No portfolio context available.")
+            return "\n".join(lines)
+
+        total_value = portfolio.total_value or portfolio.total_equity
+        cash_balance = portfolio.cash_balance or portfolio.total_cash
+        lines.extend(
+            [
+                f"- Total Portfolio Value: {_format_money(total_value)}",
+                f"- Cash Balance: {_format_money(cash_balance)}",
+                "- Holdings:",
+            ]
+        )
+        if portfolio.positions:
+            for position in portfolio.positions:
+                details = [
+                    f"{position.symbol}: {position.quantity:g} shares",
+                    f"value {_format_money(position.market_value)}",
+                ]
+                if position.weight is not None:
+                    details.append(f"weight {_format_percent(position.weight)}")
+                lines.append(f"  - {', '.join(details)}")
+        else:
+            lines.append("  - None")
+
+        lines.append("- Portfolio Weights:")
+        if portfolio.allocation_by_symbol:
+            lines.extend(
+                f"  - {allocation.category}: {_format_percent(allocation.percent)}"
+                for allocation in portfolio.allocation_by_symbol
+            )
+        elif portfolio.positions:
+            lines.extend(
+                f"  - {position.symbol}: {_format_percent(position.weight)}"
+                for position in portfolio.positions
+                if position.weight is not None
+            )
+        else:
+            lines.append("  - None")
+        return "\n".join(lines)
 
     def _render_watchlist_review(
         self,
@@ -167,6 +215,22 @@ class InvestmentResearchReportRenderer:
             lines.append(f"- Suggested Action: {opinion.suggested_action}")
         if len(lines) == 1:
             lines.append("- No committee opinions.")
+        return "\n".join(lines)
+
+    def _render_committee_portfolio_view(
+        self,
+        report: InvestmentResearchReport,
+    ) -> str:
+        lines = ["Committee Portfolio View"]
+        for view in report.committee_portfolio_views:
+            lines.extend(
+                [
+                    f"- {view.agent_name} ({view.role})",
+                    f"  Portfolio View: {view.portfolio_view}",
+                ]
+            )
+        if len(lines) == 1:
+            lines.append("- No committee portfolio observations.")
         return "\n".join(lines)
 
     def _render_committee_consensus(self, report: InvestmentResearchReport) -> str:
@@ -336,6 +400,18 @@ class InvestmentResearchReportRenderer:
         if isinstance(value, Enum):
             return value.value
         return str(value)
+
+
+def _format_money(value: float | None) -> str:
+    if value is None:
+        return "unknown"
+    return f"${float(value):,.2f}"
+
+
+def _format_percent(value: float | None) -> str:
+    if value is None:
+        return "unknown"
+    return f"{float(value) * 100:.1f}%"
 
 
 def render_investment_research_report(report: InvestmentResearchReport) -> str:

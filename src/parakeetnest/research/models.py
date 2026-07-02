@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 
+from parakeetnest.context.models import PortfolioSnapshot
+
 
 class ReportMode(str, Enum):
     """Advisory daily report mode."""
@@ -182,6 +184,28 @@ class ResearchCommitteeOpinion:
 
 
 @dataclass(frozen=True)
+class ResearchCommitteePortfolioView:
+    """Portfolio-specific observation produced by committee discussion."""
+
+    agent_name: str
+    role: str
+    portfolio_view: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "agent_name",
+            _required_text(self.agent_name, "agent_name"),
+        )
+        object.__setattr__(self, "role", _required_text(self.role, "role"))
+        object.__setattr__(
+            self,
+            "portfolio_view",
+            _required_text(self.portfolio_view, "portfolio_view"),
+        )
+
+
+@dataclass(frozen=True)
 class ResearchTickerReport:
     """Factual research context for one ticker before committee judgment."""
 
@@ -269,7 +293,11 @@ class InvestmentResearchReport:
     market_summary: str = "Market context is limited to connected research inputs."
     portfolio_review: str = "Portfolio review depends on connected portfolio context."
     watchlist_review: str = "Watchlist review depends on connected watchlist context."
+    portfolio_context: PortfolioSnapshot | None = None
     committee_opinions: tuple[ResearchCommitteeOpinion, ...] = field(
+        default_factory=tuple,
+    )
+    committee_portfolio_views: tuple[ResearchCommitteePortfolioView, ...] = field(
         default_factory=tuple,
     )
     committee_consensus: ResearchCommitteeConsensus = field(
@@ -316,6 +344,11 @@ class InvestmentResearchReport:
             _required_text(self.watchlist_review, "watchlist_review"),
         )
         object.__setattr__(self, "committee_opinions", tuple(self.committee_opinions))
+        object.__setattr__(
+            self,
+            "committee_portfolio_views",
+            tuple(self.committee_portfolio_views),
+        )
         object.__setattr__(
             self,
             "committee_consensus",
@@ -368,6 +401,7 @@ __all__ = [
     "ResearchCatalyst",
     "ResearchCommitteeConsensus",
     "ResearchCommitteeOpinion",
+    "ResearchCommitteePortfolioView",
     "ResearchFinding",
     "ResearchRisk",
     "ResearchTickerReport",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -43,16 +44,44 @@ class EmptyWatchlistService:
         raise ValueError(f"missing {symbol}")
 
 
+@dataclass(frozen=True)
+class FakeContextProviderRegistration:
+    provider_id: str
+    provider: object
+    enabled: bool = True
+
+
+class FakeContextProviderRegistry:
+    def __init__(
+        self,
+        registrations: tuple[FakeContextProviderRegistration, ...],
+    ) -> None:
+        self._registrations = registrations
+
+    def list_registrations(self) -> tuple[FakeContextProviderRegistration, ...]:
+        return self._registrations
+
+
 class RecordingApp:
     def __init__(
         self,
         watchlist_service: object | None = None,
         intelligence_service: object | None = None,
+        portfolio_context_provider: object | None = None,
     ) -> None:
         self.watchlist_intelligence_service = (
             watchlist_service or EmptyWatchlistService()
         )
         self.investment_intelligence_context_service = intelligence_service
+        registrations = ()
+        if portfolio_context_provider is not None:
+            registrations = (
+                FakeContextProviderRegistration(
+                    provider_id="portfolio",
+                    provider=portfolio_context_provider,
+                ),
+            )
+        self.context_provider_registry = FakeContextProviderRegistry(registrations)
         self.closed = False
 
     def close(self) -> None:
@@ -350,6 +379,32 @@ def test_watchlist_service_is_passed_into_daily_report_generation(
 
     assert composer is not None
     assert received == [watchlist_service]
+
+
+def test_portfolio_context_provider_is_passed_into_daily_report_generation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    portfolio_context_provider = object()
+    app = RecordingApp(portfolio_context_provider=portfolio_context_provider)
+    received: list[object] = []
+
+    class RecordingResearchService:
+        def __init__(self, **kwargs: object) -> None:
+            received.append(kwargs["portfolio_context_provider"])
+
+        def generate_report(self, *args: object, **kwargs: object) -> object:
+            raise AssertionError("report generation is not needed")
+
+    monkeypatch.setattr(
+        daily_report,
+        "InvestmentResearchService",
+        RecordingResearchService,
+    )
+
+    composer = daily_report._build_daily_report_composer(app)
+
+    assert composer is not None
+    assert received == [portfolio_context_provider]
 
 
 def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:

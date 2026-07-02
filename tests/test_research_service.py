@@ -115,7 +115,13 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
 
     ticker_report = report.ticker_reports[0]
     assert report.tickers() == ("NVDA",)
-    assert ticker_report.summary == "NVDA is both a portfolio holding and watchlist research item."
+    assert report.portfolio_context is not None
+    assert report.portfolio_context.total_value == 1200
+    assert report.portfolio_context.positions[0].symbol == "NVDA"
+    assert report.portfolio_context.allocation_by_symbol[0].percent == 1.0
+    assert ticker_report.summary == (
+        "NVDA is both a portfolio holding and watchlist research item."
+    )
     assert "Datacenter demand." in ticker_report.bull_case
     assert "Export controls." in ticker_report.bear_case
     assert not hasattr(ticker_report, "recommendation")

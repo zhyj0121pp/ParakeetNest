@@ -23,11 +23,11 @@ from parakeetnest.database import (
     create_session_factory,
     initialize_database,
 )
+from parakeetnest.context.providers import PortfolioContextProvider
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.portfolio import (
     MockPortfolioProvider,
     PortfolioCommitteeOrchestrator,
-    PortfolioContextProvider,
     PortfolioService,
 )
 from parakeetnest.portfolio.orchestrator import PortfolioCommitteeResult

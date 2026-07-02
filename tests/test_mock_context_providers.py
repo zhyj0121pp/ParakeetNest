@@ -51,6 +51,10 @@ def _macro_context_provider() -> MacroContextProvider:
     return MacroContextProvider(MacroDataService(MockMacroDataProvider()))
 
 
+def _portfolio_context_provider() -> PortfolioContextProvider:
+    return PortfolioContextProvider(MockPortfolioProvider())
+
+
 def test_providers_support_expected_requests() -> None:
     request = ContextRequest(question="Review AMD.", symbols=("AMD",))
     no_symbols = ContextRequest(question="Review market.", symbols=())
@@ -60,9 +64,9 @@ def test_providers_support_expected_requests() -> None:
     assert _news_context_provider().supports(request) is True
     assert _news_context_provider().supports(no_symbols) is False
 
-    assert PortfolioContextProvider().supports(request) is True
-    assert PortfolioContextProvider().supports(no_symbols) is True
-    assert PortfolioContextProvider().supports(
+    assert _portfolio_context_provider().supports(request) is True
+    assert _portfolio_context_provider().supports(no_symbols) is True
+    assert _portfolio_context_provider().supports(
         ContextRequest(
             question="Review AMD without portfolio.",
             symbols=("AMD",),
@@ -94,7 +98,7 @@ def test_each_provider_contributes_only_its_own_section() -> None:
     providers = (
         (_market_context_provider(), ("market",)),
         (_news_context_provider(), ("news",)),
-        (PortfolioContextProvider(), ("portfolio",)),
+        (_portfolio_context_provider(), ("portfolio",)),
         (_macro_context_provider(), ("macro",)),
         (KnowledgeBaseContextProvider(), ("knowledge_base",)),
     )
@@ -114,7 +118,7 @@ def test_providers_return_deterministic_values() -> None:
     for provider in (
         _market_context_provider(),
         _news_context_provider(),
-        PortfolioContextProvider(),
+        _portfolio_context_provider(),
         _macro_context_provider(),
         KnowledgeBaseContextProvider(),
     ):
@@ -130,7 +134,7 @@ def test_mock_providers_work_with_context_service() -> None:
         providers=(
             _market_context_provider(),
             _news_context_provider(),
-            PortfolioContextProvider(),
+            _portfolio_context_provider(),
             _macro_context_provider(),
             KnowledgeBaseContextProvider(),
         )
@@ -190,7 +194,7 @@ def test_mock_providers_work_with_context_service() -> None:
         "market_data.source=market_data_service",
         "news.source=news_service",
         "portfolio.account_id=mock-main",
-        "portfolio.source=mock_portfolio_provider",
+        "portfolio.source=portfolio_provider",
         "macro.source=macro_data_service",
         "mock_knowledge_base.fixture=knowledge_base",
     )
@@ -201,7 +205,7 @@ def test_context_service_output_is_deterministic_with_mock_providers() -> None:
     providers = (
         _market_context_provider(),
         _news_context_provider(),
-        PortfolioContextProvider(),
+        _portfolio_context_provider(),
         _macro_context_provider(),
         KnowledgeBaseContextProvider(),
     )

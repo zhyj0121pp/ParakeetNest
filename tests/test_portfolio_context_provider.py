@@ -13,10 +13,10 @@ from parakeetnest.context import (
     MeetingContextPromptRenderer,
     UnsupportedContextRequestError,
 )
+from parakeetnest.context.providers import PortfolioContextProvider
 from parakeetnest.portfolio import (
     Portfolio,
     PortfolioCashBalance,
-    PortfolioContextProvider,
     PortfolioDataUnavailableError,
     PortfolioHolding,
     PortfolioProvider,

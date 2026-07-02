@@ -17,7 +17,6 @@ from parakeetnest.portfolio.exceptions import (
     PortfolioDataUnavailableError,
     PortfolioProviderError,
 )
-from parakeetnest.portfolio.context_provider import PortfolioContextProvider
 from parakeetnest.portfolio.orchestrator import (
     PortfolioCommitteeOrchestrator,
     PortfolioCommitteeResult,
@@ -48,7 +47,6 @@ __all__ = [
     "PortfolioCashBalance",
     "PortfolioCommitteeOrchestrator",
     "PortfolioCommitteeResult",
-    "PortfolioContextProvider",
     "PortfolioDataUnavailableError",
     "PortfolioExposure",
     "PortfolioHolding",

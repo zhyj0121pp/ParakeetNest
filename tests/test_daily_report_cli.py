@@ -119,6 +119,58 @@ def test_cli_writes_report_file(
     assert capsys.readouterr().out == "Market Summary\nCommittee Consensus\n"
 
 
+def test_cli_delegates_workflow_to_daily_report_orchestrator(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    captured: dict[str, object] = {}
+    output_path = tmp_path / "daily-report.md"
+
+    @dataclass(frozen=True)
+    class FakeResult:
+        body: str
+
+    class RecordingOrchestrator:
+        def __init__(self, **kwargs: object) -> None:
+            captured["init"] = kwargs
+
+        def run(self, request: object) -> FakeResult:
+            captured["request"] = request
+            return FakeResult(body="delegated body\n")
+
+    monkeypatch.setattr(daily_report, "DailyReportOrchestrator", RecordingOrchestrator)
+
+    exit_code = daily_report.main(
+        [
+            "--mode",
+            "evening",
+            "--tickers",
+            "nvda",
+            "--account-id",
+            "main",
+            "--as-of-date",
+            "2026-07-01",
+            "--archive",
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    request = captured["request"]
+    assert exit_code == 0
+    assert capsys.readouterr().out == "delegated body\n"
+    assert request.mode is ReportMode.EVENING
+    assert request.tickers == ("NVDA",)
+    assert request.account_id == "main"
+    assert request.as_of_date == date(2026, 7, 1)
+    assert request.archive is True
+    assert request.output_path == output_path
+    assert request.email_recipient is None
+    assert "composer" in captured["init"]
+
+
 def test_cli_prints_report_to_stdout_without_default_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

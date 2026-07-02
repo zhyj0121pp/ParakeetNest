@@ -5,22 +5,26 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 from datetime import date
+from io import StringIO
 from pathlib import Path
 import sys
 
 from parakeetnest.app import create_app
 from parakeetnest.config import AppConfig, get_settings
 from parakeetnest.email import ConsoleEmailProvider, EmailService
+from parakeetnest.reports import (
+    ARCHIVE_FILENAMES,
+    DEFAULT_ARCHIVE_ROOT,
+    DEFAULT_OUTPUT_PATH,
+    DailyReportOrchestrator,
+    DailyReportRequest,
+    build_archive_output_path,
+    generate_daily_report,
+    write_daily_report,
+    write_daily_report_body,
+)
 from parakeetnest.research import DailyInvestmentReportComposer, ReportMode
 from parakeetnest.research.service import InvestmentResearchService
-
-
-DEFAULT_OUTPUT_PATH = Path("reports/daily-report.md")
-DEFAULT_ARCHIVE_ROOT = Path("reports")
-ARCHIVE_FILENAMES = {
-    ReportMode.MORNING: "morning-investment-brief.md",
-    ReportMode.EVENING: "evening-investment-review.md",
-}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -91,6 +95,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.tickers is not None and not explicit_tickers:
         parser.error("at least one ticker is required")
     app = create_app(_build_app_config(args.database, args.watchlist_seed))
+    email_output = StringIO()
     try:
         composer = _build_daily_report_composer(app)
         tickers = explicit_tickers or _watchlist_tickers(
@@ -98,23 +103,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if not tickers:
             parser.error("No tickers provided and no watchlist seed is configured.")
-        body = generate_daily_report(
-            tickers,
+        request = DailyReportRequest(
+            mode=report_mode,
+            tickers=tickers,
             account_id=args.account_id,
             as_of_date=args.as_of_date,
-            mode=report_mode,
-            composer=composer,
+            archive=args.archive,
+            output_path=args.output,
+            email_recipient=args.email,
         )
-        if args.output is not None:
-            write_daily_report_body(body, args.output)
-        if args.archive:
-            write_daily_report_body(
-                body,
-                build_archive_output_path(
-                    mode=report_mode,
-                    as_of_date=args.as_of_date,
-                ),
-            )
+        orchestrator = DailyReportOrchestrator(
+            composer=composer,
+            email_service=(
+                EmailService(ConsoleEmailProvider(stream=email_output))
+                if args.email
+                else None
+            ),
+        )
+        result = orchestrator.run(request)
     except ValueError as exc:
         parser.error(str(exc))
     except Exception as exc:
@@ -123,76 +129,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         app.close()
 
-    print(body, end="" if body.endswith("\n") else "\n")
+    print(result.body, end="" if result.body.endswith("\n") else "\n")
     if args.email:
-        try:
-            EmailService(ConsoleEmailProvider()).send(
-                body,
-                recipient=args.email,
-                as_of_date=args.as_of_date,
-                mode=report_mode,
-            )
-        except Exception as exc:
-            print(f"daily report email delivery failed: {exc}", file=sys.stderr)
-            return 1
+        print(email_output.getvalue(), end="")
     return 0
-
-
-def generate_daily_report(
-    tickers: tuple[str, ...],
-    *,
-    account_id: str | None = None,
-    as_of_date: date | None = None,
-    mode: ReportMode | str = ReportMode.MORNING,
-    composer: DailyInvestmentReportComposer | None = None,
-) -> str:
-    """Generate a daily report body."""
-    report_composer = composer or DailyInvestmentReportComposer()
-    return report_composer.compose(
-        tickers,
-        account_id=account_id,
-        as_of_date=as_of_date,
-        mode=mode,
-    )
-
-
-def write_daily_report(
-    tickers: tuple[str, ...],
-    *,
-    output_path: Path = DEFAULT_OUTPUT_PATH,
-    account_id: str | None = None,
-    as_of_date: date | None = None,
-    mode: ReportMode | str = ReportMode.MORNING,
-    composer: DailyInvestmentReportComposer | None = None,
-) -> Path:
-    """Generate a daily report body and write it to a local file."""
-    body = generate_daily_report(
-        tickers,
-        account_id=account_id,
-        as_of_date=as_of_date,
-        mode=mode,
-        composer=composer,
-    )
-    return write_daily_report_body(body, output_path)
-
-
-def write_daily_report_body(body: str, output_path: Path = DEFAULT_OUTPUT_PATH) -> Path:
-    """Write a generated daily report body to a local file."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(body, encoding="utf-8")
-    return output_path
-
-
-def build_archive_output_path(
-    *,
-    mode: ReportMode | str,
-    as_of_date: date | None = None,
-    archive_root: Path = DEFAULT_ARCHIVE_ROOT,
-) -> Path:
-    """Build the conventional local archive path for a daily report."""
-    report_mode = ReportMode.from_value(mode)
-    report_date = as_of_date or date.today()
-    return archive_root / report_date.isoformat() / ARCHIVE_FILENAMES[report_mode]
 
 
 def _build_app_config(

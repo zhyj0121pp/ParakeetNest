@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from importlib import import_module
 from math import isfinite
 from pathlib import Path
-import pickle
 from types import ModuleType
 from typing import Any, Protocol
 
@@ -208,21 +207,14 @@ class _RobinStocksReadOnlyClient:
             self._restore_session_token()
             self._logged_in = True
             return
-        if self._session_cache_path is not None and self._session_cache_path.exists():
-            try:
-                self._restore_session_cache()
-                self._logged_in = True
-                return
-            except Exception:
-                self._logged_in = False
-                if self._username is None or self._password is None:
-                    raise
-        self._rh.login(
+        login_result = self._rh.login(
             username=self._username,
             password=self._password,
             store_session=self._session_cache_path is not None,
             **self._session_cache_kwargs(),
         )
+        if login_result is None:
+            raise RuntimeError("Robinhood login failed")
         self._logged_in = True
 
     def _profiles(self) -> Any:
@@ -237,27 +229,6 @@ class _RobinStocksReadOnlyClient:
                 "session token restore is unavailable in the installed Robinhood client"
             )
         headers.update({"Authorization": f"Bearer {self._session_token}"})
-
-    def _restore_session_cache(self) -> None:
-        if self._session_cache_path is None:
-            raise RuntimeError("Robinhood session cache path is not configured")
-        with self._session_cache_path.open("rb") as session_file:
-            pickle_data = pickle.load(session_file)
-        access_token = pickle_data["access_token"]
-        token_type = pickle_data["token_type"]
-        update_session = getattr(self._rh, "update_session")
-        set_login_state = getattr(self._rh, "set_login_state")
-        request_get = getattr(self._rh, "request_get")
-        positions_url = getattr(self._rh, "positions_url")
-        set_login_state(True)
-        update_session("Authorization", f"{token_type} {access_token}")
-        response = request_get(
-            positions_url(),
-            "pagination",
-            {"nonzero": "true"},
-            jsonify_data=False,
-        )
-        response.raise_for_status()
 
     def _session_cache_kwargs(self) -> dict[str, str]:
         if self._session_cache_path is None:

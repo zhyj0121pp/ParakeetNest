@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-import pickle
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -21,6 +20,11 @@ from parakeetnest.portfolio.robinhood import (
 
 
 AS_OF = datetime(2026, 7, 2, 13, 30, tzinfo=UTC)
+DEFAULT_LOGIN_RESULT = {
+    "token_type": "Bearer",
+    "access_token": "cached-token",
+    "refresh_token": "refresh-token",
+}
 
 
 class FakeRobinhoodClient:
@@ -69,36 +73,27 @@ class FakeRobinStocksResponse:
 
 
 class FakeRobinStocksModule:
-    def __init__(self, *, cache_exception: Exception | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        login_result: Mapping[str, str] | None = DEFAULT_LOGIN_RESULT,
+    ) -> None:
         self.login_calls: list[dict[str, Any]] = []
         self.session_updates: list[tuple[str, str | None]] = []
         self.login_states: list[bool] = []
-        self.cache_exception = cache_exception
+        self.login_result = login_result
         self.profiles = self
         self.account = self
 
-    def login(self, **kwargs: Any) -> Mapping[str, str]:
+    def login(self, **kwargs: Any) -> Mapping[str, str] | None:
         self.login_calls.append(kwargs)
         if kwargs.get("store_session"):
             cache_path = Path(kwargs["pickle_path"]) / (
                 f"robinhood{kwargs.get('pickle_name', '')}.pickle"
             )
             cache_path.parent.mkdir(parents=True, exist_ok=True)
-            with cache_path.open("wb") as session_file:
-                pickle.dump(
-                    {
-                        "token_type": "Bearer",
-                        "access_token": "cached-token",
-                        "refresh_token": "refresh-token",
-                        "device_token": "device-token",
-                    },
-                    session_file,
-                )
-        return {
-            "token_type": "Bearer",
-            "access_token": "cached-token",
-            "refresh_token": "refresh-token",
-        }
+            cache_path.write_text("fake robin-stocks cache", encoding="utf-8")
+        return self.login_result
 
     def update_session(self, key: str, value: str | None) -> None:
         self.session_updates.append((key, value))
@@ -110,7 +105,7 @@ class FakeRobinStocksModule:
         return "https://example.invalid/positions/"
 
     def request_get(self, *args: Any, **kwargs: Any) -> FakeRobinStocksResponse:
-        return FakeRobinStocksResponse(self.cache_exception)
+        return FakeRobinStocksResponse()
 
     def load_account_profile(self, info: Any = None) -> Mapping[str, str]:
         return {"account_number": "RH1234"}
@@ -239,15 +234,7 @@ def test_robin_stocks_client_uses_cached_session_when_available(
     tmp_path: Path,
 ) -> None:
     cache_path = tmp_path / "robinhood.pickle"
-    with cache_path.open("wb") as session_file:
-        pickle.dump(
-            {
-                "token_type": "Bearer",
-                "access_token": "cached-token",
-                "refresh_token": "refresh-token",
-            },
-            session_file,
-        )
+    cache_path.write_text("fake robin-stocks cache", encoding="utf-8")
     module = FakeRobinStocksModule()
     client = _RobinStocksReadOnlyClient(
         username=None,
@@ -258,9 +245,15 @@ def test_robin_stocks_client_uses_cached_session_when_available(
     )
 
     assert client.list_accounts() == ("RH1234",)
-    assert module.login_calls == []
-    assert module.session_updates == [("Authorization", "Bearer cached-token")]
-    assert module.login_states == [True]
+    assert module.login_calls == [
+        {
+            "username": None,
+            "password": None,
+            "store_session": True,
+            "pickle_path": str(tmp_path),
+            "pickle_name": "",
+        }
+    ]
 
 
 def test_robin_stocks_client_falls_back_to_username_password_when_cache_missing(
@@ -281,21 +274,17 @@ def test_robin_stocks_client_falls_back_to_username_password_when_cache_missing(
     assert module.login_calls[0]["username"] == "xixi"
     assert module.login_calls[0]["password"] == "secret"
     assert module.login_calls[0]["store_session"] is True
+    assert module.login_calls[0]["pickle_path"] == str(tmp_path)
+    assert module.login_calls[0]["pickle_name"] == ""
     assert cache_path.exists()
 
 
-def test_robin_stocks_client_invalid_cache_triggers_relogin(tmp_path: Path) -> None:
+def test_robin_stocks_client_passes_credentials_for_invalid_cache_fallback(
+    tmp_path: Path,
+) -> None:
     cache_path = tmp_path / "robinhood.pickle"
-    with cache_path.open("wb") as session_file:
-        pickle.dump(
-            {
-                "token_type": "Bearer",
-                "access_token": "expired-token",
-                "refresh_token": "refresh-token",
-            },
-            session_file,
-        )
-    module = FakeRobinStocksModule(cache_exception=RuntimeError("expired"))
+    cache_path.write_text("fake expired robin-stocks cache", encoding="utf-8")
+    module = FakeRobinStocksModule()
     client = _RobinStocksReadOnlyClient(
         username="xixi",
         password="secret",
@@ -309,6 +298,30 @@ def test_robin_stocks_client_invalid_cache_triggers_relogin(tmp_path: Path) -> N
     assert module.login_calls[0]["username"] == "xixi"
     assert module.login_calls[0]["password"] == "secret"
     assert module.login_calls[0]["store_session"] is True
+    assert module.login_calls[0]["pickle_path"] == str(tmp_path)
+    assert module.login_calls[0]["pickle_name"] == ""
+
+
+def test_robin_stocks_client_raises_when_login_fails(tmp_path: Path) -> None:
+    module = FakeRobinStocksModule(login_result=None)
+    client = _RobinStocksReadOnlyClient(
+        username="xixi",
+        password="secret",
+        session_token=None,
+        session_cache_path=tmp_path / "robinhood.pickle",
+        module=module,
+    )
+
+    with pytest.raises(RuntimeError, match="login failed"):
+        client.list_accounts()
+
+
+def test_provider_does_not_directly_unpickle_session_cache() -> None:
+    source = Path("src/parakeetnest/portfolio/robinhood.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "pickle.load" not in source
 
 
 def test_robin_stocks_client_does_not_print_secrets(

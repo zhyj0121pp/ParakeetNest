@@ -116,12 +116,13 @@ def test_cli_writes_report_file(
         "Market Summary\nCommittee Consensus\n"
     )
     assert recording_app.closed is True
-    assert str(output_path) in capsys.readouterr().out
+    assert capsys.readouterr().out == "Market Summary\nCommittee Consensus\n"
 
 
-def test_default_output_path_works(
+def test_cli_prints_report_to_stdout_without_default_file(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
     composer = RecordingComposer()
@@ -135,15 +136,14 @@ def test_default_output_path_works(
     exit_code = daily_report.main(["--tickers", "NVDA"])
 
     assert exit_code == 0
-    assert (tmp_path / "reports" / "daily-report.md").read_text(
-        encoding="utf-8"
-    ) == "daily report body\n"
+    assert not (tmp_path / "reports" / "daily-report.md").exists()
+    assert capsys.readouterr().out == "daily report body\n"
     assert composer.calls[0]["mode"] is ReportMode.MORNING
 
 
-def test_cli_accepts_morning_mode(
-    tmp_path: Path,
+def test_cli_dispatches_morning_mode(
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
     composer = RecordingComposer()
@@ -152,19 +152,17 @@ def test_cli_accepts_morning_mode(
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    output_path = tmp_path / "morning.md"
 
-    exit_code = daily_report.main(
-        ["--mode", "morning", "--tickers", "NVDA", "--output", str(output_path)]
-    )
+    exit_code = daily_report.main(["--mode", "morning", "--tickers", "NVDA"])
 
     assert exit_code == 0
+    assert capsys.readouterr().out == "daily report body\n"
     assert composer.calls[0]["mode"] is ReportMode.MORNING
 
 
-def test_cli_accepts_evening_mode(
-    tmp_path: Path,
+def test_cli_dispatches_evening_mode(
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
     composer = RecordingComposer()
@@ -173,13 +171,11 @@ def test_cli_accepts_evening_mode(
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    output_path = tmp_path / "evening.md"
 
-    exit_code = daily_report.main(
-        ["--mode", "evening", "--tickers", "NVDA", "--output", str(output_path)]
-    )
+    exit_code = daily_report.main(["--mode", "evening", "--tickers", "NVDA"])
 
     assert exit_code == 0
+    assert capsys.readouterr().out == "daily report body\n"
     assert composer.calls[0]["mode"] is ReportMode.EVENING
 
 
@@ -352,6 +348,29 @@ def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
     assert "Report Mode: evening" in body
     assert "What Changed" in body
     assert "Tomorrow’s Focus" in body
+
+
+def test_generation_failure_returns_nonzero_exit_code(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    class FailingComposer:
+        def compose(self, *args: object, **kwargs: object) -> str:
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: FailingComposer(),
+    )
+
+    exit_code = daily_report.main(["--mode", "morning", "--tickers", "NVDA"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert "daily report generation failed: provider unavailable" in captured.err
 
 
 def test_watchlist_service_is_passed_into_daily_report_generation(

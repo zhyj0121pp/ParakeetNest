@@ -1,4 +1,4 @@
-"""Local CLI for generating a daily investment report file."""
+"""Local CLI for generating a daily investment report."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
+import sys
 
 from parakeetnest.app import create_app
 from parakeetnest.config import AppConfig, get_settings
@@ -36,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        default=DEFAULT_OUTPUT_PATH,
-        help="Output Markdown path. Defaults to reports/daily-report.md.",
+        default=None,
+        help="Optional Markdown path to also write the generated report.",
     )
     parser.add_argument(
         "--account-id",
@@ -66,7 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Generate the daily investment report and write it to disk."""
+    """Generate the daily investment report and print it to stdout."""
     parser = build_parser()
     args = parser.parse_args(argv)
     report_mode = ReportMode.from_value(args.mode)
@@ -81,21 +82,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if not tickers:
             parser.error("No tickers provided and no watchlist seed is configured.")
-        output_path = write_daily_report(
+        body = generate_daily_report(
             tickers,
-            output_path=args.output,
             account_id=args.account_id,
             as_of_date=args.as_of_date,
             mode=report_mode,
             composer=composer,
         )
+        if args.output is not None:
+            write_daily_report_body(body, args.output)
     except ValueError as exc:
         parser.error(str(exc))
+    except Exception as exc:
+        print(f"daily report generation failed: {exc}", file=sys.stderr)
+        return 1
     finally:
         app.close()
 
-    print(output_path)
+    print(body, end="" if body.endswith("\n") else "\n")
     return 0
+
+
+def generate_daily_report(
+    tickers: tuple[str, ...],
+    *,
+    account_id: str | None = None,
+    as_of_date: date | None = None,
+    mode: ReportMode | str = ReportMode.MORNING,
+    composer: DailyInvestmentReportComposer | None = None,
+) -> str:
+    """Generate a daily report body."""
+    report_composer = composer or DailyInvestmentReportComposer()
+    return report_composer.compose(
+        tickers,
+        account_id=account_id,
+        as_of_date=as_of_date,
+        mode=mode,
+    )
 
 
 def write_daily_report(
@@ -108,13 +131,18 @@ def write_daily_report(
     composer: DailyInvestmentReportComposer | None = None,
 ) -> Path:
     """Generate a daily report body and write it to a local file."""
-    report_composer = composer or DailyInvestmentReportComposer()
-    body = report_composer.compose(
+    body = generate_daily_report(
         tickers,
         account_id=account_id,
         as_of_date=as_of_date,
         mode=mode,
+        composer=composer,
     )
+    return write_daily_report_body(body, output_path)
+
+
+def write_daily_report_body(body: str, output_path: Path = DEFAULT_OUTPUT_PATH) -> Path:
+    """Write a generated daily report body to a local file."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(body, encoding="utf-8")
     return output_path

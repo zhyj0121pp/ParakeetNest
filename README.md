@@ -77,9 +77,16 @@ python -m venv .venv
 .venv/bin/python -m pytest
 ```
 
+For live-provider validation, install the optional provider dependencies:
+
+```bash
+.venv/bin/python -m pip install -e ".[dev,openai,yahoo,robinhood,gmail]"
+```
+
 ## Documentation
 
 - [Documentation Overview](docs/README.md)
+- [End-to-End Provider Integration](docs/integration.md)
 - [Local Daily Report Workflow](docs/architecture/automated-daily-report-flow.md)
 - [Context Layer Architecture](docs/architecture/context-layer.md)
 - [Domain Model Boundary](docs/architecture/domain-model-boundary.md)
@@ -101,8 +108,22 @@ Create a local environment file from the example:
 cp .env.example .env
 ```
 
-Configuration is loaded with the `PARAKEETNEST_` prefix. Leave future
-integration secrets blank until those integrations are implemented.
+Fill real provider credentials only in `.env`. Do not commit `.env`,
+`secrets/`, `.gmail-token/`, or `.robinhood-session/`.
+
+Runtime settings such as database path use the `PARAKEETNEST_` prefix.
+Live provider credentials intentionally use the provider-neutral names shown in
+`.env.example` and `examples/config-real.toml`, such as `OPENAI_API_KEY`,
+`FRED_API_KEY`, `SEC_USER_AGENT`, and `ROBINHOOD_USERNAME`.
+
+Before running live-provider commands from a shell, export the `.env` values
+into the process:
+
+```bash
+set -a
+source .env
+set +a
+```
 
 Useful local settings:
 
@@ -110,7 +131,26 @@ Useful local settings:
 - `PARAKEETNEST_LOG_LEVEL`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or
   `CRITICAL`.
 - `PARAKEETNEST_LOG_JSON`: `true` for structured JSON logs.
-- `PARAKEETNEST_SQLITE_PATH`: future SQLite database path.
+- `PARAKEETNEST_SQLITE_PATH`: SQLite database path.
+- `OPENAI_API_KEY`: required for the OpenAI LLM provider.
+- `FRED_API_KEY`: required for the FRED macro provider.
+- `SEC_USER_AGENT`: required for SEC EDGAR. Quote it in `.env` if it contains
+  spaces.
+- `GOOGLE_APPLICATION_CREDENTIALS`: Gmail OAuth client credentials JSON path.
+- `PARAKEETNEST_GMAIL_TOKEN_PATH`: Gmail authorized-user token JSON path.
+- `ROBINHOOD_USERNAME` and `ROBINHOOD_PASSWORD`: Robinhood login inputs.
+- `ROBINHOOD_SESSION_CACHE_PATH`: local `robin_stocks` session cache path.
+- `PARAKEETNEST_REPORT_RECIPIENT`: recipient for local live report delivery.
+
+Validate live-provider configuration without making external API calls:
+
+```bash
+.venv/bin/python -m parakeetnest doctor --config examples/config-real.toml
+```
+
+The project does not currently define a console-script entry point named
+`parakeetnest`; use `.venv/bin/python -m parakeetnest ...` unless you add your
+own shell alias.
 
 ## Database
 

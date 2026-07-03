@@ -1,9 +1,12 @@
 .DS_Store
 .env
 .venv/
+.gmail-token/
+secrets/
 __pycache__/
 *.py[cod]
 *.egg-info/
+src/*.egg-info/
 .pytest_cache/
 
 reports/

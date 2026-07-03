@@ -12,13 +12,34 @@ Start from `.env.example` and fill values only in a local `.env` file:
 - `FRED_API_KEY`: required when `macro.provider = "fred"`.
 - `GOOGLE_APPLICATION_CREDENTIALS`: path to Gmail OAuth client credentials.
 - `PARAKEETNEST_GMAIL_TOKEN_PATH`: path to the authorized Gmail OAuth token.
+- `PARAKEETNEST_REPORT_RECIPIENT`: recipient for local live report delivery
+  scripts.
 - `SEC_USER_AGENT`: SEC-compliant identity string, including contact info.
 - `ROBINHOOD_SESSION_TOKEN`: preferred when available for Robinhood.
 - `ROBINHOOD_USERNAME` and `ROBINHOOD_PASSWORD`: alternative Robinhood login inputs.
+- `ROBINHOOD_SESSION_CACHE_PATH`: optional `robin_stocks` session cache path.
 
-Do not commit real credentials, OAuth tokens, or account identifiers.
+Do not commit real credentials, OAuth tokens, account identifiers, Gmail
+tokens, or Robinhood session caches.
+
+The live providers read these values from the process environment. Before
+running live-provider commands from a shell, export the local `.env` file:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+If `SEC_USER_AGENT` contains spaces, quote the value in `.env`.
 
 ## Provider Setup
+
+Install the optional dependencies used by the live providers:
+
+```bash
+.venv/bin/python -m pip install -e ".[dev,openai,yahoo,robinhood,gmail]"
+```
 
 Use `examples/config-real.toml` as the live-provider example:
 
@@ -45,7 +66,7 @@ provider = "gmail"
 Before running live integrations, validate configuration only:
 
 ```bash
-parakeetnest doctor --config examples/config-real.toml
+.venv/bin/python -m parakeetnest doctor --config examples/config-real.toml
 ```
 
 The doctor command checks provider IDs, required environment variables, and
@@ -63,32 +84,36 @@ rest remains `"mock"`.
 Run a local morning report with explicit tickers:
 
 ```bash
-python -m parakeetnest.cli.daily_report --mode morning --tickers NVDA AAPL
+.venv/bin/python -m parakeetnest.cli.daily_report --mode morning --tickers NVDA AAPL
 ```
 
 Add archive or output paths as needed:
 
 ```bash
-python -m parakeetnest.cli.daily_report \
+.venv/bin/python -m parakeetnest.cli.daily_report \
   --mode morning \
   --tickers NVDA AAPL \
   --archive \
   --output reports/morning.md
 ```
 
+The daily report CLI is a local report workflow. Its `--email` option uses the
+console email provider for local output capture. It does not load
+`examples/config-real.toml` and does not send through Gmail by itself.
+
 ## Evening Report
 
 Run the evening review with the same daily report CLI:
 
 ```bash
-python -m parakeetnest.cli.daily_report --mode evening --tickers NVDA AAPL
+.venv/bin/python -m parakeetnest.cli.daily_report --mode evening --tickers NVDA AAPL
 ```
 
 To include portfolio context, pass an account id that the configured
 `PortfolioProvider` can resolve:
 
 ```bash
-python -m parakeetnest.cli.daily_report \
+.venv/bin/python -m parakeetnest.cli.daily_report \
   --mode evening \
   --tickers NVDA AAPL \
   --account-id default
@@ -122,7 +147,7 @@ provider = "mock"
 Then validate:
 
 ```bash
-parakeetnest doctor
+.venv/bin/python -m parakeetnest doctor
 ```
 
 ## Architecture Diagram

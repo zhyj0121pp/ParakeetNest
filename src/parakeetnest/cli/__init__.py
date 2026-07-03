@@ -11,6 +11,7 @@ from pathlib import Path
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest, MeetingContextPromptRenderer
 from parakeetnest.cli import doctor
+from parakeetnest.cli import schedule
 
 
 def create_app(config: AppConfig | None = None):
@@ -78,6 +79,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional TOML integration config. Defaults to mock AppConfig.",
     )
 
+    schedule_parser = subparsers.add_parser(
+        "schedule",
+        help="Manage local macOS launchd scheduling.",
+    )
+    schedule_subparsers = schedule_parser.add_subparsers(
+        dest="schedule_command",
+        required=True,
+    )
+    schedule_install_parser = schedule_subparsers.add_parser(
+        "install",
+        help="Install the local macOS LaunchAgent.",
+    )
+    schedule._add_common_schedule_args(schedule_install_parser)
+    schedule_uninstall_parser = schedule_subparsers.add_parser(
+        "uninstall",
+        help="Unload and remove the local macOS LaunchAgent.",
+    )
+    schedule._add_label_arg(schedule_uninstall_parser)
+    schedule_status_parser = schedule_subparsers.add_parser(
+        "status",
+        help="Show launchd status for the local LaunchAgent.",
+    )
+    schedule._add_label_arg(schedule_status_parser)
+    schedule_print_parser = schedule_subparsers.add_parser(
+        "print-plist",
+        help="Print the generated LaunchAgent plist.",
+    )
+    schedule._add_common_schedule_args(schedule_print_parser)
+
     return parser
 
 
@@ -106,6 +136,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.config is not None:
             doctor_args.extend(["--config", str(args.config)])
         return doctor.main(doctor_args)
+
+    if args.command == "schedule":
+        return schedule.run(args, parser)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

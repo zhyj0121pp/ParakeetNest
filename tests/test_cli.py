@@ -47,6 +47,18 @@ def test_cli_parser_parses_watchlist_review_seed_path(tmp_path: Path) -> None:
     assert args.watchlist_seed == seed_path
 
 
+def test_cli_parser_parses_schedule_print_plist_command() -> None:
+    """The schedule print-plist command should be available in the root CLI."""
+    args = cli.build_parser().parse_args(
+        ["schedule", "print-plist", "--hour", "8", "--minute", "15"]
+    )
+
+    assert args.command == "schedule"
+    assert args.schedule_command == "print-plist"
+    assert args.hour == 8
+    assert args.minute == 15
+
+
 def test_cli_meeting_command_calls_meeting_service(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

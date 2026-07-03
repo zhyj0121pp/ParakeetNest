@@ -25,6 +25,7 @@ from parakeetnest.intelligence.market_breadth import (
 from parakeetnest.llm import MockLLMProvider
 from parakeetnest.macro import FREDMacroProvider, MockMacroDataProvider
 from parakeetnest.news import NewsQuery
+from parakeetnest.portfolio import PortfolioService
 from parakeetnest.sec import EdgarSecFilingProvider, MockSecFilingProvider
 from parakeetnest.watchlist import (
     InMemoryWatchlistRepository,
@@ -88,6 +89,16 @@ def test_create_app_wires_sqlite_committee_memory_service(tmp_path: Path) -> Non
         )
         assert app.agent_runtime.memory_service is app.memory_service
         assert app.committee_orchestrator.memory_service is app.memory_service
+    finally:
+        app.close()
+
+
+def test_create_app_wires_portfolio_service(tmp_path: Path) -> None:
+    """The app factory should expose a provider-backed portfolio service."""
+    app = create_app(AppConfig(database_path=tmp_path / "app.sqlite3"))
+    try:
+        assert isinstance(app.portfolio_service, PortfolioService)
+        assert app.portfolio_service.get_symbols("mock-main")
     finally:
         app.close()
 

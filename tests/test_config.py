@@ -9,6 +9,7 @@ from parakeetnest.config import (
     MarketDataConfig,
     PortfolioConfig,
     Settings,
+    email_config_from_settings,
     get_settings,
 )
 
@@ -180,3 +181,17 @@ def test_app_config_supports_email_mapping() -> None:
         gmail_token_path_env_var="TEST_GMAIL_TOKEN",
         sender_email="sender@example.com",
     )
+
+
+def test_settings_email_config_uses_gmail_when_paths_are_configured(
+    monkeypatch,
+) -> None:
+    """Local Gmail path env vars should enable the Gmail email provider."""
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "secrets/gmail.json")
+    monkeypatch.setenv("PARAKEETNEST_GMAIL_TOKEN_PATH", ".gmail-token/token.json")
+
+    config = email_config_from_settings(Settings(_env_file=None))
+
+    assert config.provider == "gmail"
+    assert config.gmail_credentials_path_env_var == "GOOGLE_APPLICATION_CREDENTIALS"
+    assert config.gmail_token_path_env_var == "PARAKEETNEST_GMAIL_TOKEN_PATH"

@@ -5,13 +5,18 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 from datetime import date
-from io import StringIO
 from pathlib import Path
 import sys
 
 from parakeetnest.app import create_app
-from parakeetnest.config import AppConfig, get_settings
-from parakeetnest.email import ConsoleEmailProvider, EmailService
+from parakeetnest.config import (
+    AppConfig,
+    default_portfolio_account_id,
+    email_config_from_settings,
+    get_settings,
+    portfolio_config_from_settings,
+)
+from parakeetnest.email import EmailService
 from parakeetnest.reports import (
     DailyReportOrchestrator,
     DailyReportRequest,
@@ -88,10 +93,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     app = create_app(_build_app_config(args.database, args.watchlist_seed))
-    email_output = StringIO()
     try:
         request = build_daily_report_request(args, app, parser)
-        orchestrator = build_daily_report_orchestrator(args, app, email_output)
+        orchestrator = build_daily_report_orchestrator(request, app)
         result = orchestrator.run(request)
     except ValueError as exc:
         parser.error(str(exc))
@@ -102,8 +106,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         app.close()
 
     print(result.body, end="" if result.body.endswith("\n") else "\n")
-    if args.email:
-        print(email_output.getvalue(), end="")
     return 0
 
 
@@ -117,31 +119,38 @@ def build_daily_report_request(
     explicit_tickers = _normalize_tickers(args.tickers or ())
     if args.tickers is not None and not explicit_tickers:
         parser.error("at least one ticker is required")
-    tickers = explicit_tickers or _watchlist_tickers(app.watchlist_intelligence_service)
+    account_id = _resolve_account_id(args.account_id, app)
+    tickers = (
+        explicit_tickers
+        or _portfolio_tickers(app, account_id)
+        or _watchlist_tickers(app.watchlist_intelligence_service)
+    )
     if not tickers:
-        parser.error("No tickers provided and no watchlist seed is configured.")
+        parser.error(
+            "No tickers provided, no portfolio holdings found, "
+            "and no watchlist seed is configured."
+        )
     return DailyReportRequest(
         mode=report_mode,
         tickers=tickers,
-        account_id=args.account_id,
+        account_id=account_id,
         as_of_date=args.as_of_date,
         archive=args.archive,
         output_path=args.output,
-        email_recipient=args.email,
+        email_recipient=_resolve_email_recipient(args.email, app),
     )
 
 
 def build_daily_report_orchestrator(
-    args: argparse.Namespace,
+    request: DailyReportRequest,
     app: object,
-    email_output: StringIO,
 ) -> DailyReportOrchestrator:
     """Build the daily report orchestrator from parsed CLI arguments."""
     return DailyReportOrchestrator(
         composer=_build_daily_report_composer(app),
         email_service=(
-            EmailService(ConsoleEmailProvider(stream=email_output))
-            if args.email
+            EmailService(app.email_provider)
+            if request.email_recipient
             else None
         ),
     )
@@ -155,6 +164,9 @@ def _build_app_config(
     return AppConfig(
         database_path=database_path,
         watchlist_seed_path=watchlist_seed_path or settings.watchlist_seed_path,
+        portfolio=portfolio_config_from_settings(settings),
+        email=email_config_from_settings(settings),
+        report_recipient_email=settings.report_recipient,
     )
 
 
@@ -162,6 +174,7 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
     """Build the report composer from existing application services."""
     return DailyInvestmentReportComposer(
         research_service=InvestmentResearchService(
+            portfolio_service=getattr(app, "portfolio_service", None),
             portfolio_context_provider=_context_provider(app, "portfolio"),
             watchlist_service=getattr(app, "watchlist_intelligence_service", None),
             intelligence_service=getattr(
@@ -181,6 +194,45 @@ def _context_provider(app: object, provider_id: str) -> object | None:
         if registration.provider_id == provider_id and registration.enabled:
             return registration.provider
     return None
+
+
+def _resolve_account_id(explicit_account_id: str | None, app: object) -> str | None:
+    if explicit_account_id is not None and explicit_account_id.strip():
+        return explicit_account_id.strip()
+    config = getattr(app, "config", None)
+    portfolio_config = getattr(config, "portfolio", None)
+    if portfolio_config is None:
+        return None
+    return default_portfolio_account_id(portfolio_config)
+
+
+def _resolve_email_recipient(explicit_email: str | None, app: object) -> str | None:
+    if explicit_email is not None and explicit_email.strip():
+        return explicit_email.strip()
+    config = getattr(app, "config", None)
+    configured_email = getattr(config, "report_recipient_email", None)
+    if configured_email is not None and configured_email.strip():
+        return configured_email.strip()
+    return None
+
+
+def _portfolio_tickers(app: object, account_id: str | None) -> tuple[str, ...]:
+    if account_id is None:
+        return ()
+    portfolio_service = getattr(app, "portfolio_service", None)
+    if portfolio_service is None:
+        return ()
+    if hasattr(portfolio_service, "get_symbols"):
+        return _normalize_tickers(portfolio_service.get_symbols(account_id))
+    if hasattr(portfolio_service, "get_snapshot"):
+        snapshot = portfolio_service.get_snapshot(account_id)
+        if hasattr(snapshot, "symbols"):
+            return _normalize_tickers(snapshot.symbols())
+        return _normalize_tickers(
+            getattr(holding, "symbol", "")
+            for holding in getattr(snapshot, "holdings", ())
+        )
+    return ()
 
 
 def _watchlist_tickers(watchlist_service: object | None) -> tuple[str, ...]:

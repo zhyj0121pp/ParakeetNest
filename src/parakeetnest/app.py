@@ -69,7 +69,7 @@ from parakeetnest.market_data import (
 )
 from parakeetnest.macro import MacroDataService, create_macro_data_provider_registry
 from parakeetnest.news import NewsService, create_news_provider_registry
-from parakeetnest.portfolio import create_portfolio_provider_registry
+from parakeetnest.portfolio import PortfolioService, create_portfolio_provider_registry
 from parakeetnest.portfolio.provider import PortfolioProvider
 from parakeetnest.regime import EconomicRegimeService
 from parakeetnest.regime.context_provider import EconomicRegimeContextProvider
@@ -105,6 +105,7 @@ class ParakeetNestApp:
     watchlist_intelligence_service: WatchlistIntelligenceService
     market_data_service: MarketDataService
     portfolio_provider: PortfolioProvider
+    portfolio_service: PortfolioService
     email_provider: EmailProvider
     report_delivery_provider: EmailReportDeliveryProvider
     llm_provider: LLMProvider
@@ -153,6 +154,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
     market_data_provider = _create_market_data_provider(resolved_config)
     market_data_service = MarketDataService(market_data_provider)
     portfolio_provider = _create_portfolio_provider(resolved_config)
+    portfolio_service = PortfolioService(portfolio_provider)
     email_provider = _create_email_provider(resolved_config)
     report_delivery_provider = EmailReportDeliveryProvider(
         email_provider,
@@ -217,6 +219,7 @@ def create_app(config: AppConfig | None = None) -> ParakeetNestApp:
         watchlist_intelligence_service=watchlist_intelligence_service,
         market_data_service=market_data_service,
         portfolio_provider=portfolio_provider,
+        portfolio_service=portfolio_service,
         email_provider=email_provider,
         report_delivery_provider=report_delivery_provider,
         llm_provider=llm_provider,

@@ -24,6 +24,33 @@ python -m parakeetnest.cli.daily_report --mode morning --archive
 
 Secrets are not written into the LaunchAgent plist.
 
+To make the scheduled report use your Robinhood holdings as the default ticker
+coverage, configure the local `.env` file rather than the plist:
+
+```sh
+PARAKEETNEST_PORTFOLIO_PROVIDER=robinhood
+PARAKEETNEST_PORTFOLIO_ACCOUNT_ID=default
+PARAKEETNEST_ROBINHOOD_USERNAME=...
+PARAKEETNEST_ROBINHOOD_PASSWORD=...
+```
+
+You can also use `PARAKEETNEST_ROBINHOOD_SESSION_TOKEN` or
+`PARAKEETNEST_ROBINHOOD_SESSION_CACHE_PATH` instead of username/password when
+available.
+
+To email the generated report, configure the existing email provider and default
+recipient in `.env`:
+
+```sh
+GOOGLE_APPLICATION_CREDENTIALS=secrets/gmail-client-secret.json
+PARAKEETNEST_GMAIL_TOKEN_PATH=.gmail-token/token.json
+PARAKEETNEST_REPORT_RECIPIENT=you@example.com
+```
+
+The scheduler still does not send email directly; it launches the runtime script,
+and the daily report CLI delegates delivery to ParakeetNest's configured email
+provider.
+
 ## Commands
 
 Preview the LaunchAgent plist:

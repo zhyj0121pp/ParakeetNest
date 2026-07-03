@@ -130,6 +130,7 @@ class AppConfig:
         default_factory=PortfolioConfig
     )
     email: EmailConfig | Mapping[str, str | None] = field(default_factory=EmailConfig)
+    report_recipient_email: str | None = None
     prompt_dir: Path = field(default_factory=lambda: DEFAULT_PROMPT_DIR)
     environment: AppEnvironmentName = "local"
     enabled_context_provider_ids: tuple[str, ...] | None = None
@@ -232,10 +233,102 @@ class Settings(BaseSettings):
     sqlite_path: Path = Path("data/parakeetnest.sqlite3")
     watchlist_seed_path: Path | None = None
 
+    portfolio_provider: str = "mock"
+    portfolio_account_id: str | None = None
+    robinhood_session_cache_path: str | None = None
+    robinhood_username_env_var: str = "PARAKEETNEST_ROBINHOOD_USERNAME"
+    robinhood_password_env_var: str = "PARAKEETNEST_ROBINHOOD_PASSWORD"
+    robinhood_session_token_env_var: str = "PARAKEETNEST_ROBINHOOD_SESSION_TOKEN"
+
+    email_provider: str = "mock"
+    gmail_credentials_path_env_var: str = "GOOGLE_APPLICATION_CREDENTIALS"
+    gmail_token_path_env_var: str = "PARAKEETNEST_GMAIL_TOKEN_PATH"
+    sender_email: str | None = None
+    report_recipient: str | None = None
+
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     robinhood_username: str | None = Field(default=None, repr=False)
     robinhood_password: SecretStr | None = Field(default=None, repr=False)
     fred_api_key: SecretStr | None = Field(default=None, repr=False)
+
+
+def portfolio_config_from_settings(settings: Settings) -> PortfolioConfig:
+    """Build provider-neutral portfolio config from local settings."""
+    legacy_username_env_var = "ROBINHOOD_USERNAME"
+    legacy_password_env_var = "ROBINHOOD_PASSWORD"
+    legacy_session_token_env_var = "ROBINHOOD_SESSION_TOKEN"
+    legacy_session_cache_path_env_var = "ROBINHOOD_SESSION_CACHE_PATH"
+    legacy_robinhood_configured = any(
+        _read_nonempty_env(env_var_name)
+        for env_var_name in (
+            legacy_username_env_var,
+            legacy_password_env_var,
+            legacy_session_token_env_var,
+            legacy_session_cache_path_env_var,
+        )
+    )
+    provider = settings.portfolio_provider
+    if provider == "mock" and legacy_robinhood_configured:
+        provider = "robinhood"
+    return PortfolioConfig(
+        provider=provider,
+        account_id=settings.portfolio_account_id,
+        robinhood_session_cache_path=(
+            settings.robinhood_session_cache_path
+            or _read_nonempty_env(legacy_session_cache_path_env_var)
+        ),
+        robinhood_username_env_var=(
+            legacy_username_env_var
+            if _read_nonempty_env(legacy_username_env_var)
+            else settings.robinhood_username_env_var
+        ),
+        robinhood_password_env_var=(
+            legacy_password_env_var
+            if _read_nonempty_env(legacy_password_env_var)
+            else settings.robinhood_password_env_var
+        ),
+        robinhood_session_token_env_var=(
+            legacy_session_token_env_var
+            if _read_nonempty_env(legacy_session_token_env_var)
+            else settings.robinhood_session_token_env_var
+        ),
+    )
+
+
+def email_config_from_settings(settings: Settings) -> EmailConfig:
+    """Build provider-neutral email config from local settings."""
+    provider = settings.email_provider
+    if (
+        provider == "mock"
+        and _read_nonempty_env(settings.gmail_credentials_path_env_var)
+        and _read_nonempty_env(settings.gmail_token_path_env_var)
+    ):
+        provider = "gmail"
+    return EmailConfig(
+        provider=provider,
+        gmail_credentials_path_env_var=settings.gmail_credentials_path_env_var,
+        gmail_token_path_env_var=settings.gmail_token_path_env_var,
+        sender_email=settings.sender_email,
+    )
+
+
+def default_portfolio_account_id(config: PortfolioConfig) -> str | None:
+    """Return the default account id for a configured portfolio provider."""
+    if config.account_id is not None:
+        account_id = config.account_id.strip()
+        if account_id:
+            return account_id
+    if config.provider.strip().lower() == "robinhood":
+        return "default"
+    return None
+
+
+def _read_nonempty_env(env_var_name: str) -> str | None:
+    value = os.getenv(env_var_name)
+    if value is None:
+        return None
+    stripped_value = value.strip()
+    return stripped_value or None
 
 
 @lru_cache

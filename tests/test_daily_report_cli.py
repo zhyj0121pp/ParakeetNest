@@ -44,6 +44,28 @@ class EmptyWatchlistService:
         raise ValueError(f"missing {symbol}")
 
 
+class RecordingPortfolioService:
+    def __init__(self, symbols: tuple[str, ...]) -> None:
+        self.symbols = symbols
+        self.calls: list[str] = []
+
+    def get_symbols(self, account_id: str) -> tuple[str, ...]:
+        self.calls.append(account_id)
+        return self.symbols
+
+
+@dataclass(frozen=True)
+class FakePortfolioConfig:
+    provider: str = "mock"
+    account_id: str | None = None
+
+
+@dataclass(frozen=True)
+class FakeConfig:
+    portfolio: FakePortfolioConfig
+    report_recipient_email: str | None = None
+
+
 @dataclass(frozen=True)
 class FakeContextProviderRegistration:
     provider_id: str
@@ -68,7 +90,17 @@ class RecordingApp:
         watchlist_service: object | None = None,
         intelligence_service: object | None = None,
         portfolio_context_provider: object | None = None,
+        portfolio_service: object | None = None,
+        portfolio_config: FakePortfolioConfig | None = None,
+        email_provider: object | None = None,
+        report_recipient_email: str | None = None,
     ) -> None:
+        self.config = FakeConfig(
+            portfolio_config or FakePortfolioConfig(),
+            report_recipient_email=report_recipient_email,
+        )
+        self.email_provider = email_provider or object()
+        self.portfolio_service = portfolio_service
         self.watchlist_intelligence_service = (
             watchlist_service or EmptyWatchlistService()
         )
@@ -252,17 +284,42 @@ def test_cli_invokes_email_service_when_email_is_specified(
     ]
 
 
-def test_cli_prints_report_and_real_console_email_output(
+def test_cli_sends_report_through_app_email_provider(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
     composer = RecordingComposer("Market Summary\nCommittee Consensus\n")
+    sent: list[dict[str, object]] = []
+
+    class RecordingEmailService:
+        def __init__(self, provider: object) -> None:
+            self.provider = provider
+
+        def send(
+            self,
+            report: str,
+            *,
+            recipient: str,
+            as_of_date: date | None = None,
+            mode: ReportMode | str | None = None,
+        ) -> None:
+            sent.append(
+                {
+                    "provider": self.provider,
+                    "report": report,
+                    "recipient": recipient,
+                    "as_of_date": as_of_date,
+                    "mode": mode,
+                }
+            )
+
     monkeypatch.setattr(
         daily_report,
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
+    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
 
     exit_code = daily_report.main(
         [
@@ -278,18 +335,73 @@ def test_cli_prints_report_and_real_console_email_output(
     )
 
     assert exit_code == 0
-    assert capsys.readouterr().out == (
-        "Market Summary\n"
-        "Committee Consensus\n"
-        "==== EMAIL ====\n"
-        "To: investor@example.com\n"
-        "Subject: Evening Investment Review - 2026-07-01\n"
-        "\n"
-        "Market Summary\n"
-        "Committee Consensus\n"
-        "\n"
-        "==============\n"
+    assert capsys.readouterr().out == "Market Summary\nCommittee Consensus\n"
+    assert sent == [
+        {
+            "provider": recording_app.email_provider,
+            "report": "Market Summary\nCommittee Consensus\n",
+            "recipient": "investor@example.com",
+            "as_of_date": date(2026, 7, 1),
+            "mode": ReportMode.EVENING,
+        }
+    ]
+
+
+def test_cli_uses_configured_report_recipient_when_email_is_omitted(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    email_provider = object()
+    app = RecordingApp(
+        email_provider=email_provider,
+        report_recipient_email="configured@example.com",
     )
+    composer = RecordingComposer("Market Summary\n")
+    sent: list[dict[str, object]] = []
+
+    class RecordingEmailService:
+        def __init__(self, provider: object) -> None:
+            self.provider = provider
+
+        def send(
+            self,
+            report: str,
+            *,
+            recipient: str,
+            as_of_date: date | None = None,
+            mode: ReportMode | str | None = None,
+        ) -> None:
+            sent.append(
+                {
+                    "provider": self.provider,
+                    "report": report,
+                    "recipient": recipient,
+                    "as_of_date": as_of_date,
+                    "mode": mode,
+                }
+            )
+
+    monkeypatch.setattr(daily_report, "create_app", lambda config: app)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
+
+    exit_code = daily_report.main(["--tickers", "NVDA"])
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == "Market Summary\n"
+    assert sent == [
+        {
+            "provider": email_provider,
+            "report": "Market Summary\n",
+            "recipient": "configured@example.com",
+            "as_of_date": None,
+            "mode": ReportMode.MORNING,
+        }
+    ]
 
 
 def test_cli_does_not_send_email_when_email_is_omitted(
@@ -615,6 +727,63 @@ def test_cli_explicit_tickers_override_watchlist_seed(tmp_path: Path) -> None:
     assert "TSLA is included for research" in body
 
 
+def test_cli_uses_configured_robinhood_holdings_when_tickers_are_omitted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    portfolio_service = RecordingPortfolioService(("aapl", "NVDA", "msft"))
+    app = RecordingApp(
+        portfolio_service=portfolio_service,
+        portfolio_config=FakePortfolioConfig(provider="robinhood", account_id="default"),
+    )
+    composer = RecordingComposer("portfolio report\n")
+    monkeypatch.setattr(daily_report, "create_app", lambda config: app)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    exit_code = daily_report.main(["--output", str(tmp_path / "daily-report.md")])
+
+    assert exit_code == 0
+    assert portfolio_service.calls == ["default"]
+    assert composer.calls == [
+        {
+            "tickers": ("AAPL", "NVDA", "MSFT"),
+            "account_id": "default",
+            "as_of_date": None,
+            "mode": ReportMode.MORNING,
+        }
+    ]
+
+
+def test_cli_explicit_tickers_override_portfolio_holdings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    portfolio_service = RecordingPortfolioService(("AAPL", "MSFT"))
+    app = RecordingApp(
+        portfolio_service=portfolio_service,
+        portfolio_config=FakePortfolioConfig(provider="robinhood", account_id="default"),
+    )
+    composer = RecordingComposer("explicit report\n")
+    monkeypatch.setattr(daily_report, "create_app", lambda config: app)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    exit_code = daily_report.main(
+        ["--tickers", "NVDA", "--output", str(tmp_path / "daily-report.md")]
+    )
+
+    assert exit_code == 0
+    assert portfolio_service.calls == []
+    assert composer.calls[0]["tickers"] == ("NVDA",)
+
+
 def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
     output_path = tmp_path / "evening-review.md"
 
@@ -715,6 +884,32 @@ def test_portfolio_context_provider_is_passed_into_daily_report_generation(
     assert received == [portfolio_context_provider]
 
 
+def test_portfolio_service_is_passed_into_daily_report_generation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    portfolio_service = RecordingPortfolioService(("NVDA",))
+    app = RecordingApp(portfolio_service=portfolio_service)
+    received: list[object] = []
+
+    class RecordingResearchService:
+        def __init__(self, **kwargs: object) -> None:
+            received.append(kwargs["portfolio_service"])
+
+        def generate_report(self, *args: object, **kwargs: object) -> object:
+            raise AssertionError("report generation is not needed")
+
+    monkeypatch.setattr(
+        daily_report,
+        "InvestmentResearchService",
+        RecordingResearchService,
+    )
+
+    composer = daily_report._build_daily_report_composer(app)
+
+    assert composer is not None
+    assert received == [portfolio_service]
+
+
 def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
     output_path = tmp_path / "daily-report.md"
 
@@ -755,7 +950,10 @@ def test_missing_tickers_without_watchlist_seed_return_clear_error(
 
     captured = capsys.readouterr()
     assert exc.value.code == 2
-    assert "No tickers provided and no watchlist seed is configured." in captured.err
+    assert (
+        "No tickers provided, no portfolio holdings found, "
+        "and no watchlist seed is configured."
+    ) in captured.err
 
 
 def test_invalid_tickers_return_clear_error(

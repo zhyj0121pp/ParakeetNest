@@ -207,7 +207,11 @@ class InvestmentResearchService:
         )
 
     def _get_portfolio_snapshot(self, account_id: str | None) -> Any | None:
-        if self._portfolio_service is None or account_id is None:
+        if (
+            self._portfolio_context_provider is not None
+            or self._portfolio_service is None
+            or account_id is None
+        ):
             return None
         return self._portfolio_service.get_snapshot(account_id)
 

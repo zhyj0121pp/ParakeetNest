@@ -11,7 +11,6 @@ from pathlib import Path
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest, MeetingContextPromptRenderer
 from parakeetnest.cli import doctor
-from parakeetnest.cli import daily_report
 from parakeetnest.cli import schedule
 
 
@@ -84,6 +83,8 @@ def build_parser() -> argparse.ArgumentParser:
         "daily-report",
         help="Generate a local advisory daily investment report.",
     )
+    from parakeetnest.cli import daily_report
+
     _copy_parser_arguments(
         source=daily_report.build_parser(prog="parakeetnest daily-report"),
         target=daily_report_parser,
@@ -148,6 +149,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return doctor.main(doctor_args)
 
     if args.command == "daily-report":
+        from parakeetnest.cli import daily_report
+
         return daily_report.main(_daily_report_args(args))
 
     if args.command == "schedule":

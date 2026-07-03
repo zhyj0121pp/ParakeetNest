@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -57,6 +58,97 @@ def test_cli_parser_parses_schedule_print_plist_command() -> None:
     assert args.schedule_command == "print-plist"
     assert args.hour == 8
     assert args.minute == 15
+
+
+def test_cli_parser_parses_daily_report_command(tmp_path: Path) -> None:
+    """The daily report command should be available in the root CLI."""
+    output_path = tmp_path / "morning.md"
+    args = cli.build_parser().parse_args(
+        [
+            "daily-report",
+            "--mode",
+            "morning",
+            "--tickers",
+            "NVDA",
+            "AAPL",
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    assert args.command == "daily-report"
+    assert args.mode == "morning"
+    assert args.tickers == ["NVDA", "AAPL"]
+    assert args.output == output_path
+
+
+def test_cli_daily_report_delegates_to_existing_module(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The root daily-report command should reuse the existing report CLI."""
+    calls: list[list[str]] = []
+
+    def recording_daily_report_main(argv: list[str]) -> int:
+        calls.append(argv)
+        return 0
+
+    monkeypatch.setattr(cli.daily_report, "main", recording_daily_report_main)
+
+    exit_code = cli.main(
+        [
+            "daily-report",
+            "--mode",
+            "evening",
+            "--tickers",
+            "nvda",
+            "--archive",
+            "--email",
+            "investor@example.com",
+        ]
+    )
+
+    assert exit_code == 0
+    assert calls == [
+        [
+            "--mode",
+            "evening",
+            "--tickers",
+            "nvda",
+            "--archive",
+            "--email",
+            "investor@example.com",
+        ]
+    ]
+
+
+def test_cli_schedule_install_reports_launchctl_failure_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """launchctl failures should be reported as install errors, not tracebacks."""
+
+    class FailingInstaller:
+        def __init__(self, *, label: str) -> None:
+            self.label = label
+
+        def install(self, plist_content: str) -> object:
+            raise subprocess.CalledProcessError(
+                5,
+                ["launchctl", "bootstrap", "gui/501", "agent.plist"],
+                stderr="Bootstrap failed: 5\n",
+            )
+
+    monkeypatch.setattr(cli.schedule, "LaunchdInstaller", FailingInstaller)
+
+    exit_code = cli.main(["schedule", "install"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "schedule command failed: launchctl bootstrap gui/501 agent.plist" in (
+        captured.err
+    )
+    assert "Bootstrap failed: 5" in captured.err
+    assert "Traceback" not in captured.err
 
 
 def test_cli_meeting_command_calls_meeting_service(

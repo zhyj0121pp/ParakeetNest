@@ -29,25 +29,25 @@ Secrets are not written into the LaunchAgent plist.
 Preview the LaunchAgent plist:
 
 ```sh
-python -m parakeetnest schedule print-plist
+parakeetnest schedule print-plist
 ```
 
 Install the LaunchAgent:
 
 ```sh
-python -m parakeetnest schedule install
+parakeetnest schedule install
 ```
 
 Show launchd status:
 
 ```sh
-python -m parakeetnest schedule status
+parakeetnest schedule status
 ```
 
 Uninstall the LaunchAgent:
 
 ```sh
-python -m parakeetnest schedule uninstall
+parakeetnest schedule uninstall
 ```
 
 ## Custom Time
@@ -55,10 +55,14 @@ python -m parakeetnest schedule uninstall
 Use `--hour` and `--minute` with `install` or `print-plist`:
 
 ```sh
-python -m parakeetnest schedule install --hour 8 --minute 15
+parakeetnest schedule install --hour 8 --minute 15
 ```
 
 The schedule uses local macOS time.
+
+`schedule install` must run from a macOS GUI login session where `launchctl`
+can bootstrap a user LaunchAgent. If `launchctl bootstrap` fails, fix the local
+launchd/session issue and rerun the install command.
 
 ## Files
 

@@ -83,9 +83,19 @@ For live-provider validation, install the optional provider dependencies:
 .venv/bin/python -m pip install -e ".[dev,openai,yahoo,robinhood,gmail]"
 ```
 
+After install, the package exposes a local CLI:
+
+```bash
+source .venv/bin/activate
+parakeetnest --help
+```
+
+Without activating the virtualenv, use `.venv/bin/parakeetnest ...`.
+
 ## Documentation
 
 - [Documentation Overview](docs/README.md)
+- [Clean Machine Validation](docs/clean-machine-validation.md)
 - [End-to-End Provider Integration](docs/integration.md)
 - [Local Daily Report Workflow](docs/architecture/automated-daily-report-flow.md)
 - [Context Layer Architecture](docs/architecture/context-layer.md)
@@ -145,12 +155,17 @@ Useful local settings:
 Validate live-provider configuration without making external API calls:
 
 ```bash
-.venv/bin/python -m parakeetnest doctor --config examples/config-real.toml
+parakeetnest doctor --config examples/config-real.toml
 ```
 
-The project does not currently define a console-script entry point named
-`parakeetnest`; use `.venv/bin/python -m parakeetnest ...` unless you add your
-own shell alias.
+Mock-mode local checks do not need live credentials:
+
+```bash
+parakeetnest doctor
+parakeetnest meeting "Should I buy NVDA now?" --ticker NVDA
+parakeetnest daily-report --mode morning --tickers NVDA AAPL --archive
+parakeetnest schedule print-plist
+```
 
 ## Database
 

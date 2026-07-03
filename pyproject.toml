@@ -32,6 +32,9 @@ gmail = [
     "google-auth>=2",
 ]
 
+[project.scripts]
+parakeetnest = "parakeetnest.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

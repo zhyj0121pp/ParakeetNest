@@ -84,13 +84,13 @@ rest remains `"mock"`.
 Run a local morning report with explicit tickers:
 
 ```bash
-.venv/bin/python -m parakeetnest.cli.daily_report --mode morning --tickers NVDA AAPL
+parakeetnest daily-report --mode morning --tickers NVDA AAPL
 ```
 
 Add archive or output paths as needed:
 
 ```bash
-.venv/bin/python -m parakeetnest.cli.daily_report \
+parakeetnest daily-report \
   --mode morning \
   --tickers NVDA AAPL \
   --archive \
@@ -101,19 +101,28 @@ The daily report CLI is a local report workflow. Its `--email` option uses the
 console email provider for local output capture. It does not load
 `examples/config-real.toml` and does not send through Gmail by itself.
 
+Gmail readiness is checked with:
+
+```bash
+parakeetnest doctor --config examples/config-real.toml
+```
+
+There is no dedicated Gmail test command. A provider-level Gmail smoke test is
+manual and sends a real email.
+
 ## Evening Report
 
 Run the evening review with the same daily report CLI:
 
 ```bash
-.venv/bin/python -m parakeetnest.cli.daily_report --mode evening --tickers NVDA AAPL
+parakeetnest daily-report --mode evening --tickers NVDA AAPL
 ```
 
 To include portfolio context, pass an account id that the configured
 `PortfolioProvider` can resolve:
 
 ```bash
-.venv/bin/python -m parakeetnest.cli.daily_report \
+parakeetnest daily-report \
   --mode evening \
   --tickers NVDA AAPL \
   --account-id default

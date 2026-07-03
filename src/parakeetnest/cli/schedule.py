@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
+import subprocess
 import sys
 
 from parakeetnest.scheduler import (
@@ -98,12 +99,32 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
 
     except ScheduleValidationError as exc:
         parser.error(str(exc))
+    except subprocess.CalledProcessError as exc:
+        print(_format_launchctl_error(exc), file=sys.stderr)
+        return 1
     except OSError as exc:
         print(f"schedule command failed: {exc}", file=sys.stderr)
         return 1
 
     parser.error(f"Unknown schedule command: {args.schedule_command}")
     return 2
+
+
+def _format_launchctl_error(exc: subprocess.CalledProcessError) -> str:
+    command = " ".join(str(part) for part in exc.cmd)
+    lines = [
+        f"schedule command failed: {command} exited with status {exc.returncode}.",
+    ]
+    if exc.stderr:
+        lines.append(exc.stderr.rstrip())
+    if exc.stdout:
+        lines.append(exc.stdout.rstrip())
+    if not exc.stderr and not exc.stdout:
+        lines.append(
+            "launchctl did not return details. Confirm you are running inside a "
+            "macOS GUI login session and that the LaunchAgent label is valid."
+        )
+    return "\n".join(lines)
 
 
 def _add_label_arg(parser: argparse.ArgumentParser) -> None:

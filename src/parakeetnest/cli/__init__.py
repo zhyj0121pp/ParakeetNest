@@ -11,6 +11,7 @@ from pathlib import Path
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest, MeetingContextPromptRenderer
 from parakeetnest.cli import doctor
+from parakeetnest.cli import daily_report
 from parakeetnest.cli import schedule
 
 
@@ -79,6 +80,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional TOML integration config. Defaults to mock AppConfig.",
     )
 
+    daily_report_parser = subparsers.add_parser(
+        "daily-report",
+        help="Generate a local advisory daily investment report.",
+    )
+    _copy_parser_arguments(
+        source=daily_report.build_parser(prog="parakeetnest daily-report"),
+        target=daily_report_parser,
+    )
+
     schedule_parser = subparsers.add_parser(
         "schedule",
         help="Manage local macOS launchd scheduling.",
@@ -137,11 +147,65 @@ def main(argv: Sequence[str] | None = None) -> int:
             doctor_args.extend(["--config", str(args.config)])
         return doctor.main(doctor_args)
 
+    if args.command == "daily-report":
+        return daily_report.main(_daily_report_args(args))
+
     if args.command == "schedule":
         return schedule.run(args, parser)
 
     parser.error(f"Unknown command: {args.command}")
     return 2
+
+
+def _copy_parser_arguments(
+    *,
+    source: argparse.ArgumentParser,
+    target: argparse.ArgumentParser,
+) -> None:
+    """Copy optional CLI flags from a leaf parser into the root parser."""
+    for action in source._actions:  # noqa: SLF001 - argparse has no public copier.
+        if not action.option_strings:
+            continue
+        if isinstance(action, argparse._HelpAction):  # noqa: SLF001
+            continue
+        kwargs = {
+            "default": action.default,
+            "help": action.help,
+            "required": action.required,
+        }
+        if isinstance(action, argparse._StoreTrueAction):  # noqa: SLF001
+            kwargs["action"] = "store_true"
+        elif isinstance(action, argparse._StoreFalseAction):  # noqa: SLF001
+            kwargs["action"] = "store_false"
+        else:
+            kwargs["type"] = action.type
+            kwargs["nargs"] = action.nargs
+            kwargs["choices"] = action.choices
+            kwargs["metavar"] = action.metavar
+        target.add_argument(*action.option_strings, **kwargs)
+
+
+def _daily_report_args(args: argparse.Namespace) -> list[str]:
+    """Convert parsed root CLI args into the existing daily report argv."""
+    forwarded: list[str] = ["--mode", args.mode]
+    if args.tickers is not None:
+        forwarded.append("--tickers")
+        forwarded.extend(args.tickers)
+    if args.output is not None:
+        forwarded.extend(["--output", str(args.output)])
+    if args.archive:
+        forwarded.append("--archive")
+    if args.account_id is not None:
+        forwarded.extend(["--account-id", args.account_id])
+    if args.database is not None:
+        forwarded.extend(["--database", str(args.database)])
+    if args.watchlist_seed is not None:
+        forwarded.extend(["--watchlist-seed", str(args.watchlist_seed)])
+    if args.as_of_date is not None:
+        forwarded.extend(["--as-of-date", args.as_of_date.isoformat()])
+    if args.email is not None:
+        forwarded.extend(["--email", args.email])
+    return forwarded
 
 
 def run_meeting(question: str, ticker: str, database_path: Path | None = None) -> None:

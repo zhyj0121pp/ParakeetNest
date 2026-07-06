@@ -28,6 +28,7 @@ from parakeetnest.services.portfolio import MockPortfolioService
 from parakeetnest.services.position_committee_review import (
     PositionCommitteeReviewRunner,
 )
+from parakeetnest.services.position_consensus import PositionConsensusBuilder
 from parakeetnest.services.position_context import PositionContextBuilder
 
 __all__ = [
@@ -48,6 +49,7 @@ __all__ = [
     "MockPortfolioService",
     "NewsService",
     "PortfolioService",
+    "PositionConsensusBuilder",
     "PositionContextBuilder",
     "PositionCommitteeReviewRunner",
     "ServiceResult",

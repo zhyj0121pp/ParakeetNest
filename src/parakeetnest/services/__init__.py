@@ -33,6 +33,9 @@ from parakeetnest.services.position_context import PositionContextBuilder
 from parakeetnest.services.position_decision_workflow import (
     PositionDecisionWorkflowService,
 )
+from parakeetnest.services.portfolio_position_decision_workflow import (
+    PortfolioPositionDecisionWorkflowService,
+)
 
 __all__ = [
     "CalendarService",
@@ -58,4 +61,5 @@ __all__ = [
     "ServiceResult",
     "SnapshotPersistence",
     "PositionDecisionWorkflowService",
+    "PortfolioPositionDecisionWorkflowService",
 ]

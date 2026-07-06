@@ -25,6 +25,9 @@ from parakeetnest.services.orchestrator import (
     DataCollectionResult,
 )
 from parakeetnest.services.portfolio import MockPortfolioService
+from parakeetnest.services.position_committee_review import (
+    PositionCommitteeReviewRunner,
+)
 from parakeetnest.services.position_context import PositionContextBuilder
 
 __all__ = [
@@ -46,6 +49,7 @@ __all__ = [
     "NewsService",
     "PortfolioService",
     "PositionContextBuilder",
+    "PositionCommitteeReviewRunner",
     "ServiceResult",
     "SnapshotPersistence",
 ]

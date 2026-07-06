@@ -159,7 +159,11 @@ class PositionDecision:
             "recommendation",
             _position_recommendation(self.recommendation),
         )
-        object.__setattr__(self, "action_required", bool(self.action_required))
+        object.__setattr__(
+            self,
+            "action_required",
+            _required_bool(self.action_required, "action_required"),
+        )
         object.__setattr__(self, "urgency", _decision_urgency(self.urgency))
         object.__setattr__(
             self,
@@ -199,8 +203,9 @@ class PositionDecision:
         object.__setattr__(
             self,
             "human_review_required",
-            bool(self.human_review_required),
+            _required_bool(self.human_review_required, "human_review_required"),
         )
+        _validate_position_decision(self)
 
 
 @dataclass(frozen=True)
@@ -310,6 +315,13 @@ def _required_text(value: str, field_name: str) -> str:
     return text
 
 
+def _required_bool(value: bool, field_name: str) -> bool:
+    """Return a real bool value without truthiness coercion."""
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be bool")
+    return value
+
+
 def _text_tuple(
     values: tuple[str, ...],
     field_name: str,
@@ -344,3 +356,25 @@ def _confidence_level(value: ConfidenceLevel | str) -> ConfidenceLevel:
     if isinstance(value, ConfidenceLevel):
         return value
     return ConfidenceLevel(value.strip().lower())
+
+
+def _validate_position_decision(decision: PositionDecision) -> None:
+    """Validate cross-field position decision invariants."""
+    if decision.recommendation is PositionRecommendation.NO_ACTION:
+        if decision.action_required:
+            raise ValueError("NO_ACTION decisions cannot require action")
+        if decision.urgency is not DecisionUrgency.NONE:
+            raise ValueError("NO_ACTION decisions must have NONE urgency")
+
+    review_required_recommendations = (
+        PositionRecommendation.BUY_MORE,
+        PositionRecommendation.TRIM,
+        PositionRecommendation.SELL,
+    )
+    if (
+        decision.recommendation in review_required_recommendations
+        and not decision.human_review_required
+    ):
+        raise ValueError(
+            "BUY_MORE, TRIM, and SELL decisions require human review"
+        )

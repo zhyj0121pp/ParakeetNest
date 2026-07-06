@@ -60,7 +60,7 @@ def test_position_decision_construction_normalizes_basic_invariants() -> None:
         symbol=" nvda ",
         company_name=" NVIDIA Corporation ",
         recommendation="BUY_MORE",
-        action_required=1,
+        action_required=True,
         urgency="HIGH",
         final_rationale="Committee sees durable AI demand.",
         dongdong_opinion="Opportunity remains attractive.",
@@ -69,7 +69,7 @@ def test_position_decision_construction_normalizes_basic_invariants() -> None:
         factual_evidence=[" Revenue growth accelerated. ", ""],  # type: ignore[arg-type]
         risks=[" Valuation compression. "],  # type: ignore[arg-type]
         confidence="MEDIUM",
-        human_review_required=1,
+        human_review_required=True,
     )
 
     assert decision.symbol == "NVDA"
@@ -84,6 +84,133 @@ def test_position_decision_construction_normalizes_basic_invariants() -> None:
 
     with pytest.raises(FrozenInstanceError):
         decision.symbol = "AMD"
+
+
+def test_position_decision_requires_real_bool_values() -> None:
+    """Position decision bool fields should reject truthy or falsey substitutes."""
+    with pytest.raises(ValueError, match="action_required must be bool"):
+        PositionDecision(
+            symbol="MSFT",
+            company_name="Microsoft",
+            recommendation=PositionRecommendation.HOLD,
+            action_required=1,  # type: ignore[arg-type]
+            urgency=DecisionUrgency.LOW,
+            final_rationale="Maintain current position.",
+            dongdong_opinion="Limited near-term upside.",
+            xixi_opinion="Quality remains high.",
+            youyou_opinion="Risk is manageable.",
+            factual_evidence=("Cash flow remains strong.",),
+            risks=("Multiple risk.",),
+            confidence=ConfidenceLevel.HIGH,
+            human_review_required=False,
+        )
+
+    with pytest.raises(ValueError, match="human_review_required must be bool"):
+        PositionDecision(
+            symbol="MSFT",
+            company_name="Microsoft",
+            recommendation=PositionRecommendation.HOLD,
+            action_required=False,
+            urgency=DecisionUrgency.LOW,
+            final_rationale="Maintain current position.",
+            dongdong_opinion="Limited near-term upside.",
+            xixi_opinion="Quality remains high.",
+            youyou_opinion="Risk is manageable.",
+            factual_evidence=("Cash flow remains strong.",),
+            risks=("Multiple risk.",),
+            confidence=ConfidenceLevel.HIGH,
+            human_review_required=0,  # type: ignore[arg-type]
+        )
+
+
+def test_no_action_position_decision_requires_no_action_and_no_urgency() -> None:
+    """NO_ACTION decisions should remain explicit non-action records."""
+    decision = PositionDecision(
+        symbol="MSFT",
+        company_name="Microsoft",
+        recommendation=PositionRecommendation.NO_ACTION,
+        action_required=False,
+        urgency=DecisionUrgency.NONE,
+        final_rationale="No committee action needed today.",
+        dongdong_opinion="No fresh opportunity signal.",
+        xixi_opinion="Thesis remains intact.",
+        youyou_opinion="Risk level does not require intervention.",
+        factual_evidence=("No material change in current facts.",),
+        risks=("Monitor for future data changes.",),
+        confidence=ConfidenceLevel.MEDIUM,
+        human_review_required=False,
+    )
+
+    assert decision.recommendation is PositionRecommendation.NO_ACTION
+    assert decision.action_required is False
+    assert decision.urgency is DecisionUrgency.NONE
+
+    with pytest.raises(ValueError, match="NO_ACTION decisions cannot require action"):
+        PositionDecision(
+            symbol="MSFT",
+            company_name="Microsoft",
+            recommendation=PositionRecommendation.NO_ACTION,
+            action_required=True,
+            urgency=DecisionUrgency.NONE,
+            final_rationale="No committee action needed today.",
+            dongdong_opinion="No fresh opportunity signal.",
+            xixi_opinion="Thesis remains intact.",
+            youyou_opinion="Risk level does not require intervention.",
+            factual_evidence=("No material change in current facts.",),
+            risks=("Monitor for future data changes.",),
+            confidence=ConfidenceLevel.MEDIUM,
+            human_review_required=False,
+        )
+
+    with pytest.raises(ValueError, match="NO_ACTION decisions must have NONE urgency"):
+        PositionDecision(
+            symbol="MSFT",
+            company_name="Microsoft",
+            recommendation=PositionRecommendation.NO_ACTION,
+            action_required=False,
+            urgency=DecisionUrgency.LOW,
+            final_rationale="No committee action needed today.",
+            dongdong_opinion="No fresh opportunity signal.",
+            xixi_opinion="Thesis remains intact.",
+            youyou_opinion="Risk level does not require intervention.",
+            factual_evidence=("No material change in current facts.",),
+            risks=("Monitor for future data changes.",),
+            confidence=ConfidenceLevel.MEDIUM,
+            human_review_required=False,
+        )
+
+
+@pytest.mark.parametrize(
+    "recommendation",
+    (
+        PositionRecommendation.BUY_MORE,
+        PositionRecommendation.TRIM,
+        PositionRecommendation.SELL,
+    ),
+)
+def test_action_recommendations_require_human_review(
+    recommendation: PositionRecommendation,
+) -> None:
+    """Material action recommendations should require a human review gate."""
+    with pytest.raises(
+        ValueError,
+        match="BUY_MORE, TRIM, and SELL decisions require human review",
+    ):
+        PositionDecision(
+            symbol="NVDA",
+            company_name="NVIDIA Corporation",
+            recommendation=recommendation,
+            action_required=True,
+            urgency=DecisionUrgency.HIGH,
+            final_rationale="Committee recommends a position action.",
+            dongdong_opinion="Opportunity or action signal is present.",
+            xixi_opinion="Fundamentals support committee review.",
+            youyou_opinion="Risk requires explicit human review.",
+            factual_evidence=("Committee evidence supports review.",),
+            risks=("Position action can affect portfolio risk.",),
+            confidence=ConfidenceLevel.MEDIUM,
+            human_review_required=False,
+        )
 
 
 def test_position_decision_requires_evidence_and_risks() -> None:

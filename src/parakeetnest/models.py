@@ -129,6 +129,61 @@ class CommitteePositionReview:
 
 
 @dataclass(frozen=True)
+class PositionContext:
+    """Provider-neutral evidence packet for reviewing one current position."""
+
+    symbol: str
+    company_name: str
+    quantity: float
+    market_value: float
+    portfolio_weight: float
+    cost_basis: float | None = None
+    unrealized_gain_loss: float | None = None
+    current_price: float | None = None
+    recent_price_change: float | None = None
+    relevant_news: tuple[str, ...] = field(default_factory=tuple)
+    relevant_research: tuple[str, ...] = field(default_factory=tuple)
+    risk_notes: tuple[str, ...] = field(default_factory=tuple)
+    valuation_notes: tuple[str, ...] = field(default_factory=tuple)
+    momentum_notes: tuple[str, ...] = field(default_factory=tuple)
+    portfolio_notes: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        """Normalize context fields while staying provider-neutral."""
+        object.__setattr__(self, "symbol", _required_symbol(self.symbol))
+        object.__setattr__(
+            self,
+            "company_name",
+            _required_text(self.company_name, "company_name"),
+        )
+        object.__setattr__(self, "quantity", float(self.quantity))
+        object.__setattr__(self, "market_value", float(self.market_value))
+        object.__setattr__(self, "portfolio_weight", float(self.portfolio_weight))
+        for field_name in (
+            "relevant_news",
+            "relevant_research",
+            "risk_notes",
+            "valuation_notes",
+            "momentum_notes",
+            "portfolio_notes",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _text_tuple(getattr(self, field_name), field_name),
+            )
+        for field_name in (
+            "cost_basis",
+            "unrealized_gain_loss",
+            "current_price",
+            "recent_price_change",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                object.__setattr__(self, field_name, float(value))
+
+
+@dataclass(frozen=True)
 class PositionDecision:
     """Final Chairman decision for a current portfolio position."""
 

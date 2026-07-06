@@ -7,6 +7,11 @@ from datetime import UTC, datetime
 from enum import Enum
 
 from parakeetnest.context.models import PortfolioSnapshot
+from parakeetnest.models import (
+    NewOpportunity,
+    PortfolioDecisionSummary,
+    PositionDecision,
+)
 
 
 class ReportMode(str, Enum):
@@ -310,6 +315,9 @@ class InvestmentResearchReport:
             todays_suggested_actions=("Review evidence before making any decision.",),
         )
     )
+    position_decisions: tuple[PositionDecision, ...] = field(default_factory=tuple)
+    portfolio_decision_summary: PortfolioDecisionSummary | None = None
+    new_opportunities: tuple[NewOpportunity, ...] = field(default_factory=tuple)
     source_summaries: tuple[str, ...] = field(default_factory=tuple)
     evidence_notes: tuple[str, ...] = field(default_factory=tuple)
 
@@ -353,6 +361,21 @@ class InvestmentResearchReport:
             self,
             "committee_consensus",
             self.committee_consensus,
+        )
+        object.__setattr__(
+            self,
+            "position_decisions",
+            tuple(self.position_decisions),
+        )
+        object.__setattr__(
+            self,
+            "portfolio_decision_summary",
+            self.portfolio_decision_summary,
+        )
+        object.__setattr__(
+            self,
+            "new_opportunities",
+            tuple(self.new_opportunities),
         )
         object.__setattr__(
             self,

@@ -685,9 +685,9 @@ def test_cli_runs_without_tickers_when_watchlist_seed_exists(tmp_path: Path) -> 
     assert "Morning Investment Brief" in body
     assert "Report Mode: morning" in body
     assert "Tickers: NVDA" in body
-    assert "Factual Ticker Context" in body
+    assert "<summary>Factual evidence</summary>" in body
     assert "Track AI accelerator demand. Theme: AI infrastructure." in body
-    assert "Watchlist Focus" in body
+    assert "## 4. New Opportunities" in body
     assert "Watchlist review found 1 covered watchlist item(s)." in body
     assert "No watchlist service connected." not in body
 
@@ -926,18 +926,18 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
 
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
-    assert "Market Setup" in body
-    assert "Portfolio Watch" in body
-    assert "Watchlist Focus" in body
-    assert "Today’s Focus" in body
-    assert "Dongdong’s Opportunity View" in body
-    assert "Xixi’s Fundamental View" in body
-    assert "Youyou’s Risk View" in body
-    assert "Committee Consensus" in body
-    assert "Confidence" in body
-    assert "Key Risks" in body
-    assert "Upcoming Catalysts" in body
-    assert "Today's Suggested Actions" in body
+    assert "## 1. Action Required" in body
+    assert "## 2. Position Cards" in body
+    assert "## 3. Stable Holdings" in body
+    assert "## 4. New Opportunities" in body
+    assert "## 5. Market Overview" in body
+    assert "## 6. Raw Evidence" in body
+    assert "**Dongdong:**" in body
+    assert "**Xixi:**" in body
+    assert "**Youyou:**" in body
+    assert "**Final consensus:**" in body
+    assert "**Confidence:**" in body
+    assert "<summary>Factual evidence</summary>" in body
     assert "Recommendations" not in body
 
 

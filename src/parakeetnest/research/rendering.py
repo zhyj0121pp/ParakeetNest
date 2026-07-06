@@ -6,6 +6,12 @@ from collections.abc import Iterable
 from enum import Enum
 from typing import Any
 
+from parakeetnest.context.models import PortfolioPosition
+from parakeetnest.models import (
+    NewOpportunity,
+    PositionDecision,
+    PositionRecommendation,
+)
 from parakeetnest.research.models import (
     InvestmentResearchReport,
     ReportMode,
@@ -17,10 +23,10 @@ from parakeetnest.research.models import (
 
 
 class InvestmentResearchReportRenderer:
-    """Render research reports into deterministic plain-text email bodies."""
+    """Render research reports into deterministic email-friendly Markdown."""
 
     def render(self, report: InvestmentResearchReport) -> str:
-        """Return a plain-text report suitable for an email body."""
+        """Return a Markdown report suitable for an email body."""
         if report.mode is ReportMode.EVENING:
             sections = self._render_evening_sections(report)
         else:
@@ -29,29 +35,322 @@ class InvestmentResearchReportRenderer:
 
     def _render_morning_sections(self, report: InvestmentResearchReport) -> list[str]:
         return [
-            self._render_header(report),
-            self._render_market_summary(report, label="Market Setup"),
-            self._render_portfolio_review(report, label="Portfolio Watch"),
-            self._render_portfolio_summary(report),
-            self._render_watchlist_review(report, label="Watchlist Focus"),
-            self._render_focus(report, label="Today’s Focus"),
-            self._render_ticker_reports(report.ticker_reports),
-            self._render_committee_opinions(
-                report,
-                labels={
-                    "dongdong": "Dongdong’s Opportunity View",
-                    "xixi": "Xixi’s Fundamental View",
-                    "youyou": "Youyou’s Risk View",
-                },
-            ),
-            self._render_committee_portfolio_view(report),
-            self._render_committee_consensus(report),
-            self._render_confidence(report),
-            self._render_key_risks(report.ticker_reports),
-            self._render_upcoming_catalysts(report.ticker_reports),
-            self._render_todays_suggested_actions(report),
-            self._render_evidence_notes(report),
+            self._render_morning_header(report),
+            self._render_action_required(report),
+            self._render_position_cards(report),
+            self._render_stable_holdings(report),
+            self._render_new_opportunities(report),
+            self._render_market_overview(report),
+            self._render_raw_evidence(report),
         ]
+
+    def _render_morning_header(self, report: InvestmentResearchReport) -> str:
+        tickers = ", ".join(report.tickers()) or "None"
+        return "\n".join(
+            [
+                "# Morning Investment Report",
+                "",
+                report.title,
+                f"Report Mode: {report.mode.value}",
+                f"Generated At: {report.generated_at.isoformat()}",
+                f"Tickers: {tickers}",
+            ]
+        )
+
+    def _render_action_required(self, report: InvestmentResearchReport) -> str:
+        lines = [
+            "## 1. Action Required",
+            "",
+            (
+                "Positions requiring user review or decision. This report is "
+                "advisory guidance and does not take action for you."
+            ),
+            "",
+        ]
+        action_decisions = tuple(
+            decision
+            for decision in report.position_decisions
+            if decision.action_required or decision.human_review_required
+        )
+        if action_decisions:
+            for decision in action_decisions:
+                lines.append(
+                    "- "
+                    f"{decision.symbol}: {self._recommendation_label(decision.recommendation)} "
+                    f"({decision.confidence.value} confidence, {decision.urgency.value} urgency). "
+                    "User review recommended."
+                )
+        else:
+            lines.append("- No position decisions currently require user action.")
+        if report.portfolio_decision_summary is not None:
+            for item in report.portfolio_decision_summary.action_items:
+                lines.append(f"- Portfolio action item: {item}")
+        return "\n".join(lines)
+
+    def _render_position_cards(self, report: InvestmentResearchReport) -> str:
+        lines = ["## 2. Position Cards"]
+        decisions = tuple(
+            decision
+            for decision in report.position_decisions
+            if decision.action_required or decision.human_review_required
+        )
+        if decisions:
+            for decision in decisions:
+                lines.append("")
+                lines.append(self._render_decision_card(decision))
+            return "\n".join(lines)
+
+        ticker_reports = tuple(report.ticker_reports)
+        if not ticker_reports:
+            lines.extend(["", "- No action-required position cards available."])
+            return "\n".join(lines)
+
+        opinions = self._committee_opinion_lookup(report)
+        for ticker_report in ticker_reports:
+            lines.append("")
+            lines.append(self._render_ticker_card(ticker_report, report, opinions))
+        return "\n".join(lines)
+
+    def _render_decision_card(self, decision: PositionDecision) -> str:
+        recommendation = self._recommendation_label(decision.recommendation)
+        lines = [
+            f"### {decision.symbol} — {recommendation}",
+            "",
+            f"**Recommendation:** {recommendation}  ",
+            f"**Confidence:** {self._title_value(decision.confidence.value)}  ",
+            f"**Rationale:** {decision.final_rationale}",
+            "",
+            f"**Dongdong:** {self._fallback(decision.dongdong_opinion)}  ",
+            f"**Xixi:** {self._fallback(decision.xixi_opinion)}  ",
+            f"**Youyou:** {self._fallback(decision.youyou_opinion)}  ",
+            "**Final consensus:** "
+            f"{decision.final_rationale} No automatic action. User review recommended.",
+            "",
+            "<details>",
+            "<summary>Factual evidence</summary>",
+            "",
+        ]
+        lines.extend(self._bullet_lines(decision.factual_evidence))
+        lines.extend(["", "</details>"])
+        return "\n".join(lines)
+
+    def _render_ticker_card(
+        self,
+        ticker_report: ResearchTickerReport,
+        report: InvestmentResearchReport,
+        opinions: dict[str, str],
+    ) -> str:
+        recommendation = self._title_value(report.committee_consensus.final_action)
+        lines = [
+            f"### {ticker_report.ticker} — {recommendation}",
+            "",
+            f"**Recommendation:** {recommendation}  ",
+            f"**Confidence:** {self._title_value(report.committee_consensus.confidence)}  ",
+            f"**Rationale:** {ticker_report.summary}",
+            "",
+            f"**Dongdong:** {opinions.get('dongdong', 'Not available')}  ",
+            f"**Xixi:** {opinions.get('xixi', 'Not available')}  ",
+            f"**Youyou:** {opinions.get('youyou', 'Not available')}  ",
+            "**Final consensus:** "
+            f"{report.committee_consensus.rationale} No automatic action. User review recommended.",
+            "",
+            "<details>",
+            "<summary>Factual evidence</summary>",
+            "",
+        ]
+        evidence = self._ticker_evidence(ticker_report)
+        lines.extend(self._bullet_lines(evidence))
+        lines.extend(["", "</details>"])
+        return "\n".join(lines)
+
+    def _render_stable_holdings(self, report: InvestmentResearchReport) -> str:
+        lines = [
+            "## 3. Stable Holdings",
+            "",
+            "<details>",
+            "<summary>Stable holdings</summary>",
+            "",
+        ]
+        stable_decisions = tuple(
+            decision
+            for decision in report.position_decisions
+            if not decision.action_required and not decision.human_review_required
+        )
+        if stable_decisions:
+            for decision in stable_decisions:
+                lines.append(
+                    "- "
+                    f"{decision.symbol}: {self._recommendation_label(decision.recommendation)} "
+                    f"({decision.confidence.value} confidence). {decision.final_rationale}"
+                )
+        else:
+            stable_positions = self._stable_portfolio_positions(report)
+            if stable_positions:
+                for position in stable_positions:
+                    details = [
+                        f"{position.symbol}: {position.quantity:g} shares",
+                        f"value {_format_money(position.market_value)}",
+                    ]
+                    if position.weight is not None:
+                        details.append(f"weight {_format_percent(position.weight)}")
+                    lines.append(f"- {', '.join(details)}")
+            else:
+                lines.append("- No stable holdings available.")
+
+        stable_symbols = {decision.symbol for decision in stable_decisions}
+        if report.portfolio_decision_summary is not None:
+            for symbol in report.portfolio_decision_summary.no_action_positions:
+                if symbol in stable_symbols:
+                    continue
+                lines.append(f"- {symbol}: no action currently recommended.")
+        lines.extend(["", "</details>"])
+        return "\n".join(lines)
+
+    def _render_new_opportunities(self, report: InvestmentResearchReport) -> str:
+        lines = ["## 4. New Opportunities", ""]
+        if report.new_opportunities:
+            for opportunity in report.new_opportunities:
+                lines.extend(self._render_opportunity(opportunity))
+        else:
+            lines.append(f"- {report.watchlist_review}")
+        return "\n".join(lines)
+
+    def _render_opportunity(self, opportunity: NewOpportunity) -> list[str]:
+        return [
+            (
+                f"### {opportunity.symbol} — "
+                f"{self._recommendation_label(opportunity.suggested_action)}"
+            ),
+            "",
+            (
+                "**Recommendation:** "
+                f"{self._recommendation_label(opportunity.suggested_action)}  "
+            ),
+            f"**Confidence:** {self._title_value(opportunity.confidence.value)}  ",
+            f"**Rationale:** {opportunity.rationale}",
+            "",
+            "**Risks:**",
+            *self._bullet_lines(opportunity.risks),
+            "",
+        ]
+
+    def _render_market_overview(self, report: InvestmentResearchReport) -> str:
+        lines = [
+            "## 5. Market Overview",
+            "",
+            f"- {report.market_summary}",
+            f"- Portfolio context: {report.portfolio_review}",
+        ]
+        if report.portfolio_decision_summary is not None:
+            lines.append(
+                f"- Portfolio view: {report.portfolio_decision_summary.overall_portfolio_view}"
+            )
+            lines.extend(
+                f"- Concentration risk: {risk}"
+                for risk in report.portfolio_decision_summary.concentration_risks
+            )
+            lines.extend(
+                f"- Sector exposure: {note}"
+                for note in report.portfolio_decision_summary.sector_exposure_notes
+            )
+            lines.extend(
+                f"- Cash allocation: {note}"
+                for note in report.portfolio_decision_summary.cash_allocation_notes
+            )
+        return "\n".join(lines)
+
+    def _render_raw_evidence(self, report: InvestmentResearchReport) -> str:
+        lines = [
+            "## 6. Raw Evidence",
+            "",
+            "<details>",
+            "<summary>Raw evidence</summary>",
+            "",
+        ]
+        raw_lines = self._raw_evidence_lines(report)
+        lines.extend(raw_lines if raw_lines else ["- No raw evidence available."])
+        lines.extend(["", "</details>"])
+        return "\n".join(lines)
+
+    def _raw_evidence_lines(self, report: InvestmentResearchReport) -> list[str]:
+        lines: list[str] = []
+        lines.extend(f"- Report evidence: {note}" for note in report.evidence_notes)
+        lines.extend(f"- Report source: {source}" for source in report.source_summaries)
+        for ticker_report in report.ticker_reports:
+            lines.append(f"- {ticker_report.ticker}: {ticker_report.summary}")
+            lines.extend(f"  - Bull case: {value}" for value in ticker_report.bull_case)
+            lines.extend(f"  - Bear case: {value}" for value in ticker_report.bear_case)
+            for finding in ticker_report.findings:
+                lines.append(
+                    f"  - Finding: {finding.summary} (source: {finding.source})"
+                )
+                lines.extend(
+                    f"    - Evidence note: {note}" for note in finding.evidence_notes
+                )
+            lines.extend(
+                f"  - Source: {source}" for source in ticker_report.source_summaries
+            )
+            lines.extend(
+                f"  - Evidence note: {note}" for note in ticker_report.evidence_notes
+            )
+        return lines
+
+    def _committee_opinion_lookup(
+        self,
+        report: InvestmentResearchReport,
+    ) -> dict[str, str]:
+        opinions: dict[str, str] = {}
+        for opinion in report.committee_opinions:
+            opinions[opinion.persona_id] = opinion.reasoning_summary
+        return opinions
+
+    def _ticker_evidence(self, ticker_report: ResearchTickerReport) -> tuple[str, ...]:
+        evidence: list[str] = []
+        evidence.extend(ticker_report.evidence)
+        evidence.extend(ticker_report.bull_case)
+        evidence.extend(ticker_report.bear_case)
+        evidence.extend(risk.summary for risk in ticker_report.risks)
+        evidence.extend(catalyst.summary for catalyst in ticker_report.catalysts)
+        evidence.extend(ticker_report.source_summaries)
+        return tuple(dict.fromkeys(value for value in evidence if value))
+
+    def _stable_portfolio_positions(
+        self,
+        report: InvestmentResearchReport,
+    ) -> tuple[PortfolioPosition, ...]:
+        if report.portfolio_context is None:
+            return ()
+        action_symbols = {
+            decision.symbol
+            for decision in report.position_decisions
+            if decision.action_required or decision.human_review_required
+        }
+        return tuple(
+            position
+            for position in report.portfolio_context.positions
+            if position.symbol not in action_symbols
+        )
+
+    def _bullet_lines(self, values: Iterable[str]) -> list[str]:
+        normalized = tuple(value.strip() for value in values if value.strip())
+        if not normalized:
+            return ["- Not available"]
+        return [f"- {value}" for value in normalized]
+
+    def _recommendation_label(self, value: PositionRecommendation | str) -> str:
+        raw_value = (
+            value.value if isinstance(value, PositionRecommendation) else str(value)
+        )
+        return raw_value.replace("_", " ").title()
+
+    def _title_value(self, value: str) -> str:
+        return value.replace("_", " ").title()
+
+    def _fallback(self, value: str | None) -> str:
+        if value is None:
+            return "Not available"
+        normalized = value.strip()
+        return normalized or "Not available"
 
     def _render_evening_sections(self, report: InvestmentResearchReport) -> list[str]:
         sections = [

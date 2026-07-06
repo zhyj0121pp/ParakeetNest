@@ -109,30 +109,29 @@ def test_composer_passes_account_id_as_of_date_and_generated_at_through() -> Non
 def test_default_composer_can_generate_and_render_report_body() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
-    assert body.startswith("Header\n")
+    assert body.startswith("# Morning Investment Report\n")
     assert "Morning Investment Brief\n" in body
     assert "Report Mode: morning" in body
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: TSLA" in body
     assert "Recommendations" not in body
-    assert "Committee Consensus" in body
+    assert "**Final consensus:**" in body
 
 
 def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
-    assert "Market Setup" in body
-    assert "Portfolio Watch" in body
-    assert "Watchlist Focus" in body
-    assert "Today’s Focus" in body
-    assert "Dongdong’s Opportunity View (Chief Growth Officer)" in body
-    assert "Xixi’s Fundamental View (Chief Investment Analyst)" in body
-    assert "Youyou’s Risk View (Chief Risk Officer)" in body
-    assert "Committee Consensus" in body
-    assert "Confidence" in body
-    assert "Key Risks" in body
-    assert "Upcoming Catalysts" in body
-    assert "Today's Suggested Actions" in body
+    assert "## 1. Action Required" in body
+    assert "## 2. Position Cards" in body
+    assert "## 3. Stable Holdings" in body
+    assert "## 4. New Opportunities" in body
+    assert "## 5. Market Overview" in body
+    assert "## 6. Raw Evidence" in body
+    assert "**Dongdong:**" in body
+    assert "**Xixi:**" in body
+    assert "**Youyou:**" in body
+    assert "**Final consensus:**" in body
+    assert "**Confidence:**" in body
 
 
 def _sample_report() -> InvestmentResearchReport:

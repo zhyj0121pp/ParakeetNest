@@ -9,6 +9,14 @@ from parakeetnest.context.models import (
     PortfolioPosition,
     PortfolioSnapshot,
 )
+from parakeetnest.decision import (
+    ConfidenceLevel,
+    DecisionUrgency,
+    NewOpportunity,
+    PortfolioDecisionSummary,
+    PositionDecision,
+    PositionRecommendation,
+)
 from parakeetnest.research import (
     InvestmentResearchReport,
     InvestmentResearchReportRenderer,
@@ -27,7 +35,7 @@ from parakeetnest.research import (
 GENERATED_AT = datetime(2026, 7, 1, 15, 0, tzinfo=UTC)
 
 
-def test_renderer_produces_plain_text_email_report_with_required_sections() -> None:
+def test_renderer_produces_email_friendly_morning_markdown() -> None:
     report = _sample_report()
     renderer = InvestmentResearchReportRenderer()
 
@@ -35,47 +43,85 @@ def test_renderer_produces_plain_text_email_report_with_required_sections() -> N
 
     assert body == renderer.render(report)
     assert body.endswith("\n")
-    assert "# " not in body
-    assert body.startswith("Header\n")
-    assert "Morning Investment Brief\n" in body
-    assert "Report Mode: morning" in body
-    assert "Generated At: 2026-07-01T15:00:00+00:00" in body
-    assert "Tickers: NVDA, AAPL" in body
-    assert "Market Setup" in body
-    assert "Portfolio Watch" in body
-    assert "Portfolio Summary" in body
-    assert "Watchlist Focus" in body
-    assert "Today’s Focus" in body
-    assert "- Coverage: 2 ticker(s)." in body
-    assert "- Committee view: HOLD (medium confidence)." in body
-    assert "Factual Ticker Context" in body
+    assert body.startswith("# Morning Investment Report\n")
+    assert "## 1. Action Required" in body
+    assert "## 2. Position Cards" in body
+    assert "## 3. Stable Holdings" in body
+    assert "## 4. New Opportunities" in body
+    assert "## 5. Market Overview" in body
+    assert "## 6. Raw Evidence" in body
+    assert "### NVDA — Trim" in body
+    assert "**Recommendation:** Trim  " in body
+    assert "**Confidence:** High  " in body
+    assert "**Rationale:** Committee recommends reviewing the position." in body
+    assert "**Dongdong:** Opportunity remains attractive." in body
+    assert "**Xixi:** Fundamentals remain strong." in body
+    assert "**Youyou:** Sizing risk requires monitoring." in body
+    assert "**Final consensus:** Committee recommends reviewing the position. No automatic action. User review recommended." in body
     assert "Recommendations" not in body
-    assert "Key Risks" in body
-    assert "Upcoming Catalysts" in body
-    assert "Dongdong’s Opportunity View (Chief Growth Officer)" in body
-    assert "Committee Portfolio View" in body
-    assert "- Stance: bullish" in body
-    assert "- Reasoning: Upside is supported by identifiable catalysts." in body
-    assert "- Evidence:" in body
-    assert "  - Datacenter demand." in body
-    assert "- Concern: Export controls." in body
-    assert "- Suggested Action: Keep HOLD as advisory guidance." in body
-    assert "Evidence Notes" in body
-    assert "- Final Action: HOLD" in body
-    assert "- medium" in body
-    assert "NVDA: HOLD (medium confidence) over 3-6 months; human investor decides." in body
-    assert "Every recommendation" not in body
 
 
-def test_renderer_includes_committee_consensus_contract_details() -> None:
+def test_morning_report_section_order_is_exact() -> None:
     body = render_investment_research_report(_sample_report())
 
-    assert "Committee Consensus" in body
-    assert "- Final Action: HOLD" in body
-    assert "- Horizon: 3-6 months" in body
-    assert "- Final Risk Posture: Balanced and advisory only." in body
-    assert "- Rationale: Committee weighed evidence, risks, and catalysts." in body
-    assert "Today's Suggested Actions" in body
+    headings = [
+        "## 1. Action Required",
+        "## 2. Position Cards",
+        "## 3. Stable Holdings",
+        "## 4. New Opportunities",
+        "## 5. Market Overview",
+        "## 6. Raw Evidence",
+    ]
+    assert [body.index(heading) for heading in headings] == sorted(
+        body.index(heading) for heading in headings
+    )
+
+
+def test_action_required_holdings_appear_before_stable_holdings() -> None:
+    body = render_investment_research_report(_sample_report())
+
+    assert body.index("### NVDA — Trim") < body.index("## 3. Stable Holdings")
+    assert body.index("### NVDA — Trim") < body.index("MSFT: Hold")
+
+
+def test_stable_holdings_are_collapsed_by_default() -> None:
+    body = render_investment_research_report(_sample_report())
+    stable_section = _section(body, "## 3. Stable Holdings", "## 4. New Opportunities")
+
+    assert "<details>" in stable_section
+    assert "<summary>Stable holdings</summary>" in stable_section
+    assert "MSFT: Hold" in stable_section
+    assert stable_section.strip().endswith("</details>")
+
+
+def test_position_card_factual_evidence_is_collapsed_by_default() -> None:
+    body = render_investment_research_report(_sample_report())
+    card = _section(body, "### NVDA — Trim", "## 3. Stable Holdings")
+
+    assert "<details>" in card
+    assert "<summary>Factual evidence</summary>" in card
+    assert "- Committee reviewed supplied context." in card
+    assert card.strip().endswith("</details>")
+
+
+def test_each_position_card_includes_committee_member_opinions() -> None:
+    body = render_investment_research_report(_sample_report())
+    card = _section(body, "### NVDA — Trim", "## 3. Stable Holdings")
+
+    assert "**Dongdong:**" in card
+    assert "**Xixi:**" in card
+    assert "**Youyou:**" in card
+
+
+def test_raw_evidence_appears_at_bottom_and_is_collapsible() -> None:
+    body = render_investment_research_report(_sample_report())
+    raw_section = _section(body, "## 6. Raw Evidence", None)
+
+    assert body.rfind("## 6. Raw Evidence") > body.rfind("## 5. Market Overview")
+    assert "<details>" in raw_section
+    assert "<summary>Raw evidence</summary>" in raw_section
+    assert "- Report evidence: Research assembled from provider-neutral services." in raw_section
+    assert raw_section.strip().endswith("</details>")
 
 
 def test_renderer_supports_evening_review_mode() -> None:
@@ -98,28 +144,20 @@ def test_renderer_supports_evening_review_mode() -> None:
 def test_renderer_displays_portfolio_summary_and_committee_portfolio_view() -> None:
     body = InvestmentResearchReportRenderer().render(_sample_report())
 
-    assert "- Total Portfolio Value: $12,500.00" in body
-    assert "- Cash Balance: $500.00" in body
-    assert "- Holdings:" in body
-    assert "  - NVDA: 10 shares, value $1,200.00, weight 9.6%" in body
-    assert "- Portfolio Weights:" in body
-    assert "  - NVDA: 9.6%" in body
-    assert "  - Cash: 4.0%" in body
-    assert "- Yoyo (Chief Risk Officer)" in body
-    assert "  Portfolio View: Portfolio concentration should stay visible." in body
+    assert "- Portfolio context: Portfolio review depends on connected portfolio context." in body
+    assert "- Portfolio view: Portfolio remains balanced." in body
+    assert "- Concentration risk: NVDA concentration should stay visible." in body
+    assert "- Sector exposure: Technology remains overweight." in body
+    assert "- Cash allocation: Cash is available for review-approved actions." in body
 
 
 def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
     body = InvestmentResearchReportRenderer().render(_sample_report())
 
-    assert "  Report Notes:" in body
-    assert "    - Research assembled from provider-neutral services." in body
-    assert "  NVDA Finding Evidence (portfolio):" in body
-    assert "    - Position context." in body
-    assert "  NVDA Risk Evidence:" in body
-    assert "    - Watchlist bear case." in body
-    assert "  NVDA Catalyst Evidence:" in body
-    assert "    - Watchlist bull case." in body
+    assert "- Report evidence: Research assembled from provider-neutral services." in body
+    assert "  - Finding: NVDA position value is $1,200.00. (source: portfolio)" in body
+    assert "    - Evidence note: Position context." in body
+    assert "  - Evidence note: Existing portfolio holding." in body
 
 
 def test_renderer_does_not_spam_identical_missing_service_notes_per_ticker() -> None:
@@ -175,12 +213,11 @@ def test_renderer_handles_empty_report_gracefully() -> None:
 
     body = InvestmentResearchReportRenderer().render(report)
 
-    assert "Tickers: None" in body
-    assert "- No ticker reports were generated." in body
-    assert "- No ticker reports." in body
-    assert "- No risks." in body
-    assert "- No catalysts." in body
-    assert "    - No tickers requested." in body
+    assert "# Morning Investment Report" in body
+    assert "- No position decisions currently require user action." in body
+    assert "- No action-required position cards available." in body
+    assert "- No stable holdings available." in body
+    assert "- Report evidence: No tickers requested." in body
 
 
 def _sample_report(
@@ -291,6 +328,75 @@ def _sample_report(
                 portfolio_view="Portfolio concentration should stay visible.",
             ),
         ),
+        position_decisions=(
+            _position_decision(
+                "NVDA",
+                recommendation=PositionRecommendation.TRIM,
+                action_required=True,
+                urgency=DecisionUrgency.HIGH,
+                confidence=ConfidenceLevel.HIGH,
+                human_review_required=True,
+            ),
+            _position_decision(
+                "MSFT",
+                recommendation=PositionRecommendation.HOLD,
+                action_required=False,
+                urgency=DecisionUrgency.LOW,
+                confidence=ConfidenceLevel.MEDIUM,
+                human_review_required=False,
+            ),
+        ),
+        portfolio_decision_summary=PortfolioDecisionSummary(
+            overall_portfolio_view="Portfolio remains balanced.",
+            concentration_risks=("NVDA concentration should stay visible.",),
+            sector_exposure_notes=("Technology remains overweight.",),
+            cash_allocation_notes=("Cash is available for review-approved actions.",),
+            action_items=("NVDA: trim review recommended.",),
+            no_action_positions=("MSFT",),
+        ),
+        new_opportunities=(
+            NewOpportunity(
+                symbol="AMD",
+                company_name="Advanced Micro Devices",
+                opportunity_type="watchlist",
+                rationale="Review as an AI infrastructure alternative.",
+                risks=("Competitive pressure remains material.",),
+                suggested_action=PositionRecommendation.WATCH,
+                confidence=ConfidenceLevel.MEDIUM,
+            ),
+        ),
         source_summaries=("portfolio: current holding context",),
         evidence_notes=("Research assembled from provider-neutral services.",),
     )
+
+
+def _position_decision(
+    symbol: str,
+    *,
+    recommendation: PositionRecommendation,
+    action_required: bool,
+    urgency: DecisionUrgency,
+    confidence: ConfidenceLevel,
+    human_review_required: bool,
+) -> PositionDecision:
+    return PositionDecision(
+        symbol=symbol,
+        company_name=f"{symbol} Inc.",
+        recommendation=recommendation,
+        action_required=action_required,
+        urgency=urgency,
+        final_rationale="Committee recommends reviewing the position.",
+        dongdong_opinion="Opportunity remains attractive.",
+        xixi_opinion="Fundamentals remain strong.",
+        youyou_opinion="Sizing risk requires monitoring.",
+        factual_evidence=("Committee reviewed supplied context.",),
+        risks=("Monitor valuation risk.",),
+        confidence=confidence,
+        human_review_required=human_review_required,
+    )
+
+
+def _section(body: str, start: str, end: str | None) -> str:
+    start_index = body.index(start)
+    end_index = len(body) if end is None else body.index(end, start_index)
+    return body[start_index:end_index]

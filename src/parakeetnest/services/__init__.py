@@ -30,6 +30,9 @@ from parakeetnest.services.position_committee_review import (
 )
 from parakeetnest.services.position_consensus import PositionConsensusBuilder
 from parakeetnest.services.position_context import PositionContextBuilder
+from parakeetnest.services.position_decision_workflow import (
+    PositionDecisionWorkflowService,
+)
 
 __all__ = [
     "CalendarService",
@@ -54,4 +57,5 @@ __all__ = [
     "PositionCommitteeReviewRunner",
     "ServiceResult",
     "SnapshotPersistence",
+    "PositionDecisionWorkflowService",
 ]

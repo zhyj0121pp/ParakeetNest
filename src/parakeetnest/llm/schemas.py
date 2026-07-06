@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from parakeetnest.llm.models import JSONSchema
-from parakeetnest.models import ConfidenceLevel, InvestmentHorizon, RecommendationAction
+from parakeetnest.models import (
+    ConfidenceLevel,
+    InvestmentHorizon,
+    PositionRecommendation,
+    RecommendationAction,
+)
 
 
 EVIDENCE_ITEM_SCHEMA: JSONSchema = {
@@ -69,6 +74,36 @@ PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA: JSONSchema = {
     },
 }
 
+COMMITTEE_POSITION_REVIEW_SCHEMA: JSONSchema = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "symbol",
+        "agent_name",
+        "thesis",
+        "concerns",
+        "recommendation",
+        "confidence",
+        "evidence_refs",
+    ],
+    "properties": {
+        "symbol": {"type": "string", "minLength": 1},
+        "agent_name": {"type": "string", "minLength": 1},
+        "thesis": {"type": "string", "minLength": 1},
+        "concerns": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "recommendation": {
+            "type": "string",
+            "enum": [recommendation.value for recommendation in PositionRecommendation],
+        },
+        "confidence": {"type": "string", "enum": [level.value for level in ConfidenceLevel]},
+        "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "minItems": 1,
+        },
+    },
+}
+
 CHAIRMAN_SUMMARY_SCHEMA: JSONSchema = {
     "type": "object",
     "additionalProperties": False,
@@ -130,6 +165,7 @@ DAILY_REPORT_SCHEMA: JSONSchema = {
 
 SCHEMAS: dict[str, JSONSchema] = {
     "CommitteeOpinion": COMMITTEE_OPINION_SCHEMA,
+    "CommitteePositionReview": COMMITTEE_POSITION_REVIEW_SCHEMA,
     "PortfolioCommitteeObservation": PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
     "ChairmanSummary": CHAIRMAN_SUMMARY_SCHEMA,
     "DailyReport": DAILY_REPORT_SCHEMA,

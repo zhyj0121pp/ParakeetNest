@@ -20,6 +20,7 @@ from parakeetnest.llm.registry import (
 from parakeetnest.llm.schemas import (
     CHAIRMAN_SUMMARY_SCHEMA,
     COMMITTEE_OPINION_SCHEMA,
+    COMMITTEE_POSITION_REVIEW_SCHEMA,
     DAILY_REPORT_SCHEMA,
     PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
 )
@@ -27,6 +28,7 @@ from parakeetnest.llm.schemas import (
 __all__ = [
     "CHAIRMAN_SUMMARY_SCHEMA",
     "COMMITTEE_OPINION_SCHEMA",
+    "COMMITTEE_POSITION_REVIEW_SCHEMA",
     "DAILY_REPORT_SCHEMA",
     "PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA",
     "LLMError",

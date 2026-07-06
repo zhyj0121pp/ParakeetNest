@@ -48,6 +48,9 @@ from parakeetnest.committee.prompting import (
     CommitteePromptBuilder,
     CommitteePromptContext,
     PersonaDrivenCommitteePromptBuilder,
+    PersonaDrivenPositionReviewPromptBuilder,
+    PositionReviewPrompt,
+    PositionReviewPromptBuilder,
 )
 from parakeetnest.committee.secretary import InvestmentSecretary
 from parakeetnest.committee.xixi import Xixi
@@ -106,6 +109,9 @@ __all__ = [
     "PERMANENT_COMMITTEE_PERSONAS",
     "PermanentCommitteeService",
     "PersonaDrivenCommitteePromptBuilder",
+    "PersonaDrivenPositionReviewPromptBuilder",
+    "PositionReviewPrompt",
+    "PositionReviewPromptBuilder",
     "PromptRenderer",
     "UnknownCommitteePersonaError",
     "Xixi",

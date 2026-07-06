@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from parakeetnest.committee.personas import CommitteePersona
+from parakeetnest.committee.personas import (
+    DONGDONG_PERSONA,
+    XIXI_PERSONA,
+    YOUYOU_PERSONA,
+    CommitteePersona,
+)
+from parakeetnest.models import PositionContext, PositionRecommendation
 
 
 ADVISORY_ONLY_DISCLAIMER = (
@@ -112,6 +118,39 @@ class CommitteePersonaPrompt:
         )
 
 
+@dataclass(frozen=True)
+class PositionReviewPrompt:
+    """Generated prompt artifact for one position-level committee review."""
+
+    persona_id: str
+    display_name: str
+    role_title: str
+    prompt_text: str
+    context: PositionContext = field(repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "persona_id",
+            _required_text(self.persona_id, "persona_id"),
+        )
+        object.__setattr__(
+            self,
+            "display_name",
+            _required_text(self.display_name, "display_name"),
+        )
+        object.__setattr__(
+            self,
+            "role_title",
+            _required_text(self.role_title, "role_title"),
+        )
+        object.__setattr__(
+            self,
+            "prompt_text",
+            _required_text(self.prompt_text, "prompt_text"),
+        )
+
+
 class CommitteePromptBuilder(Protocol):
     """Provider-neutral contract for persona-driven committee prompt builders."""
 
@@ -182,11 +221,142 @@ class PersonaDrivenCommitteePromptBuilder:
         )
 
 
+class PositionReviewPromptBuilder(Protocol):
+    """Provider-neutral contract for position-level committee review prompts."""
+
+    def build_prompts(
+        self,
+        context: PositionContext,
+    ) -> tuple[PositionReviewPrompt, ...]:
+        """Build all position review prompts in committee review order."""
+
+
+class PersonaDrivenPositionReviewPromptBuilder:
+    """Build deterministic position-review prompts from committee personas."""
+
+    def build_prompts(
+        self,
+        context: PositionContext,
+    ) -> tuple[PositionReviewPrompt, ...]:
+        """Build Dongdong, Xixi, and Youyou prompts for one position."""
+        return (
+            self.build_dongdong_prompt(context),
+            self.build_xixi_prompt(context),
+            self.build_youyou_prompt(context),
+        )
+
+    def build_dongdong_prompt(self, context: PositionContext) -> PositionReviewPrompt:
+        """Build Dongdong's opportunity-focused position review prompt."""
+        return self.build_prompt(
+            context,
+            DONGDONG_PERSONA,
+            "Focus on opportunity, growth, upside, positive inflections, and catalysts.",
+        )
+
+    def build_xixi_prompt(self, context: PositionContext) -> PositionReviewPrompt:
+        """Build Xixi's fundamentals-focused position review prompt."""
+        return self.build_prompt(
+            context,
+            XIXI_PERSONA,
+            "Focus on fundamentals, valuation, business quality, durability, and execution.",
+        )
+
+    def build_youyou_prompt(self, context: PositionContext) -> PositionReviewPrompt:
+        """Build Youyou's risk-focused position review prompt."""
+        return self.build_prompt(
+            context,
+            YOUYOU_PERSONA,
+            "Focus on risk, downside, concentration, uncertainty, and missing evidence.",
+        )
+
+    def build_prompt(
+        self,
+        context: PositionContext,
+        persona: CommitteePersona,
+        position_review_lens: str,
+    ) -> PositionReviewPrompt:
+        """Build a prompt for one committee member's review of a current position."""
+        prompt_text = "\n".join(
+            [
+                f"You are {persona.display_name}, {persona.role_title}.",
+                "",
+                "Position Review Lens",
+                f"- {position_review_lens}",
+                f"- Responsibility: {persona.responsibility}",
+                f"- Default viewpoint: {persona.default_viewpoint}",
+                f"- Risk posture: {persona.risk_posture}",
+                "- Evidence requirements:",
+                *_render_items(persona.evidence_requirements),
+                "",
+                "Position Context",
+                f"- Symbol: {context.symbol}",
+                f"- Company name: {context.company_name}",
+                f"- Quantity: {context.quantity:g}",
+                f"- Market value: {context.market_value:g}",
+                f"- Portfolio weight: {context.portfolio_weight:g}",
+                f"- Cost basis: {_format_optional_number(context.cost_basis)}",
+                (
+                    "- Unrealized gain/loss: "
+                    f"{_format_optional_number(context.unrealized_gain_loss)}"
+                ),
+                f"- Current price: {_format_optional_number(context.current_price)}",
+                (
+                    "- Recent price change: "
+                    f"{_format_optional_number(context.recent_price_change)}"
+                ),
+                "- Relevant news:",
+                *_render_items(context.relevant_news),
+                "- Relevant research:",
+                *_render_items(context.relevant_research),
+                "- Risk notes:",
+                *_render_items(context.risk_notes),
+                "- Valuation notes:",
+                *_render_items(context.valuation_notes),
+                "- Momentum notes:",
+                *_render_items(context.momentum_notes),
+                "- Portfolio notes:",
+                *_render_items(context.portfolio_notes),
+                "",
+                "Required Output",
+                "- Return only a JSON object named CommitteePositionReview.",
+                "- Include exactly these fields:",
+                "  - symbol",
+                "  - agent_name",
+                "  - thesis",
+                "  - concerns",
+                "  - recommendation",
+                "  - confidence",
+                "  - evidence_refs",
+                (
+                    "- recommendation must be one of: "
+                    f"{', '.join(item.value for item in PositionRecommendation)}."
+                ),
+                "- confidence must be one of: high, medium, low.",
+                "- evidence_refs must cite supplied context labels or facts.",
+                "- Do not generate PositionDecision or a final Chairman decision.",
+                "- Do not include trading implementation or autonomous decisioning.",
+            ]
+        )
+        return PositionReviewPrompt(
+            persona_id=persona.id,
+            display_name=persona.display_name,
+            role_title=persona.role_title,
+            prompt_text=prompt_text,
+            context=context,
+        )
+
+
 def _render_items(values: tuple[str, ...]) -> list[str]:
     normalized = _normalize_text_tuple(values)
     if not normalized:
         return ["  - None supplied."]
     return [f"  - {value}" for value in normalized]
+
+
+def _format_optional_number(value: float | None) -> str:
+    if value is None:
+        return "None supplied"
+    return f"{value:g}"
 
 
 def _required_text(value: str, field_name: str) -> str:
@@ -205,5 +375,8 @@ __all__ = [
     "CommitteePersonaPrompt",
     "CommitteePromptBuilder",
     "CommitteePromptContext",
+    "PersonaDrivenPositionReviewPromptBuilder",
     "PersonaDrivenCommitteePromptBuilder",
+    "PositionReviewPrompt",
+    "PositionReviewPromptBuilder",
 ]

@@ -13,12 +13,15 @@ from parakeetnest.llm.models import JSONSchema, LLMResponse
 from parakeetnest.llm.schemas import (
     CHAIRMAN_SUMMARY_SCHEMA,
     COMMITTEE_OPINION_SCHEMA,
+    COMMITTEE_POSITION_REVIEW_SCHEMA,
     DAILY_REPORT_SCHEMA,
 )
 from parakeetnest.models import (
+    CommitteePositionReview,
     ConfidenceLevel,
     EvidenceItem,
     InvestmentHorizon,
+    PositionRecommendation,
     RecommendationAction,
 )
 
@@ -60,6 +63,22 @@ class OutputParser:
             evidence=self._evidence_items(payload["evidence"]),
             risks=tuple(payload["risks"]),
             catalysts=tuple(payload["catalysts"]),
+        )
+
+    def parse_committee_position_review(
+        self,
+        response: LLMResponse,
+    ) -> CommitteePositionReview:
+        """Parse a position-level committee review from an LLM response."""
+        payload = self.parse_json(response, COMMITTEE_POSITION_REVIEW_SCHEMA)
+        return CommitteePositionReview(
+            symbol=payload["symbol"],
+            agent_name=payload["agent_name"],
+            thesis=payload["thesis"],
+            concerns=tuple(payload["concerns"]),
+            recommendation=PositionRecommendation(payload["recommendation"]),
+            confidence=ConfidenceLevel(payload["confidence"]),
+            evidence_refs=tuple(payload["evidence_refs"]),
         )
 
     def parse_chairman_summary(self, response: LLMResponse) -> ChairmanSummary:

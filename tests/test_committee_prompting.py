@@ -10,7 +10,9 @@ from parakeetnest.committee import (
     CommitteeRole,
     PERMANENT_COMMITTEE_PERSONAS,
     PersonaDrivenCommitteePromptBuilder,
+    PersonaDrivenPositionReviewPromptBuilder,
 )
+from parakeetnest.decision import PositionContext
 
 
 def test_prompt_builder_creates_three_prompts_in_daily_committee_order() -> None:
@@ -91,6 +93,77 @@ def test_prompts_do_not_introduce_trading_execution_instructions() -> None:
     assert all(phrase not in combined for phrase in forbidden_phrases)
 
 
+def test_position_review_prompts_include_symbol_and_company_name() -> None:
+    prompts = PersonaDrivenPositionReviewPromptBuilder().build_prompts(
+        _position_context(),
+    )
+
+    for prompt in prompts:
+        assert "- Symbol: NVDA" in prompt.prompt_text
+        assert "- Company name: NVIDIA Corporation" in prompt.prompt_text
+
+
+def test_position_review_prompts_preserve_role_specific_perspectives() -> None:
+    prompts = {
+        prompt.persona_id: prompt.prompt_text.lower()
+        for prompt in PersonaDrivenPositionReviewPromptBuilder().build_prompts(
+            _position_context(),
+        )
+    }
+
+    assert "opportunity" in prompts["dongdong"]
+    assert "growth" in prompts["dongdong"]
+    assert "upside" in prompts["dongdong"]
+    assert "catalysts" in prompts["dongdong"]
+
+    assert "fundamentals" in prompts["xixi"]
+    assert "valuation" in prompts["xixi"]
+    assert "business quality" in prompts["xixi"]
+
+    assert "risk" in prompts["youyou"]
+    assert "downside" in prompts["youyou"]
+    assert "concentration" in prompts["youyou"]
+    assert "uncertainty" in prompts["youyou"]
+
+
+def test_position_review_prompt_output_schema_mentions_review_fields() -> None:
+    prompts = PersonaDrivenPositionReviewPromptBuilder().build_prompts(
+        _position_context(),
+    )
+    required_fields = (
+        "symbol",
+        "agent_name",
+        "thesis",
+        "concerns",
+        "recommendation",
+        "confidence",
+        "evidence_refs",
+    )
+
+    for prompt in prompts:
+        assert "CommitteePositionReview" in prompt.prompt_text
+        for field in required_fields:
+            assert field in prompt.prompt_text
+
+
+def test_position_review_prompts_are_provider_neutral() -> None:
+    prompts = PersonaDrivenPositionReviewPromptBuilder().build_prompts(
+        _position_context(),
+    )
+    combined = "\n".join(prompt.prompt_text.lower() for prompt in prompts)
+
+    provider_terms = (
+        "openai",
+        "anthropic",
+        "claude",
+        "gemini",
+        "robinhood",
+        "yahoo",
+        "gmail",
+    )
+    assert all(term not in combined for term in provider_terms)
+
+
 def _default_contexts() -> tuple[CommitteePromptContext, ...]:
     return tuple(_context_for(persona) for persona in PERMANENT_COMMITTEE_PERSONAS)
 
@@ -109,4 +182,24 @@ def _context_for(persona: CommitteePersona) -> CommitteePromptContext:
         evidence_notes=("Research assembled from provider-neutral services.",),
         key_risks=("NVDA: Export controls.", "AAPL: China demand risk."),
         upcoming_catalysts=("NVDA: Datacenter demand.", "AAPL: Services growth."),
+    )
+
+
+def _position_context() -> PositionContext:
+    return PositionContext(
+        symbol="NVDA",
+        company_name="NVIDIA Corporation",
+        quantity=2,
+        market_value=1840,
+        portfolio_weight=0.25,
+        cost_basis=820,
+        unrealized_gain_loss=200,
+        current_price=920,
+        recent_price_change=0.03,
+        relevant_news=("Blackwell demand remains strong.",),
+        relevant_research=("Prior thesis favors durable AI infrastructure demand.",),
+        risk_notes=("Position is a large portfolio weight.",),
+        valuation_notes=("Premium multiple requires durable earnings growth.",),
+        momentum_notes=("Trend remains positive.",),
+        portfolio_notes=("Largest current holding.",),
     )

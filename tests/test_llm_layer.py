@@ -12,6 +12,7 @@ from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.llm import (
     CHAIRMAN_SUMMARY_SCHEMA,
     COMMITTEE_OPINION_SCHEMA,
+    COMMITTEE_POSITION_REVIEW_SCHEMA,
     DAILY_REPORT_SCHEMA,
     LLMProvider,
     LLMRequest,
@@ -25,7 +26,11 @@ from parakeetnest.llm import (
 )
 from parakeetnest.llm.models import JSONSchema
 from parakeetnest.llm.prompts import TextPromptBuilder
-from parakeetnest.models import ConfidenceLevel, RecommendationAction
+from parakeetnest.models import (
+    ConfidenceLevel,
+    PositionRecommendation,
+    RecommendationAction,
+)
 
 
 def test_mock_llm_provider_implements_provider_protocol_without_network() -> None:
@@ -117,6 +122,7 @@ def test_openai_structured_output_schema_is_strict_json_schema_compatible() -> N
 
     for response_schema in (
         COMMITTEE_OPINION_SCHEMA,
+        COMMITTEE_POSITION_REVIEW_SCHEMA,
         CHAIRMAN_SUMMARY_SCHEMA,
         PORTFOLIO_COMMITTEE_OBSERVATION_SCHEMA,
         DAILY_REPORT_SCHEMA,
@@ -246,6 +252,33 @@ def test_output_parser_parses_chairman_summary_with_required_recommendation_fiel
 
     assert summary.action is RecommendationAction.WATCH
     assert summary.risks == ("Execution risk.",)
+
+
+def test_output_parser_parses_committee_position_review() -> None:
+    """Position review JSON should become the Phase II review dataclass."""
+    response = MockLLMProvider(
+        responses=(
+            json.dumps(
+                {
+                    "symbol": "NVDA",
+                    "agent_name": "Dongdong",
+                    "thesis": "AI demand keeps upside visible.",
+                    "concerns": ["Valuation is elevated."],
+                    "recommendation": "hold",
+                    "confidence": "medium",
+                    "evidence_refs": ["Relevant news: Blackwell demand."],
+                }
+            ),
+        )
+    ).complete(LLMRequest(prompt="x", model="mock"))
+
+    review = OutputParser().parse_committee_position_review(response)
+
+    assert review.symbol == "NVDA"
+    assert review.agent_name == "Dongdong"
+    assert review.recommendation is PositionRecommendation.HOLD
+    assert review.confidence is ConfidenceLevel.MEDIUM
+    assert review.evidence_refs == ("Relevant news: Blackwell demand.",)
 
 
 def test_output_parser_fails_closed_for_missing_required_fields() -> None:

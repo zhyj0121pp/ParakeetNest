@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from parakeetnest.email.models import EmailAttachment
 from parakeetnest.email.provider import EmailProvider
 from parakeetnest.research.delivery import (
     ReportDeliveryRequest,
@@ -20,13 +21,30 @@ class EmailReportDeliveryProvider:
 
     def deliver(self, request: ReportDeliveryRequest) -> ReportDeliveryResult:
         """Deliver a report request as an email."""
-        try:
-            self.email_provider.send(
-                subject=request.subject,
-                body=request.body,
-                recipient=request.recipient.email,
-                content_type=request.content_type,
+        attachments = tuple(
+            EmailAttachment(
+                filename=attachment.filename,
+                content=attachment.content,
+                content_type=attachment.content_type,
             )
+            for attachment in request.attachments
+        )
+        try:
+            if attachments:
+                self.email_provider.send(
+                    subject=request.subject,
+                    body=request.body,
+                    recipient=request.recipient.email,
+                    content_type=request.content_type,
+                    attachments=attachments,
+                )
+            else:
+                self.email_provider.send(
+                    subject=request.subject,
+                    body=request.body,
+                    recipient=request.recipient.email,
+                    content_type=request.content_type,
+                )
         except Exception as exc:  # noqa: BLE001 - normalize provider failures.
             return ReportDeliveryResult.failed(
                 provider_name=self.provider_name,

@@ -16,6 +16,7 @@ class EmailProvider(Protocol):
         recipient: str,
         *,
         content_type: str = "text/plain",
+        attachments: tuple[object, ...] | None = None,
     ) -> None:
         """Send an email message."""
         ...

@@ -3,7 +3,7 @@
 from parakeetnest.email.console_provider import ConsoleEmailProvider
 from parakeetnest.email.gmail_provider import GmailDeliveryError, GmailEmailProvider
 from parakeetnest.email.mock_provider import MockEmailProvider
-from parakeetnest.email.models import EmailMessage
+from parakeetnest.email.models import EmailAttachment, EmailMessage
 from parakeetnest.email.provider import EmailProvider
 from parakeetnest.email.registry import (
     EmailProviderRegistry,
@@ -16,6 +16,7 @@ __all__ = [
     "ConsoleEmailProvider",
     "EmailProviderRegistry",
     "EmailMessage",
+    "EmailAttachment",
     "EmailProvider",
     "EmailReportDeliveryProvider",
     "EmailService",

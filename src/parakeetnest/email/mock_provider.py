@@ -25,6 +25,7 @@ class MockEmailProvider:
         recipient: str,
         *,
         content_type: str = "text/plain",
+        attachments: tuple[object, ...] | None = None,
     ) -> None:
         """Record a provider-neutral email message."""
         self._messages.append(
@@ -33,6 +34,7 @@ class MockEmailProvider:
                 body=body,
                 recipient=recipient,
                 content_type=content_type,
+                attachments=attachments or (),
             )
         )
 

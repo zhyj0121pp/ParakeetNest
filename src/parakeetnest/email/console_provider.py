@@ -19,6 +19,7 @@ class ConsoleEmailProvider:
         recipient: str,
         *,
         content_type: str = "text/plain",
+        attachments: tuple[object, ...] | None = None,
     ) -> None:
         """Print an email envelope and body."""
         stream = self._stream or sys.stdout
@@ -27,5 +28,10 @@ class ConsoleEmailProvider:
         print(f"Subject: {subject}", file=stream)
         print("", file=stream)
         print(body, end="" if body.endswith("\n") else "\n", file=stream)
+        for attachment in attachments or ():
+            print(
+                f"Attachment: {attachment.filename} ({attachment.content_type})",
+                file=stream,
+            )
         print("", file=stream)
         print("==============", file=stream)

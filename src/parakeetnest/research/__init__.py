@@ -7,6 +7,7 @@ from parakeetnest.research.composer import (
 )
 from parakeetnest.research.delivery import (
     NoOpReportDeliveryProvider,
+    ReportDeliveryAttachment,
     ReportDeliveryProvider,
     ReportDeliveryRequest,
     ReportDeliveryResult,
@@ -52,6 +53,7 @@ __all__ = [
     "InvestmentResearchReportRenderer",
     "InvestmentResearchService",
     "NoOpReportDeliveryProvider",
+    "ReportDeliveryAttachment",
     "ReportDeliveryProvider",
     "ReportDeliveryRequest",
     "ReportDeliveryResult",

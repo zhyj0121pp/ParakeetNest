@@ -37,6 +37,8 @@ class ReportBodyFormat(StrEnum):
 
     MARKDOWN = "markdown"
     INTERACTIVE_HTML_EMAIL = "interactive_html_email"
+    HTML_ATTACHMENT_ONLY = "html_attachment_only"
+    INTERACTIVE_HTML_ATTACHMENT = "interactive_html_attachment"
 
     @property
     def content_type(self) -> str:
@@ -108,7 +110,11 @@ class DailyInvestmentReportComposer:
         body_format: ReportBodyFormat | str,
     ) -> _ResearchReportRenderer:
         normalized_format = ReportBodyFormat.from_value(body_format)
-        if normalized_format is ReportBodyFormat.INTERACTIVE_HTML_EMAIL:
+        if normalized_format in {
+            ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+            ReportBodyFormat.HTML_ATTACHMENT_ONLY,
+            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
+        }:
             return InteractiveHtmlEmailInvestmentResearchReportRenderer()
         return self._renderer
 

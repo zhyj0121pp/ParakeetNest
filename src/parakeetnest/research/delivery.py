@@ -25,6 +25,32 @@ class ReportRecipient:
 
 
 @dataclass(frozen=True)
+class ReportDeliveryAttachment:
+    """Provider-neutral attachment for a report delivery request."""
+
+    filename: str
+    content: str
+    content_type: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "filename",
+            _required_text(self.filename, "attachment filename"),
+        )
+        object.__setattr__(
+            self,
+            "content",
+            _required_text(self.content, "attachment content"),
+        )
+        object.__setattr__(
+            self,
+            "content_type",
+            _normalize_content_type(self.content_type),
+        )
+
+
+@dataclass(frozen=True)
 class ReportDeliveryRequest:
     """Provider-neutral request to deliver a report."""
 
@@ -33,6 +59,7 @@ class ReportDeliveryRequest:
     body: str
     content_type: str = "text/plain"
     metadata: Mapping[str, str] = field(default_factory=dict)
+    attachments: tuple[ReportDeliveryAttachment, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "subject", _required_text(self.subject, "subject"))
@@ -43,6 +70,11 @@ class ReportDeliveryRequest:
             _normalize_content_type(self.content_type),
         )
         object.__setattr__(self, "metadata", _normalize_metadata(self.metadata))
+        object.__setattr__(
+            self,
+            "attachments",
+            _normalize_attachments(self.attachments),
+        )
 
 
 @dataclass(frozen=True)
@@ -170,6 +202,7 @@ class ReportDeliveryService:
         body: str,
         content_type: str = "text/plain",
         metadata: Mapping[str, str] | None = None,
+        attachments: tuple[ReportDeliveryAttachment, ...] | None = None,
     ) -> ReportDeliveryResult:
         """Build and deliver a report request."""
         return self.deliver(
@@ -179,6 +212,7 @@ class ReportDeliveryService:
                 body=body,
                 content_type=content_type,
                 metadata=metadata or {},
+                attachments=attachments or (),
             )
         )
 
@@ -227,8 +261,24 @@ def _normalize_metadata(metadata: Mapping[str, str]) -> dict[str, str]:
     return normalized
 
 
+def _normalize_attachments(
+    attachments: tuple[ReportDeliveryAttachment, ...],
+) -> tuple[ReportDeliveryAttachment, ...]:
+    return tuple(
+        attachment
+        if isinstance(attachment, ReportDeliveryAttachment)
+        else ReportDeliveryAttachment(
+            filename=getattr(attachment, "filename"),
+            content=getattr(attachment, "content"),
+            content_type=getattr(attachment, "content_type"),
+        )
+        for attachment in attachments
+    )
+
+
 __all__ = [
     "NoOpReportDeliveryProvider",
+    "ReportDeliveryAttachment",
     "ReportDeliveryProvider",
     "ReportDeliveryRequest",
     "ReportDeliveryResult",

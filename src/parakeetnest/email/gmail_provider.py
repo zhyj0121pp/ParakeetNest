@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from parakeetnest.email.models import EmailMessage
+from parakeetnest.email.models import EmailAttachment, EmailMessage
 from parakeetnest.exceptions import ConfigurationError
 
 
@@ -45,6 +45,7 @@ class GmailEmailProvider:
         recipient: str,
         *,
         content_type: str = "text/plain",
+        attachments: tuple[EmailAttachment, ...] | None = None,
     ) -> None:
         """Send an email message through Gmail."""
         message = EmailMessage(
@@ -52,6 +53,7 @@ class GmailEmailProvider:
             body=body,
             recipient=recipient,
             content_type=content_type,
+            attachments=attachments or (),
         )
         raw_message = self._encode_message(message)
         try:
@@ -102,6 +104,13 @@ class GmailEmailProvider:
             mime_message.add_alternative(message.body, subtype="html")
         else:
             mime_message.set_content(message.body)
+        for attachment in message.attachments:
+            _, subtype = attachment.content_type.split("/", 1)
+            mime_message.add_attachment(
+                attachment.content,
+                subtype=subtype,
+                filename=attachment.filename,
+            )
         raw_bytes = mime_message.as_bytes()
         return base64.urlsafe_b64encode(raw_bytes).decode("ascii")
 

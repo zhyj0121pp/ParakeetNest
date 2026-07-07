@@ -10,6 +10,7 @@ import pytest
 
 from parakeetnest.config import EmailConfig
 from parakeetnest.email import (
+    EmailAttachment,
     EmailReportDeliveryProvider,
     GmailDeliveryError,
     GmailEmailProvider,
@@ -18,6 +19,7 @@ from parakeetnest.email import (
 )
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.research import (
+    ReportDeliveryAttachment,
     ReportDeliveryRequest,
     ReportDeliveryStatus,
     ReportRecipient,
@@ -120,6 +122,49 @@ def test_gmail_provider_sends_html_email_as_mime_alternative() -> None:
     )
 
 
+def test_gmail_provider_sends_html_attachment() -> None:
+    client = FakeGmailClient(response={"id": "gmail-attachment-123"})
+    provider = GmailEmailProvider(
+        client=client,
+        sender_email="sender@example.com",
+    )
+
+    provider.send(
+        subject="Morning Investment Report - 2026-07-01",
+        body=(
+            "Morning Investment Report\n"
+            "Date: 2026-07-01\n"
+            "Full report is attached: morning-report-2026-07-01.html\n"
+        ),
+        recipient="investor@example.com",
+        attachments=(
+            EmailAttachment(
+                filename="morning-report-2026-07-01.html",
+                content=(
+                    "<!doctype html>\n"
+                    "<html><body><details><summary>NVDA</summary>"
+                    "Recommendation: Trim</details></body></html>\n"
+                ),
+                content_type="text/html",
+            ),
+        ),
+    )
+
+    assert provider.last_message_id == "gmail-attachment-123"
+    encoded = client.send_calls[0]["body"]["raw"]
+    decoded = message_from_bytes(base64.urlsafe_b64decode(encoded.encode("ascii")))
+    attachment_parts = [
+        part
+        for part in decoded.walk()
+        if part.get_filename() == "morning-report-2026-07-01.html"
+    ]
+    assert len(attachment_parts) == 1
+    assert attachment_parts[0].get_content_type() == "text/html"
+    assert attachment_parts[0].get_payload(decode=True).decode("utf-8").startswith(
+        "<!doctype html>\n"
+    )
+
+
 def test_gmail_provider_validates_message_before_calling_client() -> None:
     client = FakeGmailClient()
     provider = GmailEmailProvider(client=client)
@@ -196,6 +241,33 @@ def test_email_report_delivery_provider_returns_gmail_message_id() -> None:
     assert result.status is ReportDeliveryStatus.DELIVERED
     assert result.provider_name == "gmail"
     assert result.message_id == "gmail-report-123"
+
+
+def test_email_report_delivery_provider_passes_html_attachments() -> None:
+    email_provider = MockEmailProvider()
+    delivery_provider = EmailReportDeliveryProvider(
+        email_provider,
+        provider_name="mock",
+    )
+
+    result = delivery_provider.deliver(
+        ReportDeliveryRequest(
+            recipient=ReportRecipient(email="investor@example.com"),
+            subject="Morning Investment Report",
+            body="Full report is attached: morning-report-2026-07-01.html",
+            attachments=(
+                ReportDeliveryAttachment(
+                    filename="morning-report-2026-07-01.html",
+                    content="<!doctype html>\n<details><summary>NVDA</summary></details>\n",
+                    content_type="text/html",
+                ),
+            ),
+        )
+    )
+
+    assert result.status is ReportDeliveryStatus.DELIVERED
+    assert email_provider.messages[0].attachments[0].filename.endswith(".html")
+    assert email_provider.messages[0].attachments[0].content_type == "text/html"
 
 
 def test_email_report_delivery_provider_returns_failed_result_on_gmail_error() -> None:

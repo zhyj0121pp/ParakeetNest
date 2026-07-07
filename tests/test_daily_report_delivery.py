@@ -33,7 +33,9 @@ class FakeComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
-        body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+        body_format: ReportBodyFormat | str = (
+            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
+        ),
     ) -> str:
         self.calls.append(
             {
@@ -77,7 +79,7 @@ class FakeDeliveryService:
         )
 
 
-def test_daily_delivery_composes_and_delivers_interactive_html_by_default(
+def test_daily_delivery_sends_interactive_html_attachment_by_default(
     monkeypatch,
 ) -> None:
     monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
@@ -104,9 +106,24 @@ def test_daily_delivery_composes_and_delivers_interactive_html_by_default(
     assert result.message_id == "noop-daily-123"
     assert len(provider.requests) == 1
     assert provider.requests[0].recipient.email == "investor@example.com"
-    assert provider.requests[0].subject == "Daily Investment Report - 2026-07-01"
-    assert "Tickers: NVDA" in provider.requests[0].body
-    assert provider.requests[0].content_type == "text/html"
+    request = provider.requests[0]
+    assert request.subject == "Morning Investment Report - 2026-07-01"
+    assert request.body == (
+        "Morning Investment Report\n"
+        "Date: 2026-07-01\n"
+        "Full report is attached: morning-report-2026-07-01.html"
+    )
+    assert "Tickers: NVDA" not in request.body
+    assert "Recommendation" not in request.body
+    assert request.content_type == "text/plain"
+    assert len(request.attachments) == 1
+    attachment = request.attachments[0]
+    assert attachment.filename == "morning-report-2026-07-01.html"
+    assert attachment.filename.endswith(".html")
+    assert attachment.content_type == "text/html"
+    assert attachment.content.startswith("<!doctype html>")
+    assert "<details" in attachment.content
+    assert "<summary" in attachment.content
 
 
 def test_daily_delivery_passes_research_inputs_to_composer() -> None:
@@ -133,12 +150,15 @@ def test_daily_delivery_passes_research_inputs_to_composer() -> None:
             "account_id": "main",
             "as_of_date": AS_OF_DATE,
             "generated_at": GENERATED_AT,
-            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         }
     ]
 
 
-def test_daily_delivery_passes_delivery_inputs_to_delivery_service() -> None:
+def test_daily_delivery_passes_delivery_inputs_to_delivery_service(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
     composer = FakeComposer(body="rendered daily body")
     delivery_service = FakeDeliveryService()
     service = DailyReportDeliveryService(
@@ -147,26 +167,35 @@ def test_daily_delivery_passes_delivery_inputs_to_delivery_service() -> None:
     )
     metadata = {"run_id": "epic-029", "source": "daily-use-case"}
 
-    result = service.deliver(
-        DailyReportDeliveryRequest(
-            tickers=("NVDA",),
-            recipient_email="investor@example.com",
-            subject="Custom Daily Report",
-            metadata=metadata,
+    try:
+        result = service.deliver(
+            DailyReportDeliveryRequest(
+                tickers=("NVDA",),
+                recipient_email="investor@example.com",
+                subject="Custom Daily Report",
+                as_of_date=AS_OF_DATE,
+                metadata=metadata,
+            )
         )
-    )
+    finally:
+        get_settings.cache_clear()
 
     assert result.message_id == "fake-123"
-    assert delivery_service.calls == [
-        {
-            "recipient_email": "investor@example.com",
-            "subject": "Custom Daily Report",
-            "body": "rendered daily body",
-            "content_type": "text/html",
-            "metadata": metadata,
-            "attachments": (),
-        }
-    ]
+    assert len(delivery_service.calls) == 1
+    call = delivery_service.calls[0]
+    assert call["recipient_email"] == "investor@example.com"
+    assert call["subject"] == "Custom Daily Report"
+    assert call["body"] == (
+        "Morning Investment Report\n"
+        "Date: 2026-07-01\n"
+        "Full report is attached: morning-report-2026-07-01.html\n"
+    )
+    assert call["content_type"] == "text/plain"
+    assert call["metadata"] == metadata
+    attachment = call["attachments"][0]
+    assert attachment.filename == "morning-report-2026-07-01.html"
+    assert attachment.content == "rendered daily body"
+    assert attachment.content_type == "text/html"
 
 
 def test_daily_delivery_can_request_interactive_html_email() -> None:
@@ -265,7 +294,7 @@ def test_daily_delivery_attachment_only_localizes_chinese_body(
                 tickers=("NVDA",),
                 recipient_email="investor@example.com",
                 as_of_date=AS_OF_DATE,
-                body_format="html_attachment_only",
+                body_format=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
             )
         )
     finally:
@@ -280,21 +309,29 @@ def test_daily_delivery_attachment_only_localizes_chinese_body(
     )
 
 
-def test_daily_delivery_builds_default_subject_from_as_of_date() -> None:
+def test_daily_delivery_builds_default_attachment_subject_from_as_of_date(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
     delivery_service = FakeDeliveryService()
     service = DailyReportDeliveryService(
         composer=FakeComposer(),
         delivery_service=delivery_service,
     )
 
-    service.deliver(
-        DailyReportDeliveryRequest(
-            tickers=("NVDA",),
-            recipient_email="investor@example.com",
-            as_of_date=AS_OF_DATE,
+    try:
+        service.deliver(
+            DailyReportDeliveryRequest(
+                tickers=("NVDA",),
+                recipient_email="investor@example.com",
+                as_of_date=AS_OF_DATE,
+            )
         )
-    )
+    finally:
+        get_settings.cache_clear()
 
     assert delivery_service.calls[0]["subject"] == (
-        "Daily Investment Report - 2026-07-01"
+        "Morning Investment Report - 2026-07-01"
     )

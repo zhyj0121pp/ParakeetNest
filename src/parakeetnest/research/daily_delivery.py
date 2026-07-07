@@ -25,7 +25,9 @@ class _DailyReportComposer(Protocol):
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
-        body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+        body_format: ReportBodyFormat | str = (
+            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
+        ),
     ) -> str:
         """Compose a daily investment report body."""
 
@@ -54,7 +56,7 @@ class DailyReportDeliveryRequest:
     as_of_date: date | None = None
     generated_at: datetime | None = None
     subject: str | None = None
-    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL
+    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
     metadata: Mapping[str, str] | None = field(default_factory=dict)
 
 
@@ -84,10 +86,6 @@ class DailyReportDeliveryService:
             as_of_date=request.as_of_date,
             generated_at=request.generated_at,
         )
-        subject = request.subject or _default_subject(
-            as_of_date=request.as_of_date,
-            generated_at=request.generated_at,
-        )
         attachments: tuple[ReportDeliveryAttachment, ...] = ()
         if _is_html_attachment_format(body_format):
             localization = get_report_localization()
@@ -109,6 +107,11 @@ class DailyReportDeliveryService:
                     content=attachment_content,
                     content_type="text/html",
                 ),
+            )
+        else:
+            subject = request.subject or _default_subject(
+                as_of_date=request.as_of_date,
+                generated_at=request.generated_at,
             )
         return self._delivery_service.deliver_report(
             recipient_email=request.recipient_email,
@@ -143,10 +146,7 @@ def _report_date(
 
 
 def _is_html_attachment_format(body_format: ReportBodyFormat) -> bool:
-    return body_format in {
-        ReportBodyFormat.HTML_ATTACHMENT_ONLY,
-        ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
-    }
+    return body_format is ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
 
 
 def _minimal_attachment_body(

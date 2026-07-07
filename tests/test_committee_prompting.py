@@ -93,6 +93,24 @@ def test_prompts_do_not_introduce_trading_execution_instructions() -> None:
     assert all(phrase not in combined for phrase in forbidden_phrases)
 
 
+def test_committee_prompt_can_request_chinese_report_facing_content() -> None:
+    context = _context_for(PERMANENT_COMMITTEE_PERSONAS[0], report_language="zh")
+
+    prompt = PersonaDrivenCommitteePromptBuilder().build_prompt(context)
+
+    assert "请用中文撰写最终报告中面向读者展示的内容" in prompt.prompt_text
+    assert "不要翻译股票代码、公司名称、数据源名称或数字" in prompt.prompt_text
+
+
+def test_position_review_prompt_can_request_chinese_report_facing_content() -> None:
+    prompts = PersonaDrivenPositionReviewPromptBuilder(language="zh").build_prompts(
+        _position_context(),
+    )
+
+    assert all("请用中文撰写 thesis、concerns 和 evidence_refs" in prompt.prompt_text for prompt in prompts)
+    assert all("- Symbol: NVDA" in prompt.prompt_text for prompt in prompts)
+
+
 def test_position_review_prompts_include_symbol_and_company_name() -> None:
     prompts = PersonaDrivenPositionReviewPromptBuilder().build_prompts(
         _position_context(),
@@ -168,7 +186,11 @@ def _default_contexts() -> tuple[CommitteePromptContext, ...]:
     return tuple(_context_for(persona) for persona in PERMANENT_COMMITTEE_PERSONAS)
 
 
-def _context_for(persona: CommitteePersona) -> CommitteePromptContext:
+def _context_for(
+    persona: CommitteePersona,
+    *,
+    report_language: str = "en",
+) -> CommitteePromptContext:
     return CommitteePromptContext(
         persona=persona,
         tickers=("NVDA", "AAPL"),
@@ -182,6 +204,7 @@ def _context_for(persona: CommitteePersona) -> CommitteePromptContext:
         evidence_notes=("Research assembled from provider-neutral services.",),
         key_risks=("NVDA: Export controls.", "AAPL: China demand risk."),
         upcoming_catalysts=("NVDA: Datacenter demand.", "AAPL: Services growth."),
+        report_language=report_language,
     )
 
 

@@ -183,6 +183,7 @@ class InvestmentResearchService:
             portfolio_context=portfolio_context,
             committee_consensus=self._judgment_service.build_consensus(
                 ticker_reports,
+                language=prompt_contexts[0].report_language if prompt_contexts else None,
             ),
             source_summaries=source_summaries,
             evidence_notes=evidence_notes,

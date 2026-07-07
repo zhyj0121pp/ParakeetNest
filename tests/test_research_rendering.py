@@ -33,6 +33,7 @@ from parakeetnest.research import (
     render_investment_research_report,
     render_investment_research_report_interactive_html_email,
 )
+from parakeetnest.config import get_settings
 
 
 GENERATED_AT = datetime(2026, 7, 1, 15, 0, tzinfo=UTC)
@@ -104,8 +105,65 @@ def test_interactive_html_email_renderer_outputs_standalone_html() -> None:
     assert "## 1. Action Required" not in body
 
 
-def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
+def test_interactive_html_email_defaults_to_english(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.delenv("PARAKEETNEST_REPORT_LANGUAGE", raising=False)
+    get_settings.cache_clear()
+
     body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert ">1. Action Required</h2>" in body
+    assert ">2. Position Cards</h2>" in body
+    assert "<strong>Recommendation:</strong> Trim" in body
+    assert "<strong>Confidence:</strong> High" in body
+    assert "This report is advisory guidance only." in body
+    get_settings.cache_clear()
+
+
+def test_interactive_html_email_uses_env_language(monkeypatch) -> None:
+    monkeypatch.setenv("PARAKEET_REPORT_LANGUAGE", "zh")
+    get_settings.cache_clear()
+
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert ">1. 需要处理</h2>" in body
+    assert "<strong>建议:</strong> 减仓复核" in body
+    assert "本报告仅提供投资分析与复核建议" in body
+    get_settings.cache_clear()
+
+
+def test_interactive_html_email_explicit_language_overrides_env(monkeypatch) -> None:
+    monkeypatch.setenv("PARAKEET_REPORT_LANGUAGE", "zh")
+    get_settings.cache_clear()
+
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="en",
+    )
+
+    assert ">1. Action Required</h2>" in body
+    assert "<strong>Recommendation:</strong> Trim" in body
+    assert ">1. 需要处理</h2>" not in body
+    get_settings.cache_clear()
+
+
+def test_interactive_html_email_invalid_explicit_language_is_clear() -> None:
+    try:
+        render_investment_research_report_interactive_html_email(
+            _sample_report(),
+            language="fr",
+        )
+    except ValueError as exc:
+        assert "report language must be en or zh" in str(exc)
+    else:
+        raise AssertionError("invalid report language should raise ValueError")
+
+
+def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
 
     assert 'style="' in body
     assert "border-left: 5px solid #f97316" in body
@@ -120,7 +178,10 @@ def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
 
 
 def test_interactive_html_stock_cards_are_collapsible() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
     card = _first_html_card(body)
 
     assert card.startswith('<details style="background: #ffffff;')
@@ -130,7 +191,10 @@ def test_interactive_html_stock_cards_are_collapsible() -> None:
 
 
 def test_interactive_html_email_uses_chinese_section_titles() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
 
     assert ">1. 需要处理</h2>" in body
     assert ">2. 持仓决策卡片</h2>" in body
@@ -141,7 +205,10 @@ def test_interactive_html_email_uses_chinese_section_titles() -> None:
 
 
 def test_interactive_html_email_uses_chinese_field_labels() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
 
     assert "<strong>建议:</strong> 减仓复核" in body
     assert "<strong>信心:</strong> 高" in body
@@ -154,7 +221,10 @@ def test_interactive_html_email_uses_chinese_field_labels() -> None:
 
 
 def test_interactive_html_email_localizes_recommendation_confidence_and_urgency() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
 
     assert "减仓复核" in body
     assert "继续持有" in body
@@ -165,17 +235,23 @@ def test_interactive_html_email_localizes_recommendation_confidence_and_urgency(
 
 
 def test_interactive_html_email_contains_progressive_details_sections() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
 
     assert "<details" in body
     assert "<summary" in body
     assert "事实依据" in body
-    assert "查看稳定持仓" in body
-    assert "查看原始证据" in body
+    assert "展开稳定持仓" in body
+    assert "展开原始证据" in body
 
 
 def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
     visible_body = _without_inner_html_details(_first_html_card(body))
 
     assert "NVDA - 减仓复核" in visible_body
@@ -198,7 +274,10 @@ def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
 
 
 def test_interactive_html_position_evidence_is_inside_details() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
     card = _first_html_card(body)
     details = _section(card, "事实依据", "</details>") + "</details>"
 
@@ -212,7 +291,10 @@ def test_interactive_html_position_evidence_is_inside_details() -> None:
 
 
 def test_interactive_html_trim_card_includes_actionable_sizing_section() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
     visible_body = _without_inner_html_details(_first_html_card(body))
 
     assert "当前状态:</strong> 仓位偏高" in visible_body
@@ -230,7 +312,8 @@ def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
         final_rationale="Exit risk is elevated.",
     )
     body = render_investment_research_report_interactive_html_email(
-        replace(report, position_decisions=(sell_decision,))
+        replace(report, position_decisions=(sell_decision,)),
+        language="zh",
     )
     visible_body = _without_inner_html_details(_first_html_card(body))
 
@@ -240,7 +323,10 @@ def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
 
 
 def test_interactive_html_stable_holdings_are_inside_details() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
     stable_section = _section(
         body,
         ">3. 稳定持仓</h2>",
@@ -254,7 +340,10 @@ def test_interactive_html_stable_holdings_are_inside_details() -> None:
 
 
 def test_interactive_html_raw_evidence_is_bottom_details() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
     raw_section = _section(body, ">6. 原始证据</h2>", None)
 
     assert body.rfind(">6. 原始证据</h2>") > body.rfind(">5. 市场概览</h2>")

@@ -7,13 +7,14 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 EnvironmentName = Literal["development", "test", "production"]
 AppEnvironmentName = Literal["test", "local", "prod"]
 LogLevelName = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+ReportLanguageName = Literal["en", "zh"]
 
 
 DEFAULT_PROMPT_DIR = Path(__file__).parent / "committee" / "prompts"
@@ -228,6 +229,13 @@ class Settings(BaseSettings):
     environment: EnvironmentName = "development"
     log_level: LogLevelName = "INFO"
     log_json: bool = True
+    report_language: ReportLanguageName = Field(
+        default="en",
+        validation_alias=AliasChoices(
+            "PARAKEET_REPORT_LANGUAGE",
+            "PARAKEETNEST_REPORT_LANGUAGE",
+        ),
+    )
 
     data_dir: Path = Path("data")
     sqlite_path: Path = Path("data/parakeetnest.sqlite3")

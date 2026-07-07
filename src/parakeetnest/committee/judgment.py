@@ -57,6 +57,8 @@ class CommitteeJudgmentService:
     def build_consensus(
         self,
         ticker_reports: tuple[ResearchTickerReport, ...],
+        *,
+        language: object | None = None,
     ) -> ResearchCommitteeConsensus:
         """Build the final advisory committee consensus."""
         from parakeetnest.research.models import ResearchCommitteeConsensus
@@ -65,17 +67,30 @@ class CommitteeJudgmentService:
         confidence = _committee_confidence(ticker_reports)
         horizon = "3-6 months" if confidence != "low" else "next research update"
         risk_posture = _committee_risk_posture(ticker_reports)
+        if _language_is_zh(language):
+            horizon = "3-6 个月" if confidence != "low" else "下次研究更新"
+            risk_posture = _committee_risk_posture_zh(ticker_reports)
+            rationale = (
+                "委员会在复核事实背景后形成本次建议，覆盖 "
+                f"{len(ticker_reports)} 个标的："
+                f"{_committee_action_mix(ticker_reports, language=language)}。"
+            )
+        else:
+            rationale = (
+                "The committee owns this advisory judgment after reviewing factual "
+                f"context across {len(ticker_reports)} ticker(s): "
+                f"{_committee_action_mix(ticker_reports)}."
+            )
         return ResearchCommitteeConsensus(
             final_action=action,
             confidence=confidence,
             horizon=horizon,
-            rationale=(
-                "The committee owns this advisory judgment after reviewing factual "
-                f"context across {len(ticker_reports)} ticker(s): "
-                f"{_committee_action_mix(ticker_reports)}."
-            ),
+            rationale=rationale,
             final_risk_posture=risk_posture,
-            todays_suggested_actions=_todays_suggested_actions(ticker_reports),
+            todays_suggested_actions=_todays_suggested_actions(
+                ticker_reports,
+                language=language,
+            ),
         )
 
 
@@ -116,23 +131,44 @@ def _committee_reasoning(
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> str:
     tickers = ", ".join(context.tickers)
-    action_summary = _committee_action_mix(ticker_reports)
+    action_summary = _committee_action_mix(
+        ticker_reports,
+        language=context.report_language,
+    )
     confidence_summary = _committee_confidence(ticker_reports)
     catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
     risk_summary = _summarize_context_values(context.key_risks)
 
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        if _context_is_zh(context):
+            return (
+                f"{tickers}: 上行空间取决于可验证的催化剂和持续增长证据。"
+                f"委员会行动观点为 {action_summary}，信心为 {confidence_summary}；"
+                f"催化剂证据：{catalyst_summary}。"
+            )
         return (
             f"{tickers}: upside depends on identifiable catalysts and durable "
             f"growth evidence. Committee action view is {action_summary} with "
             f"{confidence_summary} confidence; catalyst evidence: {catalyst_summary}."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        if _context_is_zh(context):
+            return (
+                f"{tickers}: 在报告支持 {action_summary}、信心为 "
+                f"{confidence_summary} 的同时，资本保护优先。主要下行证据："
+                f"{risk_summary}。"
+            )
         return (
             f"{tickers}: capital preservation comes first while the report "
             f"supports {action_summary} with {confidence_summary} confidence. "
             f"Primary downside evidence: {risk_summary}."
+        )
+    if _context_is_zh(context):
+        return (
+            f"{tickers}: 在增加风险暴露前，基本面和执行证据需要验证委员会的 "
+            f"{action_summary} 行动观点。证据基础："
+            f"{_summarize_context_values(context.ticker_summaries)}。"
         )
     return (
         f"{tickers}: fundamentals and execution evidence should validate the "
@@ -157,12 +193,18 @@ def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
             + (context.portfolio_review, context.watchlist_review)
             + context.evidence_notes
         )
+    if _context_is_zh(context):
+        return _unique(values)[:4] or ("已连接的报告背景有限。",)
     return _unique(values)[:4] or ("Connected report context is limited.",)
 
 
 def _committee_concern(context: CommitteePromptContext) -> str:
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        if _context_is_zh(context):
+            if context.upcoming_catalysts:
+                return "催化剂仍需要证据证明上行空间不是单纯叙事驱动。"
+            return "在出现更清晰的催化剂或创新信号前，上行案例仍偏弱。"
         if context.upcoming_catalysts:
             return (
                 "Catalysts still need evidence that upside is not purely "
@@ -173,10 +215,19 @@ def _committee_concern(context: CommitteePromptContext) -> str:
             "are added."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        if _context_is_zh(context):
+            return _summarize_context_values(
+                context.key_risks,
+                limit=1,
+            ) or "在已连接背景有限时，下行风险难以充分量化。"
         return _summarize_context_values(
             context.key_risks,
             limit=1,
         ) or "Downside risk cannot be sized well with limited connected context."
+    if _context_is_zh(context):
+        if context.evidence_notes:
+            return "缺少已连接研究输入时，基本面信心仍然有限。"
+        return "估值、盈利质量和执行证据需要继续复核。"
     if context.evidence_notes:
         return (
             "Fundamental conviction remains limited by missing connected "
@@ -189,17 +240,32 @@ def _committee_suggested_action(
     context: CommitteePromptContext,
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> str:
-    actions = _committee_action_mix(ticker_reports)
+    actions = _committee_action_mix(
+        ticker_reports,
+        language=context.report_language,
+    )
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        if _context_is_zh(context):
+            return (
+                f"将 {actions} 作为复核建议，并在提高暴露前优先跟进催化剂证据。"
+            )
         return (
             f"Treat {actions} as advisory guidance and prioritize catalyst follow-up "
             "before upgrading exposure."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        if _context_is_zh(context):
+            return (
+                f"将 {actions} 仅作为建议；保留现金灵活性，避免在风险证据不足时加大仓位。"
+            )
         return (
             f"Treat {actions} as advisory only; preserve cash flexibility and avoid "
             "adding size without stronger risk evidence."
+        )
+    if _context_is_zh(context):
+        return (
+            f"将 {actions} 作为当前工作建议，并在任何人工决策前确认估值、盈利质量和执行证据。"
         )
     return (
         f"Use {actions} as the working advisory plan, then confirm valuation, "
@@ -212,6 +278,13 @@ def _committee_viewpoint(context: CommitteePromptContext) -> str:
     evidence_summary = _summarize_context_values(context.evidence_notes)
     risk_summary = _summarize_context_values(context.key_risks)
     catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
+    if _context_is_zh(context):
+        return (
+            f"{tickers}: {context.persona.default_viewpoint} "
+            f"证据：{evidence_summary}。"
+            f"风险：{risk_summary}。"
+            f"催化剂：{catalyst_summary}。"
+        )
     return (
         f"{tickers}: {context.persona.default_viewpoint} "
         f"Evidence: {evidence_summary}. "
@@ -228,15 +301,28 @@ def _summarize_context_values(values: tuple[str, ...], limit: int = 2) -> str:
 
 def _todays_suggested_actions(
     ticker_reports: tuple[ResearchTickerReport, ...],
+    *,
+    language: object | None = None,
 ) -> tuple[str, ...]:
-    return tuple(_committee_ticker_actions(ticker_reports))
+    return tuple(_committee_ticker_actions(ticker_reports, language=language))
 
 
 def _committee_ticker_actions(
     ticker_reports: tuple[ResearchTickerReport, ...],
+    *,
+    language: object | None = None,
 ) -> tuple[str, ...]:
     confidence = _committee_confidence(ticker_reports)
     horizon = "3-6 months" if confidence != "low" else "next research update"
+    if _language_is_zh(language):
+        horizon = "3-6 个月" if confidence != "low" else "下次研究更新"
+        confidence_label = _level_label(confidence, language=language)
+        return tuple(
+            f"{ticker_report.ticker}: "
+            f"{_action_label(_committee_action(ticker_report), language=language)} "
+            f"（信心：{confidence_label}）周期：{horizon}；由你最终决定。"
+            for ticker_report in ticker_reports
+        )
     return tuple(
         f"{ticker_report.ticker}: {_committee_action(ticker_report).upper()} "
         f"({confidence} confidence) over {horizon}; human investor decides."
@@ -244,14 +330,18 @@ def _committee_ticker_actions(
     )
 
 
-def _committee_action_mix(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:
+def _committee_action_mix(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+    *,
+    language: object | None = None,
+) -> str:
     counts: dict[str, int] = {}
     for ticker_report in ticker_reports:
-        action = _committee_action(ticker_report).upper()
+        action = _action_label(_committee_action(ticker_report), language=language)
         counts[action] = counts.get(action, 0) + 1
     return ", ".join(
         f"{action}: {count}" for action, count in sorted(counts.items())
-    ) or "no committee actions"
+    ) or ("暂无委员会行动" if _language_is_zh(language) else "no committee actions")
 
 
 def _committee_action(ticker_report: ResearchTickerReport) -> str:
@@ -296,6 +386,16 @@ def _committee_risk_posture(ticker_reports: tuple[ResearchTickerReport, ...]) ->
     return "Balanced; evidence is sufficient for review but not for autonomous action."
 
 
+def _committee_risk_posture_zh(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> str:
+    if _has_elevated_risk(ticker_reports):
+        return "谨慎；事实风险信号偏高，增加暴露前需要人工复核。"
+    if _committee_confidence(ticker_reports) == "low":
+        return "谨慎；已连接证据有限，本报告仅作复核建议。"
+    return "均衡；证据足以支持复核，但不足以支持自动行动。"
+
+
 def _has_elevated_risk(ticker_reports: tuple[ResearchTickerReport, ...]) -> bool:
     return any(_ticker_has_elevated_risk(ticker_report) for ticker_report in ticker_reports)
 
@@ -317,6 +417,42 @@ def _unique(values: tuple[str, ...]) -> tuple[str, ...]:
         seen.add(value)
         result.append(value)
     return tuple(result)
+
+
+def _context_is_zh(context: CommitteePromptContext) -> bool:
+    return _language_is_zh(context.report_language)
+
+
+def _language_is_zh(language: object | None) -> bool:
+    if language is None:
+        return False
+    raw_value = getattr(language, "value", language)
+    return str(raw_value).strip().lower() == "zh"
+
+
+def _action_label(action: str, *, language: object | None = None) -> str:
+    if not _language_is_zh(language):
+        return action.upper()
+    return {
+        "buy": "买入复核",
+        "add": "加仓复核",
+        "buy_more": "加仓复核",
+        "hold": "继续持有",
+        "watch": "继续观察",
+        "trim": "减仓复核",
+        "reduce": "减仓复核",
+        "sell": "卖出复核",
+    }.get(action.strip().lower(), action)
+
+
+def _level_label(value: str, *, language: object | None = None) -> str:
+    if not _language_is_zh(language):
+        return value
+    return {
+        "high": "高",
+        "medium": "中",
+        "low": "低",
+    }.get(value.strip().lower(), value)
 
 
 __all__ = ["CommitteeJudgmentService"]

@@ -11,6 +11,7 @@ from parakeetnest.committee import (
     CommitteeRole,
     PermanentCommitteeService,
 )
+from parakeetnest.config import get_settings
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
 from parakeetnest.research import (
@@ -248,6 +249,20 @@ def test_committee_opinions_keep_persona_specific_lenses() -> None:
     assert opinions["Youyou"].stance == "cautious"
     assert "capital preservation" in opinions["Youyou"].reasoning_summary
     assert "advisory only" in opinions["Youyou"].suggested_action
+
+
+def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
+    monkeypatch.setenv("PARAKEET_REPORT_LANGUAGE", "zh")
+    get_settings.cache_clear()
+    service = InvestmentResearchService()
+
+    report = service.generate_report(("NVDA",), generated_at=AS_OF)
+
+    assert report.tickers() == ("NVDA",)
+    assert "上行空间" in report.committee_opinions[0].reasoning_summary
+    assert "委员会" in report.committee_consensus.rationale
+    assert "NVDA" in report.committee_consensus.todays_suggested_actions[0]
+    get_settings.cache_clear()
 
 
 def test_research_package_has_no_broker_or_trading_execution_logic() -> None:

@@ -20,6 +20,7 @@ def test_settings_defaults_are_safe() -> None:
 
     assert settings.app_name == "ParakeetNest"
     assert settings.environment == "development"
+    assert settings.report_language == "en"
     assert settings.openai_api_key is None
     assert settings.robinhood_password is None
 
@@ -37,6 +38,15 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     assert settings.log_level == "DEBUG"
     assert settings.sqlite_path == Path("tmp/test.sqlite3")
     assert settings.watchlist_seed_path == Path("tmp/watchlist.json")
+
+
+def test_settings_load_report_language_from_project_env_name(monkeypatch) -> None:
+    """Report language follows the requested project-specific environment name."""
+    monkeypatch.setenv("PARAKEET_REPORT_LANGUAGE", "zh")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.report_language == "zh"
 
 
 def test_settings_load_from_env_file(tmp_path: Path) -> None:

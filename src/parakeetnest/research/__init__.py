@@ -18,6 +18,12 @@ from parakeetnest.research.daily_delivery import (
     DailyReportDeliveryRequest,
     DailyReportDeliveryService,
 )
+from parakeetnest.research.localization import (
+    ReportLanguage,
+    ReportLocalization,
+    get_configured_report_language,
+    get_report_localization,
+)
 from parakeetnest.research.models import (
     InvestmentResearchReport,
     ReportMode,
@@ -53,6 +59,8 @@ __all__ = [
     "ReportDeliveryStatus",
     "ReportRecipient",
     "ReportBodyFormat",
+    "ReportLanguage",
+    "ReportLocalization",
     "ReportMode",
     "ResearchCatalyst",
     "ResearchCommitteeConsensus",
@@ -62,6 +70,8 @@ __all__ = [
     "ResearchRisk",
     "ResearchTickerReport",
     "compose_daily_investment_report",
+    "get_configured_report_language",
+    "get_report_localization",
     "render_investment_research_report",
     "render_investment_research_report_interactive_html_email",
 ]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
 
 from parakeetnest.committee.personas import (
     DONGDONG_PERSONA,
@@ -21,6 +21,24 @@ ADVISORY_ONLY_DISCLAIMER = (
 )
 
 
+def _configured_report_language() -> object:
+    from parakeetnest.research.localization import get_configured_report_language
+
+    return get_configured_report_language()
+
+
+def _report_language(value: object) -> object:
+    from parakeetnest.research.localization import ReportLanguage
+
+    return ReportLanguage.from_value(value)
+
+
+def _report_localization(value: object) -> Any:
+    from parakeetnest.research.localization import get_report_localization
+
+    return get_report_localization(value)
+
+
 @dataclass(frozen=True)
 class CommitteePromptContext:
     """Report context used to generate one persona-specific reasoning prompt."""
@@ -35,6 +53,7 @@ class CommitteePromptContext:
     key_risks: tuple[str, ...]
     upcoming_catalysts: tuple[str, ...]
     advisory_only_disclaimer: str = ADVISORY_ONLY_DISCLAIMER
+    report_language: object | str = field(default_factory=_configured_report_language)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "tickers", _normalize_text_tuple(self.tickers))
@@ -80,6 +99,11 @@ class CommitteePromptContext:
                 self.advisory_only_disclaimer,
                 "advisory_only_disclaimer",
             ),
+        )
+        object.__setattr__(
+            self,
+            "report_language",
+            _report_language(self.report_language),
         )
         if not self.tickers:
             raise ValueError("prompt context tickers are required")
@@ -174,6 +198,7 @@ class PersonaDrivenCommitteePromptBuilder:
     def build_prompt(self, context: CommitteePromptContext) -> CommitteePersonaPrompt:
         """Build a prompt for one permanent committee persona."""
         persona = context.persona
+        localization = _report_localization(context.report_language)
         prompt_text = "\n".join(
             [
                 f"You are {persona.display_name}, {persona.role_title}.",
@@ -205,6 +230,9 @@ class PersonaDrivenCommitteePromptBuilder:
                 "Advisory Boundary",
                 f"- {context.advisory_only_disclaimer}",
                 "",
+                "Language",
+                f"- {localization.language_instruction}",
+                "",
                 "Required Output",
                 "- Provide a concise committee opinion for the daily report.",
                 "- Include action, confidence, horizon, evidence, risks, and catalysts.",
@@ -233,6 +261,13 @@ class PositionReviewPromptBuilder(Protocol):
 
 class PersonaDrivenPositionReviewPromptBuilder:
     """Build deterministic position-review prompts from committee personas."""
+
+    def __init__(
+        self,
+        language: str | None = None,
+        localization: Any | None = None,
+    ) -> None:
+        self._localization = localization or _report_localization(language)
 
     def build_prompts(
         self,
@@ -319,6 +354,7 @@ class PersonaDrivenPositionReviewPromptBuilder:
                 "",
                 "Required Output",
                 "- Return only a JSON object named CommitteePositionReview.",
+                f"- {self._localization.position_language_instruction}",
                 "- Include exactly these fields:",
                 "  - symbol",
                 "  - agent_name",

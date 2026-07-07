@@ -177,17 +177,18 @@ def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
     assert "<link" not in body.lower()
 
 
-def test_interactive_html_stock_cards_are_collapsible() -> None:
+def test_interactive_html_stock_cards_keep_critical_fields_visible() -> None:
     body = render_investment_research_report_interactive_html_email(
         _sample_report(),
         language="zh",
     )
     card = _first_html_card(body)
 
-    assert card.startswith('<details style="background: #ffffff;')
-    assert "<summary" in card
-    assert "NVDA - 减仓复核" in _section(card, "<summary", "</summary>")
+    assert card.startswith('<div style="background: #ffffff;')
+    assert "<h3" in card
+    assert "NVDA - 减仓复核" in _section(card, "<h3", "</h3>")
     assert "<strong>建议:</strong> 减仓复核" in card
+    assert card.index("<strong>建议:</strong> 减仓复核") < card.index("<details")
 
 
 def test_interactive_html_email_uses_chinese_section_titles() -> None:
@@ -290,6 +291,22 @@ def test_interactive_html_position_evidence_is_inside_details() -> None:
     )
 
 
+def test_interactive_html_decision_card_still_has_collapsible_evidence_details() -> None:
+    body = render_investment_research_report_interactive_html_email(
+        _sample_report(),
+        language="zh",
+    )
+    card = _first_html_card(body)
+
+    assert '<details style="margin-top: 12px;">' in card
+    assert "事实依据" in _section(card, "<details", "</details>")
+    assert "Committee reviewed supplied context." in _section(
+        card,
+        "<details",
+        "</details>",
+    )
+
+
 def test_interactive_html_trim_card_includes_actionable_sizing_section() -> None:
     body = render_investment_research_report_interactive_html_email(
         _sample_report(),
@@ -368,6 +385,38 @@ def test_interactive_html_email_hides_sensitive_portfolio_values() -> None:
     assert "$1,200.00" not in body
     assert "10 shares" not in body
     assert "10 股" not in body
+
+
+def test_chinese_interactive_html_raw_evidence_hides_sensitive_portfolio_terms() -> None:
+    report = _sample_report()
+    sensitive_ticker = replace(
+        report.ticker_reports[0],
+        summary="NVDA 持仓市值为 1200，持有 10 股。",
+        findings=(
+            ResearchFinding(
+                summary="现金余额 500，成本 900，盈亏 300。",
+                source="portfolio",
+            ),
+        ),
+        evidence_notes=("总资产 12500，总市值 12000。",),
+        source_summaries=("组合现金为 500。",),
+    )
+    sensitive_report = replace(
+        report,
+        ticker_reports=(sensitive_ticker, *report.ticker_reports[1:]),
+        evidence_notes=("组合持仓市值和现金余额来自账户。",),
+        source_summaries=("总资产快照。",),
+    )
+
+    body = render_investment_research_report_interactive_html_email(
+        sensitive_report,
+        language="zh",
+    )
+    raw_section = _section(body, ">6. 原始证据</h2>", None)
+
+    assert "Services growth." in raw_section
+    for sensitive_term in ("市值", "股", "现金余额"):
+        assert sensitive_term not in raw_section
 
 
 def test_interactive_html_escapes_dynamic_text() -> None:
@@ -740,7 +789,7 @@ def _section(body: str, start: str, end: str | None) -> str:
 def _first_html_card(body: str) -> str:
     return _section(
         body,
-        '<details style="background: #ffffff;',
+        '<div style="background: #ffffff;',
         f"{HTML_H2_STYLE}3. 稳定持仓</h2>",
     )
 

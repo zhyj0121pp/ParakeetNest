@@ -1226,18 +1226,17 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
         return "\n".join(
             [
                 (
-                    '<details style="background: #ffffff; border: 1px solid #e5e7eb; '
+                    '<div style="background: #ffffff; border: 1px solid #e5e7eb; '
                     f"border-left: 5px solid {border_color}; border-radius: 10px; "
                     'padding: 14px; margin: 12px 0;">'
                 ),
                 (
-                    '<summary style="cursor: pointer; color: #111827; '
-                    'font-weight: 800;">'
+                    '<h3 style="color: #111827; font-weight: 800; margin: 0 0 8px;">'
                     '<span style="font-size: 18px;">'
-                    f"{_html(title)}</span></summary>"
+                    f"{_html(title)}</span></h3>"
                 ),
                 body,
-                "</details>",
+                "</div>",
             ]
         )
 
@@ -1439,6 +1438,16 @@ def _looks_portfolio_sensitive(value: str) -> bool:
         "shares held",
         " shares",
         "$",
+        "市值",
+        "持仓市值",
+        "总资产",
+        "总市值",
+        "现金",
+        "现金余额",
+        "股",
+        "持有",
+        "成本",
+        "盈亏",
     )
     return any(term in normalized for term in sensitive_terms)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 from parakeetnest.context.models import (
@@ -18,6 +19,7 @@ from parakeetnest.decision import (
     PositionRecommendation,
 )
 from parakeetnest.research import (
+    InteractiveHtmlEmailInvestmentResearchReportRenderer,
     InvestmentResearchReport,
     InvestmentResearchReportRenderer,
     ReportMode,
@@ -29,10 +31,14 @@ from parakeetnest.research import (
     ResearchRisk,
     ResearchTickerReport,
     render_investment_research_report,
+    render_investment_research_report_interactive_html_email,
 )
 
 
 GENERATED_AT = datetime(2026, 7, 1, 15, 0, tzinfo=UTC)
+HTML_H2_STYLE = (
+    '<h2 style="font-size: 20px; margin: 24px 0 10px; color: #111827;">'
+)
 
 
 def test_renderer_produces_email_friendly_morning_markdown() -> None:
@@ -84,6 +90,129 @@ def test_critical_recommendation_fields_are_visible_outside_details() -> None:
     assert "**Xixi:** Fundamentals remain strong." in visible_body
     assert "**Youyou:** Sizing risk requires monitoring." in visible_body
     assert "**Final consensus:**" in visible_body
+
+
+def test_interactive_html_email_renderer_outputs_standalone_html() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert body == InteractiveHtmlEmailInvestmentResearchReportRenderer().render(
+        _sample_report()
+    )
+    assert body.startswith("<!doctype html>\n<html>\n")
+    assert "<body style=" in body
+    assert body.endswith("</html>\n")
+    assert "## 1. Action Required" not in body
+
+
+def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert 'style="' in body
+    assert "border-left: 5px solid #f97316" in body
+    assert "border-radius: 10px" in body
+    assert ">Trim</span>" in body
+    assert ">High confidence</span>" in body
+    assert ">High urgency</span>" in body
+    assert ">Human review required</span>" in body
+    assert "<script" not in body.lower()
+    assert "<style" not in body.lower()
+    assert "<link" not in body.lower()
+
+
+def test_interactive_html_email_contains_progressive_details_sections() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert "<details" in body
+    assert "<summary" in body
+    assert "Committee opinions and factual evidence" in body
+    assert "Show stable holdings" in body
+    assert "Show raw evidence" in body
+
+
+def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+    visible_body = _without_html_details(body)
+
+    assert "NVDA - Trim" in visible_body
+    assert "<strong>Recommendation:</strong> Trim" in visible_body
+    assert "<strong>Confidence:</strong> High" in visible_body
+    assert (
+        "<strong>Rationale:</strong> Committee recommends reviewing the position."
+        in visible_body
+    )
+    assert "<strong>Final consensus:</strong>" in visible_body
+    assert "<strong>Dongdong:</strong> Opportunity remains attractive." in visible_body
+    assert "<strong>Xixi:</strong> Fundamentals remain strong." in visible_body
+    assert "<strong>Youyou:</strong> Sizing risk requires monitoring." in visible_body
+    assert "Committee reviewed supplied context." not in visible_body
+
+
+def test_interactive_html_position_evidence_is_inside_details() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+    card = _section(body, "<h3", f"{HTML_H2_STYLE}3. Stable Holdings</h2>")
+    details = _section(card, "<details", "</details>") + "</details>"
+
+    assert "<strong>Dongdong:</strong>" in card
+    assert "<strong>Xixi:</strong>" in card
+    assert "<strong>Youyou:</strong>" in card
+    assert "Committee reviewed supplied context." in details
+    assert "Committee reviewed supplied context." not in _without_html_details(card)
+
+
+def test_interactive_html_stable_holdings_are_inside_details() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+    stable_section = _section(
+        body,
+        ">3. Stable Holdings</h2>",
+        ">4. New Opportunities</h2>",
+    )
+
+    assert "<details" in stable_section
+    assert "<summary" in stable_section
+    assert "MSFT: Hold" in stable_section
+    assert "MSFT: Hold" not in _without_html_details(stable_section)
+
+
+def test_interactive_html_raw_evidence_is_bottom_details() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+    raw_section = _section(body, ">6. Raw Evidence</h2>", None)
+
+    assert body.rfind(">6. Raw Evidence</h2>") > body.rfind(">5. Market Overview</h2>")
+    assert "<details" in raw_section
+    assert "<summary" in raw_section
+    assert (
+        "Report evidence: Research assembled from provider-neutral services."
+        in raw_section
+    )
+    assert raw_section.index("<details") < raw_section.index(
+        "Report evidence: Research assembled from provider-neutral services."
+    )
+
+
+def test_interactive_html_escapes_dynamic_text() -> None:
+    report = _sample_report()
+    dangerous_decision = replace(
+        report.position_decisions[0],
+        final_rationale='Review <trim> & "rebalance" with Xixi\'s notes.',
+        dongdong_opinion='Upside < catalyst & "AI"',
+        xixi_opinion="Margin > cost & valuation",
+        youyou_opinion='Risk "drawdown" < 10% & rising',
+        factual_evidence=('Evidence <tag> & "quoted" \'single\'',),
+    )
+    dangerous_report = replace(
+        report,
+        title='Morning <Report> & "Alpha"',
+        market_summary="Market < breadth > & volatility",
+        position_decisions=(dangerous_decision, *report.position_decisions[1:]),
+    )
+
+    body = render_investment_research_report_interactive_html_email(dangerous_report)
+
+    assert "&lt;Report&gt; &amp; &quot;Alpha&quot;" in body
+    assert "Review &lt;trim&gt; &amp; &quot;rebalance&quot;" in body
+    assert "Xixi&#x27;s notes." in body
+    assert "Evidence &lt;tag&gt; &amp; &quot;quoted&quot; &#x27;single&#x27;" in body
+    assert 'Review <trim> & "rebalance"' not in body
 
 
 def test_morning_report_section_order_is_exact() -> None:
@@ -432,6 +561,17 @@ def _without_details(body: str) -> str:
     remaining = body
     while "<details>" in remaining:
         before, after_start = remaining.split("<details>", 1)
+        visible_parts.append(before)
+        _, remaining = after_start.split("</details>", 1)
+    visible_parts.append(remaining)
+    return "".join(visible_parts)
+
+
+def _without_html_details(body: str) -> str:
+    visible_parts: list[str] = []
+    remaining = body
+    while "<details" in remaining:
+        before, after_start = remaining.split("<details", 1)
         visible_parts.append(before)
         _, remaining = after_start.split("</details>", 1)
     visible_parts.append(remaining)

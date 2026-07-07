@@ -29,8 +29,10 @@ from parakeetnest.research.models import (
     ResearchTickerReport,
 )
 from parakeetnest.research.rendering import (
+    InteractiveHtmlEmailInvestmentResearchReportRenderer,
     InvestmentResearchReportRenderer,
     render_investment_research_report,
+    render_investment_research_report_interactive_html_email,
 )
 from parakeetnest.research.service import InvestmentResearchService
 
@@ -39,6 +41,7 @@ __all__ = [
     "DailyReportDeliveryRequest",
     "DailyReportDeliveryService",
     "InvestmentResearchReport",
+    "InteractiveHtmlEmailInvestmentResearchReportRenderer",
     "InvestmentResearchReportRenderer",
     "InvestmentResearchService",
     "NoOpReportDeliveryProvider",
@@ -58,4 +61,5 @@ __all__ = [
     "ResearchTickerReport",
     "compose_daily_investment_report",
     "render_investment_research_report",
+    "render_investment_research_report_interactive_html_email",
 ]

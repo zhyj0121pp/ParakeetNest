@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import Enum
+from html import escape
 from typing import Any
 
 from parakeetnest.context.models import PortfolioPosition
@@ -701,6 +702,442 @@ class InvestmentResearchReportRenderer:
         return str(value)
 
 
+class InteractiveHtmlEmailInvestmentResearchReportRenderer(
+    InvestmentResearchReportRenderer,
+):
+    """Render research reports into deterministic standalone HTML email."""
+
+    def render(self, report: InvestmentResearchReport) -> str:
+        """Return an inline-CSS HTML email body for a research report."""
+        sections = [
+            "<!doctype html>",
+            "<html>",
+            (
+                '<body style="font-family: -apple-system, BlinkMacSystemFont, '
+                "Segoe UI, Arial, sans-serif; color: #111827; line-height: 1.5; "
+                'margin: 0; padding: 24px; background: #f9fafb;">'
+            ),
+            self._render_html_header(report),
+            self._render_html_human_review_notice(),
+            self._render_html_action_required(report),
+            self._render_html_position_cards(report),
+            self._render_html_stable_holdings(report),
+            self._render_html_new_opportunities(report),
+            self._render_html_market_overview(report),
+            self._render_html_raw_evidence(report),
+            "</body>",
+            "</html>",
+        ]
+        return "\n".join(section.rstrip() for section in sections).rstrip() + "\n"
+
+    def _render_html_header(self, report: InvestmentResearchReport) -> str:
+        tickers = ", ".join(report.tickers()) or "None"
+        return "\n".join(
+            [
+                (
+                    '<h1 style="font-size: 28px; line-height: 1.2; margin: 0 0 '
+                    '8px;">Morning Investment Report</h1>'
+                ),
+                (
+                    '<p style="margin: 0 0 18px; color: #4b5563;">'
+                    f"{_html(report.title)} | Report Mode: {_html(report.mode.value)} "
+                    f"| Generated At: {_html(report.generated_at.isoformat())} "
+                    f"| Tickers: {_html(tickers)}</p>"
+                ),
+            ]
+        )
+
+    def _render_html_human_review_notice(self) -> str:
+        return (
+            '<p style="padding: 12px; background: #fff7ed; border-left: 4px solid '
+            '#f97316; margin: 0 0 18px;">'
+            "<strong>Human-in-the-loop:</strong> This report is advisory guidance "
+            "only. It does not execute trades.</p>"
+        )
+
+    def _render_html_action_required(self, report: InvestmentResearchReport) -> str:
+        items: list[str] = []
+        for decision in self._html_action_decisions(report):
+            review = (
+                " User review recommended."
+                if decision.human_review_required
+                else ""
+            )
+            items.append(
+                "<li>"
+                f"<strong>{_html(decision.symbol)}:</strong> "
+                f"{_html(self._recommendation_label(decision.recommendation))} "
+                f"({_html(decision.confidence.value)} confidence, "
+                f"{_html(decision.urgency.value)} urgency).{review}</li>"
+            )
+        if not items:
+            items.append(
+                "<li>No position decisions currently require user action.</li>"
+            )
+        if report.portfolio_decision_summary is not None:
+            for item in report.portfolio_decision_summary.action_items:
+                items.append(
+                    f"<li><strong>Portfolio action item:</strong> {_html(item)}</li>"
+                )
+        return "\n".join(
+            [
+                self._html_section_heading("1. Action Required"),
+                '<ul style="margin: 0 0 18px 20px; padding: 0;">',
+                *items,
+                "</ul>",
+            ]
+        )
+
+    def _render_html_position_cards(self, report: InvestmentResearchReport) -> str:
+        cards: list[str] = []
+        decisions = self._html_action_decisions(report)
+        if decisions:
+            cards.extend(
+                self._render_html_decision_card(decision)
+                for decision in decisions
+            )
+        else:
+            opinions = self._committee_opinion_lookup(report)
+            cards.extend(
+                self._render_html_ticker_card(ticker_report, report, opinions)
+                for ticker_report in report.ticker_reports
+            )
+        if not cards:
+            cards.append(
+                '<p style="margin: 0 0 18px;">No action-required position cards '
+                "available.</p>"
+            )
+        return "\n".join([self._html_section_heading("2. Position Cards"), *cards])
+
+    def _render_html_decision_card(self, decision: PositionDecision) -> str:
+        recommendation = self._recommendation_label(decision.recommendation)
+        badges = [
+            self._html_badge(recommendation, kind="recommendation"),
+            self._html_badge(
+                f"{self._title_value(decision.confidence.value)} confidence",
+                kind="confidence",
+            ),
+            self._html_badge(
+                f"{self._title_value(decision.urgency.value)} urgency",
+                kind="urgency",
+            ),
+        ]
+        if decision.human_review_required:
+            badges.append(self._html_badge("Human review required", kind="review"))
+        return self._html_card(
+            title=f"{decision.symbol} - {recommendation}",
+            border_color=self._recommendation_border_color(recommendation),
+            body="\n".join(
+                [
+                    self._html_badge_row(badges),
+                    self._html_field("Recommendation", recommendation),
+                    self._html_field(
+                        "Confidence",
+                        self._title_value(decision.confidence.value),
+                    ),
+                    self._html_field("Rationale", decision.final_rationale),
+                    self._html_field(
+                        "Final consensus",
+                        (
+                            f"{decision.final_rationale} No automatic action. "
+                            "User review recommended."
+                        ),
+                    ),
+                    self._html_field("Dongdong", decision.dongdong_opinion),
+                    self._html_field("Xixi", decision.xixi_opinion),
+                    self._html_field("Youyou", decision.youyou_opinion),
+                    self._html_details(
+                        "Committee opinions and factual evidence",
+                        [
+                            self._html_field("Dongdong", decision.dongdong_opinion),
+                            self._html_field("Xixi", decision.xixi_opinion),
+                            self._html_field("Youyou", decision.youyou_opinion),
+                            self._html_list(decision.factual_evidence),
+                        ],
+                    ),
+                ]
+            ),
+        )
+
+    def _render_html_ticker_card(
+        self,
+        ticker_report: ResearchTickerReport,
+        report: InvestmentResearchReport,
+        opinions: dict[str, str],
+    ) -> str:
+        recommendation = self._title_value(report.committee_consensus.final_action)
+        badges = [
+            self._html_badge(recommendation, kind="recommendation"),
+            self._html_badge(
+                (
+                    f"{self._title_value(report.committee_consensus.confidence)} "
+                    "confidence"
+                ),
+                kind="confidence",
+            ),
+            self._html_badge("Human review required", kind="review"),
+        ]
+        return self._html_card(
+            title=f"{ticker_report.ticker} - {recommendation}",
+            border_color=self._recommendation_border_color(recommendation),
+            body="\n".join(
+                [
+                    self._html_badge_row(badges),
+                    self._html_field("Recommendation", recommendation),
+                    self._html_field(
+                        "Confidence",
+                        self._title_value(report.committee_consensus.confidence),
+                    ),
+                    self._html_field("Rationale", ticker_report.summary),
+                    self._html_field(
+                        "Final consensus",
+                        (
+                            f"{report.committee_consensus.rationale} No automatic "
+                            "action. User review recommended."
+                        ),
+                    ),
+                    self._html_field("Dongdong", opinions.get("dongdong")),
+                    self._html_field("Xixi", opinions.get("xixi")),
+                    self._html_field("Youyou", opinions.get("youyou")),
+                    self._html_details(
+                        "Committee opinions and factual evidence",
+                        [
+                            self._html_field("Dongdong", opinions.get("dongdong")),
+                            self._html_field("Xixi", opinions.get("xixi")),
+                            self._html_field("Youyou", opinions.get("youyou")),
+                            self._html_list(self._ticker_evidence(ticker_report)),
+                        ],
+                    ),
+                ]
+            ),
+        )
+
+    def _render_html_stable_holdings(self, report: InvestmentResearchReport) -> str:
+        items: list[str] = []
+        stable_decisions = tuple(
+            decision
+            for decision in report.position_decisions
+            if not decision.action_required and not decision.human_review_required
+        )
+        for decision in stable_decisions:
+            recommendation = self._recommendation_label(decision.recommendation)
+            items.append(
+                f"{decision.symbol}: {recommendation} "
+                f"({decision.confidence.value} confidence). {decision.final_rationale}"
+            )
+        if not items:
+            for position in self._stable_portfolio_positions(report):
+                details = [
+                    f"{position.symbol}: {position.quantity:g} shares",
+                    f"value {_format_money(position.market_value)}",
+                ]
+                if position.weight is not None:
+                    details.append(f"weight {_format_percent(position.weight)}")
+                items.append(", ".join(details))
+        stable_symbols = {decision.symbol for decision in stable_decisions}
+        if report.portfolio_decision_summary is not None:
+            for symbol in report.portfolio_decision_summary.no_action_positions:
+                if symbol not in stable_symbols:
+                    items.append(f"{symbol}: no action currently recommended.")
+        if not items:
+            items.append("No stable holdings available.")
+        return "\n".join(
+            [
+                self._html_section_heading("3. Stable Holdings"),
+                self._html_details("Show stable holdings", [self._html_list(items)]),
+            ]
+        )
+
+    def _render_html_new_opportunities(self, report: InvestmentResearchReport) -> str:
+        cards: list[str] = []
+        for opportunity in report.new_opportunities:
+            recommendation = self._recommendation_label(opportunity.suggested_action)
+            confidence = self._title_value(opportunity.confidence.value)
+            cards.append(
+                self._html_card(
+                    title=f"{opportunity.symbol} - {recommendation}",
+                    border_color=self._recommendation_border_color(recommendation),
+                    body="\n".join(
+                        [
+                            self._html_badge_row(
+                                [
+                                    self._html_badge(
+                                        recommendation,
+                                        kind="recommendation",
+                                    ),
+                                    self._html_badge(
+                                        f"{confidence} confidence",
+                                        kind="confidence",
+                                    ),
+                                ]
+                            ),
+                            self._html_field("Recommendation", recommendation),
+                            self._html_field("Confidence", confidence),
+                            self._html_field("Rationale", opportunity.rationale),
+                            (
+                                '<p style="margin: 8px 0 4px;">'
+                                "<strong>Risks:</strong></p>"
+                            ),
+                            self._html_list(opportunity.risks),
+                        ]
+                    ),
+                )
+            )
+        if not cards:
+            cards.append(
+                f'<p style="margin: 0 0 18px;">{_html(report.watchlist_review)}</p>'
+            )
+        return "\n".join([self._html_section_heading("4. New Opportunities"), *cards])
+
+    def _render_html_market_overview(self, report: InvestmentResearchReport) -> str:
+        items = [
+            report.market_summary,
+            f"Portfolio context: {report.portfolio_review}",
+        ]
+        if report.portfolio_decision_summary is not None:
+            items.append(
+                "Portfolio view: "
+                f"{report.portfolio_decision_summary.overall_portfolio_view}"
+            )
+            items.extend(
+                f"Concentration risk: {risk}"
+                for risk in report.portfolio_decision_summary.concentration_risks
+            )
+            items.extend(
+                f"Sector exposure: {note}"
+                for note in report.portfolio_decision_summary.sector_exposure_notes
+            )
+            items.extend(
+                f"Cash allocation: {note}"
+                for note in report.portfolio_decision_summary.cash_allocation_notes
+            )
+        return "\n".join(
+            [
+                self._html_section_heading("5. Market Overview"),
+                self._html_list(items),
+            ]
+        )
+
+    def _render_html_raw_evidence(self, report: InvestmentResearchReport) -> str:
+        raw_lines = tuple(
+            line.lstrip("- ").strip()
+            for line in self._raw_evidence_lines(report)
+        )
+        evidence = raw_lines or ("No raw evidence available.",)
+        return "\n".join(
+            [
+                self._html_section_heading("6. Raw Evidence"),
+                self._html_details("Show raw evidence", [self._html_list(evidence)]),
+            ]
+        )
+
+    def _html_action_decisions(
+        self,
+        report: InvestmentResearchReport,
+    ) -> tuple[PositionDecision, ...]:
+        return tuple(
+            decision
+            for decision in report.position_decisions
+            if decision.action_required or decision.human_review_required
+        )
+
+    def _html_section_heading(self, text: str) -> str:
+        return (
+            '<h2 style="font-size: 20px; margin: 24px 0 10px; color: #111827;">'
+            f"{_html(text)}</h2>"
+        )
+
+    def _html_card(self, *, title: str, border_color: str, body: str) -> str:
+        return "\n".join(
+            [
+                (
+                    '<div style="background: #ffffff; border: 1px solid #e5e7eb; '
+                    f"border-left: 5px solid {border_color}; border-radius: 10px; "
+                    'padding: 14px; margin: 12px 0;">'
+                ),
+                (
+                    '<h3 style="font-size: 18px; margin: 0 0 8px; color: #111827;">'
+                    f"{_html(title)}</h3>"
+                ),
+                body,
+                "</div>",
+            ]
+        )
+
+    def _html_field(self, label: str, value: str | None) -> str:
+        return (
+            '<p style="margin: 8px 0;"><strong>'
+            f"{_html(label)}:</strong> {_html(self._fallback(value))}</p>"
+        )
+
+    def _html_list(self, values: Iterable[str]) -> str:
+        normalized = tuple(value.strip() for value in values if value.strip())
+        items = normalized or ("Not available",)
+        lines = ['<ul style="margin: 8px 0 0 20px; padding: 0;">']
+        lines.extend(f"<li>{_html(item)}</li>" for item in items)
+        lines.append("</ul>")
+        return "\n".join(lines)
+
+    def _html_details(self, summary: str, blocks: Iterable[str]) -> str:
+        return "\n".join(
+            [
+                '<details style="margin-top: 12px;">',
+                (
+                    '<summary style="cursor: pointer; color: #374151; '
+                    f'font-weight: 700;">{_html(summary)}</summary>'
+                ),
+                *blocks,
+                "</details>",
+            ]
+        )
+
+    def _html_badge_row(self, badges: Iterable[str]) -> str:
+        return '<p style="margin: 8px 0 10px;">' + " ".join(badges) + "</p>"
+
+    def _html_badge(self, label: str, *, kind: str) -> str:
+        background, color = self._badge_colors(label, kind=kind)
+        return (
+            f'<span style="display: inline-block; background: {background}; '
+            f"color: {color}; padding: 3px 8px; border-radius: 999px; "
+            f'font-size: 12px; font-weight: 700; margin: 0 6px 6px 0;">'
+            f"{_html(label)}</span>"
+        )
+
+    def _badge_colors(self, label: str, *, kind: str) -> tuple[str, str]:
+        normalized = label.strip().lower()
+        if kind == "confidence":
+            if "high" in normalized:
+                return "#dcfce7", "#166534"
+            if "medium" in normalized:
+                return "#fef3c7", "#92400e"
+            return "#f3f4f6", "#374151"
+        if kind == "review":
+            return "#fee2e2", "#991b1b"
+        if kind == "urgency":
+            if "high" in normalized:
+                return "#fee2e2", "#991b1b"
+            if "medium" in normalized:
+                return "#ffedd5", "#9a3412"
+            return "#e5e7eb", "#374151"
+        if any(value in normalized for value in ("trim", "reduce", "sell", "required")):
+            return "#ffedd5", "#9a3412"
+        if any(value in normalized for value in ("watch", "new opportunity")):
+            return "#f3e8ff", "#6b21a8"
+        if any(value in normalized for value in ("buy", "add")):
+            return "#dcfce7", "#166534"
+        return "#e0f2fe", "#075985"
+
+    def _recommendation_border_color(self, label: str) -> str:
+        normalized = label.strip().lower()
+        if any(value in normalized for value in ("trim", "reduce", "sell", "required")):
+            return "#f97316"
+        if any(value in normalized for value in ("watch", "new opportunity")):
+            return "#a855f7"
+        if any(value in normalized for value in ("buy", "add")):
+            return "#22c55e"
+        return "#60a5fa"
+
+
 def _format_money(value: float | None) -> str:
     if value is None:
         return "unknown"
@@ -718,7 +1155,20 @@ def render_investment_research_report(report: InvestmentResearchReport) -> str:
     return InvestmentResearchReportRenderer().render(report)
 
 
+def render_investment_research_report_interactive_html_email(
+    report: InvestmentResearchReport,
+) -> str:
+    """Render an investment research report as standalone HTML email."""
+    return InteractiveHtmlEmailInvestmentResearchReportRenderer().render(report)
+
+
+def _html(value: Any) -> str:
+    return escape(str(value), quote=True)
+
+
 __all__ = [
+    "InteractiveHtmlEmailInvestmentResearchReportRenderer",
     "InvestmentResearchReportRenderer",
     "render_investment_research_report",
+    "render_investment_research_report_interactive_html_email",
 ]

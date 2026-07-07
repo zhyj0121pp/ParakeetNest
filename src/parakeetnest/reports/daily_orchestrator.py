@@ -7,14 +7,18 @@ from datetime import date
 from pathlib import Path
 
 from parakeetnest.email import EmailService
-from parakeetnest.research import DailyInvestmentReportComposer, ReportMode
+from parakeetnest.research import (
+    DailyInvestmentReportComposer,
+    ReportBodyFormat,
+    ReportMode,
+)
 
 
-DEFAULT_OUTPUT_PATH = Path("reports/daily-report.md")
+DEFAULT_OUTPUT_PATH = Path("reports/daily-report.html")
 DEFAULT_ARCHIVE_ROOT = Path("reports")
 ARCHIVE_FILENAMES = {
-    ReportMode.MORNING: "morning-investment-brief.md",
-    ReportMode.EVENING: "evening-investment-review.md",
+    ReportMode.MORNING: "morning-investment-brief.html",
+    ReportMode.EVENING: "evening-investment-review.html",
 }
 
 
@@ -90,6 +94,7 @@ class DailyReportOrchestrator:
                 recipient=request.email_recipient,
                 as_of_date=request.as_of_date,
                 mode=request.mode,
+                content_type=ReportBodyFormat.INTERACTIVE_HTML_EMAIL.content_type,
             )
             email_sent = True
 
@@ -108,6 +113,7 @@ def generate_daily_report(
     as_of_date: date | None = None,
     mode: ReportMode | str = ReportMode.MORNING,
     composer: DailyInvestmentReportComposer | None = None,
+    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
 ) -> str:
     """Generate a daily report body."""
     report_composer = composer or DailyInvestmentReportComposer()
@@ -116,6 +122,7 @@ def generate_daily_report(
         account_id=account_id,
         as_of_date=as_of_date,
         mode=mode,
+        body_format=body_format,
     )
 
 

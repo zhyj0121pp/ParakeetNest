@@ -21,7 +21,7 @@ class _DailyReportComposer(Protocol):
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
-        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
+        body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
     ) -> str:
         """Compose a daily investment report body."""
 
@@ -49,7 +49,7 @@ class DailyReportDeliveryRequest:
     as_of_date: date | None = None
     generated_at: datetime | None = None
     subject: str | None = None
-    body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN
+    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL
     metadata: Mapping[str, str] | None = field(default_factory=dict)
 
 

@@ -9,12 +9,17 @@ from pathlib import Path
 import pytest
 
 from parakeetnest.cli import daily_report
-from parakeetnest.research import ReportMode
+from parakeetnest.research import ReportBodyFormat, ReportMode
 
 
 class RecordingComposer:
-    def __init__(self, body: str = "daily report body\n") -> None:
+    def __init__(
+        self,
+        body: str = "markdown report body\n",
+        html_body: str = "<!doctype html>\n<html><body>daily report body</body></html>\n",
+    ) -> None:
         self.body = body
+        self.html_body = html_body
         self.calls: list[dict[str, object]] = []
 
     def compose(
@@ -24,6 +29,7 @@ class RecordingComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         mode: ReportMode | str = ReportMode.MORNING,
+        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
     ) -> str:
         self.calls.append(
             {
@@ -31,8 +37,11 @@ class RecordingComposer:
                 "account_id": account_id,
                 "as_of_date": as_of_date,
                 "mode": mode,
+                "body_format": body_format,
             }
         )
+        if body_format is ReportBodyFormat.INTERACTIVE_HTML_EMAIL:
+            return self.html_body
         return self.body
 
 
@@ -133,22 +142,32 @@ def test_cli_writes_report_file(
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
-    composer = RecordingComposer("Market Summary\nCommittee Consensus\n")
+    composer = RecordingComposer(
+        "Market Summary\nCommittee Consensus\n",
+        html_body=(
+            "<!doctype html>\n"
+            "<html><body>Market Summary Committee Consensus</body></html>\n"
+        ),
+    )
     monkeypatch.setattr(
         daily_report,
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    output_path = tmp_path / "daily-report.md"
+    output_path = tmp_path / "daily-report.html"
 
     exit_code = daily_report.main(["--tickers", "NVDA", "--output", str(output_path)])
 
     assert exit_code == 0
     assert output_path.read_text(encoding="utf-8") == (
-        "Market Summary\nCommittee Consensus\n"
+        "<!doctype html>\n"
+        "<html><body>Market Summary Committee Consensus</body></html>\n"
     )
     assert recording_app.closed is True
-    assert capsys.readouterr().out == "Market Summary\nCommittee Consensus\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n"
+        "<html><body>Market Summary Committee Consensus</body></html>\n"
+    )
 
 
 def test_cli_delegates_workflow_to_daily_report_orchestrator(
@@ -158,7 +177,7 @@ def test_cli_delegates_workflow_to_daily_report_orchestrator(
     recording_app: RecordingApp,
 ) -> None:
     captured: dict[str, object] = {}
-    output_path = tmp_path / "daily-report.md"
+    output_path = tmp_path / "daily-report.html"
 
     @dataclass(frozen=True)
     class FakeResult:
@@ -220,8 +239,10 @@ def test_cli_prints_report_to_stdout_without_default_file(
     exit_code = daily_report.main(["--tickers", "NVDA"])
 
     assert exit_code == 0
-    assert not (tmp_path / "reports" / "daily-report.md").exists()
-    assert capsys.readouterr().out == "daily report body\n"
+    assert not (tmp_path / "reports" / "daily-report.html").exists()
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
     assert composer.calls[0]["mode"] is ReportMode.MORNING
 
 
@@ -230,7 +251,10 @@ def test_cli_invokes_email_service_when_email_is_specified(
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
-    composer = RecordingComposer("Market Summary\n")
+    composer = RecordingComposer(
+        "Market Summary\n",
+        html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
+    )
     sent: list[dict[str, object]] = []
 
     class RecordingEmailService:
@@ -244,6 +268,7 @@ def test_cli_invokes_email_service_when_email_is_specified(
             recipient: str,
             as_of_date: date | None = None,
             mode: ReportMode | str | None = None,
+            content_type: str = "text/plain",
         ) -> None:
             sent.append(
                 {
@@ -251,6 +276,7 @@ def test_cli_invokes_email_service_when_email_is_specified(
                     "recipient": recipient,
                     "as_of_date": as_of_date,
                     "mode": mode,
+                    "content_type": content_type,
                 }
             )
 
@@ -273,13 +299,16 @@ def test_cli_invokes_email_service_when_email_is_specified(
     )
 
     assert exit_code == 0
-    assert capsys.readouterr().out == "Market Summary\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    )
     assert sent == [
         {
-            "report": "Market Summary\n",
+            "report": "<!doctype html>\n<html><body>Market Summary</body></html>\n",
             "recipient": "investor@example.com",
             "as_of_date": date(2026, 7, 1),
             "mode": ReportMode.MORNING,
+            "content_type": "text/html",
         }
     ]
 
@@ -289,7 +318,13 @@ def test_cli_sends_report_through_app_email_provider(
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
-    composer = RecordingComposer("Market Summary\nCommittee Consensus\n")
+    composer = RecordingComposer(
+        "Market Summary\nCommittee Consensus\n",
+        html_body=(
+            "<!doctype html>\n"
+            "<html><body>Market Summary Committee Consensus</body></html>\n"
+        ),
+    )
     sent: list[dict[str, object]] = []
 
     class RecordingEmailService:
@@ -303,6 +338,7 @@ def test_cli_sends_report_through_app_email_provider(
             recipient: str,
             as_of_date: date | None = None,
             mode: ReportMode | str | None = None,
+            content_type: str = "text/plain",
         ) -> None:
             sent.append(
                 {
@@ -311,6 +347,7 @@ def test_cli_sends_report_through_app_email_provider(
                     "recipient": recipient,
                     "as_of_date": as_of_date,
                     "mode": mode,
+                    "content_type": content_type,
                 }
             )
 
@@ -335,14 +372,21 @@ def test_cli_sends_report_through_app_email_provider(
     )
 
     assert exit_code == 0
-    assert capsys.readouterr().out == "Market Summary\nCommittee Consensus\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n"
+        "<html><body>Market Summary Committee Consensus</body></html>\n"
+    )
     assert sent == [
         {
             "provider": recording_app.email_provider,
-            "report": "Market Summary\nCommittee Consensus\n",
+            "report": (
+                "<!doctype html>\n"
+                "<html><body>Market Summary Committee Consensus</body></html>\n"
+            ),
             "recipient": "investor@example.com",
             "as_of_date": date(2026, 7, 1),
             "mode": ReportMode.EVENING,
+            "content_type": "text/html",
         }
     ]
 
@@ -356,7 +400,10 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
         email_provider=email_provider,
         report_recipient_email="configured@example.com",
     )
-    composer = RecordingComposer("Market Summary\n")
+    composer = RecordingComposer(
+        "Market Summary\n",
+        html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
+    )
     sent: list[dict[str, object]] = []
 
     class RecordingEmailService:
@@ -370,6 +417,7 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
             recipient: str,
             as_of_date: date | None = None,
             mode: ReportMode | str | None = None,
+            content_type: str = "text/plain",
         ) -> None:
             sent.append(
                 {
@@ -378,6 +426,7 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
                     "recipient": recipient,
                     "as_of_date": as_of_date,
                     "mode": mode,
+                    "content_type": content_type,
                 }
             )
 
@@ -392,14 +441,17 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
     exit_code = daily_report.main(["--tickers", "NVDA"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == "Market Summary\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    )
     assert sent == [
         {
             "provider": email_provider,
-            "report": "Market Summary\n",
+            "report": "<!doctype html>\n<html><body>Market Summary</body></html>\n",
             "recipient": "configured@example.com",
             "as_of_date": None,
             "mode": ReportMode.MORNING,
+            "content_type": "text/html",
         }
     ]
 
@@ -409,7 +461,10 @@ def test_cli_does_not_send_email_when_email_is_omitted(
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
-    composer = RecordingComposer("Market Summary\n")
+    composer = RecordingComposer(
+        "Market Summary\n",
+        html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
+    )
     sent: list[object] = []
 
     class RecordingEmailService:
@@ -429,7 +484,9 @@ def test_cli_does_not_send_email_when_email_is_omitted(
     exit_code = daily_report.main(["--tickers", "NVDA"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == "Market Summary\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    )
     assert sent == []
 
 
@@ -448,7 +505,9 @@ def test_cli_dispatches_morning_mode(
     exit_code = daily_report.main(["--mode", "morning", "--tickers", "NVDA"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == "daily report body\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
     assert composer.calls[0]["mode"] is ReportMode.MORNING
 
 
@@ -467,7 +526,9 @@ def test_cli_dispatches_evening_mode(
     exit_code = daily_report.main(["--mode", "evening", "--tickers", "NVDA"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == "daily report body\n"
+    assert capsys.readouterr().out == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
     assert composer.calls[0]["mode"] is ReportMode.EVENING
 
 
@@ -494,14 +555,16 @@ def test_custom_output_path_works(
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    output_path = tmp_path / "nested" / "custom.md"
+    output_path = tmp_path / "nested" / "custom.html"
 
     exit_code = daily_report.main(
         ["--tickers", "TSLA", "--output", str(output_path)]
     )
 
     assert exit_code == 0
-    assert output_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert output_path.read_text(encoding="utf-8") == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
 
 
 def test_morning_archive_path_uses_report_date(
@@ -533,10 +596,12 @@ def test_morning_archive_path_uses_report_date(
         tmp_path
         / "reports"
         / "2026-07-01"
-        / "morning-investment-brief.md"
+        / "morning-investment-brief.html"
     )
     assert exit_code == 0
-    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert archive_path.read_text(encoding="utf-8") == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
 
 
 def test_evening_archive_path_uses_report_date(
@@ -568,10 +633,12 @@ def test_evening_archive_path_uses_report_date(
         tmp_path
         / "reports"
         / "2026-07-01"
-        / "evening-investment-review.md"
+        / "evening-investment-review.html"
     )
     assert exit_code == 0
-    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert archive_path.read_text(encoding="utf-8") == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
 
 
 def test_archive_and_output_together_write_both_files(
@@ -586,7 +653,7 @@ def test_archive_and_output_together_write_both_files(
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    output_path = tmp_path / "custom" / "daily-report.md"
+    output_path = tmp_path / "custom" / "daily-report.html"
 
     exit_code = daily_report.main(
         [
@@ -606,11 +673,15 @@ def test_archive_and_output_together_write_both_files(
         tmp_path
         / "reports"
         / "2026-07-01"
-        / "morning-investment-brief.md"
+        / "morning-investment-brief.html"
     )
     assert exit_code == 0
-    assert output_path.read_text(encoding="utf-8") == "daily report body\n"
-    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert output_path.read_text(encoding="utf-8") == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
+    assert archive_path.read_text(encoding="utf-8") == (
+        "<!doctype html>\n<html><body>daily report body</body></html>\n"
+    )
 
 
 def test_ticker_arguments_are_passed_through(
@@ -624,7 +695,7 @@ def test_ticker_arguments_are_passed_through(
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    output_path = tmp_path / "daily-report.md"
+    output_path = tmp_path / "daily-report.html"
 
     exit_code = daily_report.main(
         [
@@ -648,6 +719,7 @@ def test_ticker_arguments_are_passed_through(
             "account_id": "main",
             "as_of_date": date(2026, 7, 1),
             "mode": ReportMode.MORNING,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
         }
     ]
 
@@ -667,7 +739,7 @@ def test_cli_runs_without_tickers_when_watchlist_seed_exists(tmp_path: Path) -> 
         """,
         encoding="utf-8",
     )
-    output_path = tmp_path / "daily-report.md"
+    output_path = tmp_path / "daily-report.html"
 
     exit_code = daily_report.main(
         [
@@ -682,12 +754,13 @@ def test_cli_runs_without_tickers_when_watchlist_seed_exists(tmp_path: Path) -> 
 
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
+    assert "<!doctype html>" in body
     assert "Morning Investment Brief" in body
     assert "Report Mode: morning" in body
     assert "Tickers: NVDA" in body
-    assert "<summary>Factual evidence</summary>" in body
+    assert "Factual evidence" in body
     assert "Track AI accelerator demand. Theme: AI infrastructure." in body
-    assert "## 4. New Opportunities" in body
+    assert "New Opportunities" in body
     assert "Watchlist review found 1 covered watchlist item(s)." in body
     assert "No watchlist service connected." not in body
 
@@ -705,7 +778,7 @@ def test_cli_explicit_tickers_override_watchlist_seed(tmp_path: Path) -> None:
         """,
         encoding="utf-8",
     )
-    output_path = tmp_path / "daily-report.md"
+    output_path = tmp_path / "daily-report.html"
 
     exit_code = daily_report.main(
         [
@@ -744,7 +817,7 @@ def test_cli_uses_configured_robinhood_holdings_when_tickers_are_omitted(
         lambda **kwargs: composer,
     )
 
-    exit_code = daily_report.main(["--output", str(tmp_path / "daily-report.md")])
+    exit_code = daily_report.main(["--output", str(tmp_path / "daily-report.html")])
 
     assert exit_code == 0
     assert portfolio_service.calls == ["default"]
@@ -754,6 +827,7 @@ def test_cli_uses_configured_robinhood_holdings_when_tickers_are_omitted(
             "account_id": "default",
             "as_of_date": None,
             "mode": ReportMode.MORNING,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
         }
     ]
 
@@ -776,7 +850,7 @@ def test_cli_explicit_tickers_override_portfolio_holdings(
     )
 
     exit_code = daily_report.main(
-        ["--tickers", "NVDA", "--output", str(tmp_path / "daily-report.md")]
+        ["--tickers", "NVDA", "--output", str(tmp_path / "daily-report.html")]
     )
 
     assert exit_code == 0
@@ -785,7 +859,7 @@ def test_cli_explicit_tickers_override_portfolio_holdings(
 
 
 def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
-    output_path = tmp_path / "evening-review.md"
+    output_path = tmp_path / "evening-review.html"
 
     exit_code = daily_report.main(
         [
@@ -802,10 +876,11 @@ def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
 
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
+    assert "<!doctype html>" in body
     assert "Evening Investment Review" in body
     assert "Report Mode: evening" in body
-    assert "What Changed" in body
-    assert "Tomorrow’s Focus" in body
+    assert "Position Cards" in body
+    assert "Raw Evidence" in body
 
 
 def test_generation_failure_returns_nonzero_exit_code(
@@ -911,7 +986,7 @@ def test_portfolio_service_is_passed_into_daily_report_generation(
 
 
 def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
-    output_path = tmp_path / "daily-report.md"
+    output_path = tmp_path / "daily-report.html"
 
     exit_code = daily_report.main(
         [
@@ -926,18 +1001,19 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
 
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
-    assert "## 1. Action Required" in body
-    assert "## 2. Position Cards" in body
-    assert "## 3. Stable Holdings" in body
-    assert "## 4. New Opportunities" in body
-    assert "## 5. Market Overview" in body
-    assert "## 6. Raw Evidence" in body
-    assert "**Dongdong:**" in body
-    assert "**Xixi:**" in body
-    assert "**Youyou:**" in body
-    assert "**Final consensus:**" in body
-    assert "**Confidence:**" in body
-    assert "<summary>Factual evidence</summary>" in body
+    assert "<!doctype html>" in body
+    assert "1. Action Required" in body
+    assert "2. Position Cards" in body
+    assert "3. Stable Holdings" in body
+    assert "4. New Opportunities" in body
+    assert "5. Market Overview" in body
+    assert "6. Raw Evidence" in body
+    assert "<strong>Dongdong:</strong>" in body
+    assert "<strong>Xixi:</strong>" in body
+    assert "<strong>Youyou:</strong>" in body
+    assert "<strong>Final consensus:</strong>" in body
+    assert "<strong>Confidence:</strong>" in body
+    assert "Factual evidence" in body
     assert "Recommendations" not in body
 
 

@@ -9,15 +9,20 @@ from parakeetnest.reports import (
     DailyReportOrchestrator,
     DailyReportRequest,
 )
-from parakeetnest.research import ReportMode
+from parakeetnest.research import ReportBodyFormat, ReportMode
 
 
 AS_OF_DATE = date(2026, 7, 1)
 
 
 class RecordingComposer:
-    def __init__(self, body: str = "daily report body\n") -> None:
+    def __init__(
+        self,
+        body: str = "markdown report body\n",
+        html_body: str = "<!doctype html>\n<html></html>\n",
+    ) -> None:
         self.body = body
+        self.html_body = html_body
         self.calls: list[dict[str, object]] = []
 
     def compose(
@@ -27,6 +32,7 @@ class RecordingComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         mode: ReportMode | str = ReportMode.MORNING,
+        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
     ) -> str:
         self.calls.append(
             {
@@ -34,8 +40,11 @@ class RecordingComposer:
                 "account_id": account_id,
                 "as_of_date": as_of_date,
                 "mode": mode,
+                "body_format": body_format,
             }
         )
+        if body_format is ReportBodyFormat.INTERACTIVE_HTML_EMAIL:
+            return self.html_body
         return self.body
 
 
@@ -50,6 +59,7 @@ class RecordingEmailService:
         recipient: str,
         as_of_date: date | None = None,
         mode: ReportMode | str | None = None,
+        content_type: str = "text/plain",
     ) -> None:
         self.calls.append(
             {
@@ -57,6 +67,7 @@ class RecordingEmailService:
                 "recipient": recipient,
                 "as_of_date": as_of_date,
                 "mode": mode,
+                "content_type": content_type,
             }
         )
 
@@ -74,7 +85,7 @@ def test_orchestrator_generates_report_only(tmp_path: Path) -> None:
         )
     )
 
-    assert result.body == "daily report body\n"
+    assert result.body == "<!doctype html>\n<html></html>\n"
     assert result.archive_path is None
     assert result.output_path is None
     assert result.email_sent is False
@@ -84,6 +95,7 @@ def test_orchestrator_generates_report_only(tmp_path: Path) -> None:
             "account_id": "main",
             "as_of_date": AS_OF_DATE,
             "mode": ReportMode.MORNING,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
         }
     ]
     assert not (tmp_path / "reports").exists()
@@ -109,14 +121,16 @@ def test_orchestrator_archives_when_requested(
         tmp_path
         / "reports"
         / "2026-07-01"
-        / "morning-investment-brief.md"
+        / "morning-investment-brief.html"
     )
-    assert result.archive_path == Path("reports/2026-07-01/morning-investment-brief.md")
-    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert result.archive_path == Path(
+        "reports/2026-07-01/morning-investment-brief.html"
+    )
+    assert archive_path.read_text(encoding="utf-8") == "<!doctype html>\n<html></html>\n"
 
 
 def test_orchestrator_writes_explicit_output_path(tmp_path: Path) -> None:
-    output_path = tmp_path / "custom" / "daily-report.md"
+    output_path = tmp_path / "custom" / "daily-report.html"
     orchestrator = DailyReportOrchestrator(composer=RecordingComposer())
 
     result = orchestrator.run(
@@ -129,7 +143,7 @@ def test_orchestrator_writes_explicit_output_path(tmp_path: Path) -> None:
 
     assert result.output_path == output_path
     assert result.archive_path is None
-    assert output_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert output_path.read_text(encoding="utf-8") == "<!doctype html>\n<html></html>\n"
 
 
 def test_orchestrator_writes_both_archive_and_output_path(
@@ -137,7 +151,7 @@ def test_orchestrator_writes_both_archive_and_output_path(
     monkeypatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    output_path = tmp_path / "custom" / "daily-report.md"
+    output_path = tmp_path / "custom" / "daily-report.html"
     orchestrator = DailyReportOrchestrator(composer=RecordingComposer())
 
     result = orchestrator.run(
@@ -154,18 +168,23 @@ def test_orchestrator_writes_both_archive_and_output_path(
         tmp_path
         / "reports"
         / "2026-07-01"
-        / "evening-investment-review.md"
+        / "evening-investment-review.html"
     )
     assert result.output_path == output_path
-    assert result.archive_path == Path("reports/2026-07-01/evening-investment-review.md")
-    assert output_path.read_text(encoding="utf-8") == "daily report body\n"
-    assert archive_path.read_text(encoding="utf-8") == "daily report body\n"
+    assert result.archive_path == Path(
+        "reports/2026-07-01/evening-investment-review.html"
+    )
+    assert output_path.read_text(encoding="utf-8") == "<!doctype html>\n<html></html>\n"
+    assert archive_path.read_text(encoding="utf-8") == "<!doctype html>\n<html></html>\n"
 
 
 def test_orchestrator_sends_email_when_recipient_exists() -> None:
     email_service = RecordingEmailService()
     orchestrator = DailyReportOrchestrator(
-        composer=RecordingComposer("Market Summary\n"),
+        composer=RecordingComposer(
+            "Market Summary\n",
+            html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
+        ),
         email_service=email_service,
     )
 
@@ -181,10 +200,11 @@ def test_orchestrator_sends_email_when_recipient_exists() -> None:
     assert result.email_sent is True
     assert email_service.calls == [
         {
-            "report": "Market Summary\n",
+            "report": "<!doctype html>\n<html><body>Market Summary</body></html>\n",
             "recipient": "investor@example.com",
             "as_of_date": AS_OF_DATE,
             "mode": ReportMode.EVENING,
+            "content_type": "text/html",
         }
     ]
 

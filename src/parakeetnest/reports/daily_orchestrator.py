@@ -94,7 +94,7 @@ class DailyReportOrchestrator:
                 recipient=request.email_recipient,
                 as_of_date=request.as_of_date,
                 mode=request.mode,
-                content_type=ReportBodyFormat.INTERACTIVE_HTML_EMAIL.content_type,
+                content_type=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT.content_type,
             )
             email_sent = True
 
@@ -113,7 +113,7 @@ def generate_daily_report(
     as_of_date: date | None = None,
     mode: ReportMode | str = ReportMode.MORNING,
     composer: DailyInvestmentReportComposer | None = None,
-    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
 ) -> str:
     """Generate a daily report body."""
     report_composer = composer or DailyInvestmentReportComposer()

@@ -2,14 +2,14 @@
 
 ## Goal
 
-Render `InvestmentResearchReport` into a clean plain-text email body that can be
-read quickly and sent by a future delivery layer.
+Render `InvestmentResearchReport` into a standalone interactive HTML report
+that can be attached by a delivery layer.
 
 ## Scope
 
 - Add a renderer under `src/parakeetnest/research/rendering.py`.
 - Input is `InvestmentResearchReport`.
-- Output is a plain text string suitable for an email body.
+- Output is a standalone HTML string suitable for an attachment.
 - Include header, executive summary, ticker reports, recommendations, risks,
   catalysts, and evidence notes.
 - Keep the renderer provider-neutral.
@@ -24,9 +24,10 @@ read quickly and sent by a future delivery layer.
 
 ## Rendering Contract
 
-`InvestmentResearchReportRenderer.render(report)` returns deterministic plain
-text with one trailing newline. It does not fetch data or recover missing
-context. All investment content must already be present on the report model.
+`InteractiveHtmlInvestmentResearchReportRenderer.render(report)` returns
+deterministic standalone HTML with one trailing newline. It does not fetch data
+or recover missing context. All investment content must already be present on
+the report model.
 
 The report is organized for a sub-five-minute read:
 
@@ -43,7 +44,7 @@ The report is organized for a sub-five-minute read:
 
 ## Acceptance Criteria
 
-- Plain-text renderer added for `InvestmentResearchReport`.
+- Interactive HTML renderer added for `InvestmentResearchReport`.
 - Rendering tests cover required sections, recommendation contract details,
   evidence notes, and empty report behavior.
 - No email sender, scheduler, CLI, provider dependency, or trading behavior.

@@ -76,6 +76,6 @@ committee output is advisory. The human investor makes the final decision.
       final risk posture, and today's suggested actions.
 - [x] Report no longer renders a separate pre-committee Recommendations
       section.
-- [x] Daily report CLI still writes a Markdown report file.
+- [x] Daily report CLI writes an interactive HTML report file.
 - [x] Evidence notes avoid repeated missing-service messages per ticker.
 - [x] Advisory-only boundary remains intact.

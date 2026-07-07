@@ -15,7 +15,7 @@ from parakeetnest.research import ReportBodyFormat, ReportMode
 class RecordingComposer:
     def __init__(
         self,
-        body: str = "markdown report body\n",
+        body: str = "legacy report body\n",
         html_body: str = "<!doctype html>\n<html><body>daily report body</body></html>\n",
     ) -> None:
         self.body = body
@@ -29,7 +29,9 @@ class RecordingComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         mode: ReportMode | str = ReportMode.MORNING,
-        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
+        body_format: ReportBodyFormat | str = (
+            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
+        ),
     ) -> str:
         self.calls.append(
             {
@@ -40,7 +42,7 @@ class RecordingComposer:
                 "body_format": body_format,
             }
         )
-        if body_format is ReportBodyFormat.INTERACTIVE_HTML_EMAIL:
+        if body_format is ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT:
             return self.html_body
         return self.body
 
@@ -719,7 +721,7 @@ def test_ticker_arguments_are_passed_through(
             "account_id": "main",
             "as_of_date": date(2026, 7, 1),
             "mode": ReportMode.MORNING,
-            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         }
     ]
 
@@ -827,7 +829,7 @@ def test_cli_uses_configured_robinhood_holdings_when_tickers_are_omitted(
             "account_id": "default",
             "as_of_date": None,
             "mode": ReportMode.MORNING,
-            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         }
     ]
 

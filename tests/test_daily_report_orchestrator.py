@@ -18,7 +18,7 @@ AS_OF_DATE = date(2026, 7, 1)
 class RecordingComposer:
     def __init__(
         self,
-        body: str = "markdown report body\n",
+        body: str = "legacy report body\n",
         html_body: str = "<!doctype html>\n<html></html>\n",
     ) -> None:
         self.body = body
@@ -32,7 +32,9 @@ class RecordingComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         mode: ReportMode | str = ReportMode.MORNING,
-        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
+        body_format: ReportBodyFormat | str = (
+            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
+        ),
     ) -> str:
         self.calls.append(
             {
@@ -43,7 +45,7 @@ class RecordingComposer:
                 "body_format": body_format,
             }
         )
-        if body_format is ReportBodyFormat.INTERACTIVE_HTML_EMAIL:
+        if body_format is ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT:
             return self.html_body
         return self.body
 
@@ -95,7 +97,7 @@ def test_orchestrator_generates_report_only(tmp_path: Path) -> None:
             "account_id": "main",
             "as_of_date": AS_OF_DATE,
             "mode": ReportMode.MORNING,
-            "body_format": ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+            "body_format": ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         }
     ]
     assert not (tmp_path / "reports").exists()

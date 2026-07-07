@@ -3,7 +3,7 @@
 ## Goal
 
 Compose the daily investment report body by connecting existing research
-generation and plain-text rendering.
+generation and interactive HTML rendering.
 
 ## Scope
 
@@ -11,9 +11,9 @@ generation and plain-text rendering.
   `src/parakeetnest/research/composer.py`.
 - Input is requested tickers plus optional `account_id`, `as_of_date`, and
   `generated_at`.
-- Output is a plain-text report body string.
+- Output is an interactive HTML report body string.
 - Reuse `InvestmentResearchService` for report assembly.
-- Reuse `InvestmentResearchReportRenderer` for body rendering.
+- Reuse `InteractiveHtmlInvestmentResearchReportRenderer` for body rendering.
 
 ## Out of Scope
 
@@ -36,8 +36,8 @@ rendering.
 
 ## Acceptance Criteria
 
-- Composer can generate an `InvestmentResearchReport` and render it into plain
-  text.
+- Composer can generate an `InvestmentResearchReport` and render it into
+  interactive HTML.
 - Composer keeps provider-neutral boundaries by depending only on service and
   renderer protocols.
 - Tests verify orchestration between research service and renderer.

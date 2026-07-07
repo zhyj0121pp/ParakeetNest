@@ -1,4 +1,4 @@
-"""Tests for investment research report email-friendly Markdown rendering."""
+"""Tests for investment research report interactive HTML rendering."""
 
 from __future__ import annotations
 
@@ -19,9 +19,8 @@ from parakeetnest.decision import (
     PositionRecommendation,
 )
 from parakeetnest.research import (
-    InteractiveHtmlEmailInvestmentResearchReportRenderer,
+    InteractiveHtmlInvestmentResearchReportRenderer,
     InvestmentResearchReport,
-    InvestmentResearchReportRenderer,
     ReportMode,
     ResearchCatalyst,
     ResearchCommitteeConsensus,
@@ -30,8 +29,7 @@ from parakeetnest.research import (
     ResearchFinding,
     ResearchRisk,
     ResearchTickerReport,
-    render_investment_research_report,
-    render_investment_research_report_interactive_html_email,
+    render_investment_research_report_interactive_html,
 )
 from parakeetnest.config import get_settings
 
@@ -42,61 +40,10 @@ HTML_H2_STYLE = (
 )
 
 
-def test_renderer_produces_email_friendly_morning_markdown() -> None:
-    report = _sample_report()
-    renderer = InvestmentResearchReportRenderer()
+def test_interactive_html_renderer_outputs_standalone_html() -> None:
+    body = render_investment_research_report_interactive_html(_sample_report())
 
-    body = renderer.render(report)
-
-    assert body == renderer.render(report)
-    assert body.endswith("\n")
-    assert body.startswith("# Morning Investment Report\n")
-    assert "## 1. Action Required" in body
-    assert "## 2. Position Cards" in body
-    assert "## 3. Stable Holdings" in body
-    assert "## 4. New Opportunities" in body
-    assert "## 5. Market Overview" in body
-    assert "## 6. Raw Evidence" in body
-    assert "### NVDA — Trim" in body
-    assert "**Recommendation:** Trim  " in body
-    assert "**Confidence:** High  " in body
-    assert "**Rationale:** Committee recommends reviewing the position." in body
-    assert "**Dongdong:** Opportunity remains attractive." in body
-    assert "**Xixi:** Fundamentals remain strong." in body
-    assert "**Youyou:** Sizing risk requires monitoring." in body
-    assert "**Final consensus:** Committee recommends reviewing the position. No automatic action. User review recommended." in body
-    assert "Recommendations" not in body
-
-
-def test_morning_report_does_not_use_markdown_tables() -> None:
-    body = render_investment_research_report(_sample_report())
-
-    assert "| ---" not in body
-    assert "|---" not in body
-    assert not any(
-        line.strip().startswith("|") and line.strip().endswith("|")
-        for line in body.splitlines()
-    )
-
-
-def test_critical_recommendation_fields_are_visible_outside_details() -> None:
-    body = render_investment_research_report(_sample_report())
-    visible_body = _without_details(body)
-
-    assert "### NVDA — Trim" in visible_body
-    assert "**Recommendation:** Trim" in visible_body
-    assert "**Confidence:** High" in visible_body
-    assert "**Rationale:** Committee recommends reviewing the position." in visible_body
-    assert "**Dongdong:** Opportunity remains attractive." in visible_body
-    assert "**Xixi:** Fundamentals remain strong." in visible_body
-    assert "**Youyou:** Sizing risk requires monitoring." in visible_body
-    assert "**Final consensus:**" in visible_body
-
-
-def test_interactive_html_email_renderer_outputs_standalone_html() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
-
-    assert body == InteractiveHtmlEmailInvestmentResearchReportRenderer().render(
+    assert body == InteractiveHtmlInvestmentResearchReportRenderer().render(
         _sample_report()
     )
     assert body.startswith("<!doctype html>\n<html>\n")
@@ -105,12 +52,12 @@ def test_interactive_html_email_renderer_outputs_standalone_html() -> None:
     assert "## 1. Action Required" not in body
 
 
-def test_interactive_html_email_defaults_to_english(monkeypatch) -> None:
+def test_interactive_html_defaults_to_english(monkeypatch) -> None:
     monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
     monkeypatch.delenv("PARAKEETNEST_REPORT_LANGUAGE", raising=False)
     get_settings.cache_clear()
 
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html(_sample_report())
 
     assert ">1. Action Required</h2>" in body
     assert ">2. Position Cards</h2>" in body
@@ -120,11 +67,11 @@ def test_interactive_html_email_defaults_to_english(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_interactive_html_email_uses_env_language(monkeypatch) -> None:
+def test_interactive_html_uses_env_language(monkeypatch) -> None:
     monkeypatch.setenv("PARAKEET_REPORT_LANGUAGE", "zh")
     get_settings.cache_clear()
 
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+    body = render_investment_research_report_interactive_html(_sample_report())
 
     assert ">1. 需要处理</h2>" in body
     assert "<strong>建议:</strong> 减仓复核" in body
@@ -132,11 +79,11 @@ def test_interactive_html_email_uses_env_language(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
-def test_interactive_html_email_explicit_language_overrides_env(monkeypatch) -> None:
+def test_interactive_html_explicit_language_overrides_env(monkeypatch) -> None:
     monkeypatch.setenv("PARAKEET_REPORT_LANGUAGE", "zh")
     get_settings.cache_clear()
 
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="en",
     )
@@ -147,9 +94,9 @@ def test_interactive_html_email_explicit_language_overrides_env(monkeypatch) -> 
     get_settings.cache_clear()
 
 
-def test_interactive_html_email_invalid_explicit_language_is_clear() -> None:
+def test_interactive_html_invalid_explicit_language_is_clear() -> None:
     try:
-        render_investment_research_report_interactive_html_email(
+        render_investment_research_report_interactive_html(
             _sample_report(),
             language="fr",
         )
@@ -159,8 +106,8 @@ def test_interactive_html_email_invalid_explicit_language_is_clear() -> None:
         raise AssertionError("invalid report language should raise ValueError")
 
 
-def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
-    body = render_investment_research_report_interactive_html_email(
+def test_interactive_html_uses_inline_card_layout_and_badges() -> None:
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -178,7 +125,7 @@ def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
 
 
 def test_interactive_html_stock_cards_keep_critical_fields_visible() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -191,8 +138,8 @@ def test_interactive_html_stock_cards_keep_critical_fields_visible() -> None:
     assert card.index("<strong>建议:</strong> 减仓复核") < card.index("<details")
 
 
-def test_interactive_html_email_uses_chinese_section_titles() -> None:
-    body = render_investment_research_report_interactive_html_email(
+def test_interactive_html_uses_chinese_section_titles() -> None:
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -205,8 +152,8 @@ def test_interactive_html_email_uses_chinese_section_titles() -> None:
     assert ">6. 原始证据</h2>" in body
 
 
-def test_interactive_html_email_uses_chinese_field_labels() -> None:
-    body = render_investment_research_report_interactive_html_email(
+def test_interactive_html_uses_chinese_field_labels() -> None:
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -221,8 +168,8 @@ def test_interactive_html_email_uses_chinese_field_labels() -> None:
     assert "<strong>悠悠:</strong> Sizing risk requires monitoring." in body
 
 
-def test_interactive_html_email_localizes_recommendation_confidence_and_urgency() -> None:
-    body = render_investment_research_report_interactive_html_email(
+def test_interactive_html_localizes_recommendation_confidence_and_urgency() -> None:
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -235,8 +182,8 @@ def test_interactive_html_email_localizes_recommendation_confidence_and_urgency(
     assert "紧急程度：高" in body
 
 
-def test_interactive_html_email_contains_progressive_details_sections() -> None:
-    body = render_investment_research_report_interactive_html_email(
+def test_interactive_html_contains_progressive_details_sections() -> None:
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -249,7 +196,7 @@ def test_interactive_html_email_contains_progressive_details_sections() -> None:
 
 
 def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -275,7 +222,7 @@ def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
 
 
 def test_interactive_html_position_evidence_is_inside_details() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -292,7 +239,7 @@ def test_interactive_html_position_evidence_is_inside_details() -> None:
 
 
 def test_interactive_html_decision_card_still_has_collapsible_evidence_details() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -308,7 +255,7 @@ def test_interactive_html_decision_card_still_has_collapsible_evidence_details()
 
 
 def test_interactive_html_trim_card_includes_actionable_sizing_section() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -328,7 +275,7 @@ def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
         recommendation=PositionRecommendation.SELL,
         final_rationale="Exit risk is elevated.",
     )
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         replace(report, position_decisions=(sell_decision,)),
         language="zh",
     )
@@ -340,7 +287,7 @@ def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
 
 
 def test_interactive_html_stable_holdings_are_inside_details() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -357,7 +304,7 @@ def test_interactive_html_stable_holdings_are_inside_details() -> None:
 
 
 def test_interactive_html_raw_evidence_is_bottom_details() -> None:
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
@@ -375,8 +322,8 @@ def test_interactive_html_raw_evidence_is_bottom_details() -> None:
     )
 
 
-def test_interactive_html_email_hides_sensitive_portfolio_values() -> None:
-    body = render_investment_research_report_interactive_html_email(_sample_report())
+def test_interactive_html_hides_sensitive_portfolio_values() -> None:
+    body = render_investment_research_report_interactive_html(_sample_report())
 
     assert "12500" not in body
     assert "12,500" not in body
@@ -408,7 +355,7 @@ def test_chinese_interactive_html_raw_evidence_hides_sensitive_portfolio_terms()
         source_summaries=("总资产快照。",),
     )
 
-    body = render_investment_research_report_interactive_html_email(
+    body = render_investment_research_report_interactive_html(
         sensitive_report,
         language="zh",
     )
@@ -436,172 +383,13 @@ def test_interactive_html_escapes_dynamic_text() -> None:
         position_decisions=(dangerous_decision, *report.position_decisions[1:]),
     )
 
-    body = render_investment_research_report_interactive_html_email(dangerous_report)
+    body = render_investment_research_report_interactive_html(dangerous_report)
 
     assert "&lt;Report&gt; &amp; &quot;Alpha&quot;" in body
     assert "Review &lt;trim&gt; &amp; &quot;rebalance&quot;" in body
     assert "Xixi&#x27;s notes." in body
     assert "Evidence &lt;tag&gt; &amp; &quot;quoted&quot; &#x27;single&#x27;" in body
     assert 'Review <trim> & "rebalance"' not in body
-
-
-def test_morning_report_section_order_is_exact() -> None:
-    body = render_investment_research_report(_sample_report())
-
-    headings = [
-        "## 1. Action Required",
-        "## 2. Position Cards",
-        "## 3. Stable Holdings",
-        "## 4. New Opportunities",
-        "## 5. Market Overview",
-        "## 6. Raw Evidence",
-    ]
-    assert [body.index(heading) for heading in headings] == sorted(
-        body.index(heading) for heading in headings
-    )
-
-
-def test_action_required_holdings_appear_before_stable_holdings() -> None:
-    body = render_investment_research_report(_sample_report())
-
-    assert body.index("### NVDA — Trim") < body.index("## 3. Stable Holdings")
-    assert body.index("### NVDA — Trim") < body.index("MSFT: Hold")
-
-
-def test_stable_holdings_are_collapsed_by_default() -> None:
-    body = render_investment_research_report(_sample_report())
-    stable_section = _section(body, "## 3. Stable Holdings", "## 4. New Opportunities")
-
-    assert "<details>" in stable_section
-    assert "<summary>Stable holdings</summary>" in stable_section
-    assert "MSFT: Hold" in stable_section
-    assert stable_section.strip().endswith("</details>")
-
-
-def test_position_card_factual_evidence_is_collapsed_by_default() -> None:
-    body = render_investment_research_report(_sample_report())
-    card = _section(body, "### NVDA — Trim", "## 3. Stable Holdings")
-
-    assert "<details>" in card
-    assert "<summary>Factual evidence</summary>" in card
-    assert "- Committee reviewed supplied context." in card
-    assert card.strip().endswith("</details>")
-
-
-def test_each_position_card_includes_committee_member_opinions() -> None:
-    body = render_investment_research_report(_sample_report())
-    card = _section(body, "### NVDA — Trim", "## 3. Stable Holdings")
-
-    assert "**Dongdong:**" in card
-    assert "**Xixi:**" in card
-    assert "**Youyou:**" in card
-
-
-def test_raw_evidence_appears_at_bottom_and_is_collapsible() -> None:
-    body = render_investment_research_report(_sample_report())
-    raw_section = _section(body, "## 6. Raw Evidence", None)
-
-    assert body.rfind("## 6. Raw Evidence") > body.rfind("## 5. Market Overview")
-    assert "<details>" in raw_section
-    assert "<summary>Raw evidence</summary>" in raw_section
-    assert "- Report evidence: Research assembled from provider-neutral services." in raw_section
-    assert raw_section.strip().endswith("</details>")
-
-
-def test_renderer_supports_evening_review_mode() -> None:
-    report = _sample_report(mode=ReportMode.EVENING)
-    body = InvestmentResearchReportRenderer().render(report)
-
-    assert "Evening Investment Review\n" in body
-    assert "Report Mode: evening" in body
-    assert "Market Recap" in body
-    assert "Portfolio Review" in body
-    assert "Portfolio Summary" in body
-    assert "Watchlist Review" in body
-    assert "What Changed" in body
-    assert "Dongdong’s Opportunity Review (Chief Growth Officer)" in body
-    assert "Tomorrow’s Focus" in body
-    assert "Suggested Follow-ups" in body
-    assert "Today's Suggested Actions" not in body
-
-
-def test_renderer_displays_portfolio_summary_and_committee_portfolio_view() -> None:
-    body = InvestmentResearchReportRenderer().render(_sample_report())
-
-    assert "- Portfolio context: Portfolio review depends on connected portfolio context." in body
-    assert "- Portfolio view: Portfolio remains balanced." in body
-    assert "- Concentration risk: NVDA concentration should stay visible." in body
-    assert "- Sector exposure: Technology remains overweight." in body
-    assert "- Cash allocation: Cash is available for review-approved actions." in body
-
-
-def test_renderer_collects_evidence_notes_without_provider_coupling() -> None:
-    body = InvestmentResearchReportRenderer().render(_sample_report())
-
-    assert "- Report evidence: Research assembled from provider-neutral services." in body
-    assert "  - Finding: NVDA position value is $1,200.00. (source: portfolio)" in body
-    assert "    - Evidence note: Position context." in body
-    assert "  - Evidence note: Existing portfolio holding." in body
-
-
-def test_renderer_does_not_spam_identical_missing_service_notes_per_ticker() -> None:
-    report = InvestmentResearchReport(
-        ticker_reports=(
-            ResearchTickerReport(
-                ticker="NVDA",
-                summary="NVDA has limited context.",
-                bull_case=("No connected bull-case evidence yet.",),
-                bear_case=("Insufficient connected research context is the primary risk.",),
-                risks=(ResearchRisk("Insufficient connected research context is the primary risk."),),
-                catalysts=(ResearchCatalyst("Add thesis and signals."),),
-            ),
-            ResearchTickerReport(
-                ticker="TSLA",
-                summary="TSLA has limited context.",
-                bull_case=("No connected bull-case evidence yet.",),
-                bear_case=("Insufficient connected research context is the primary risk.",),
-                risks=(ResearchRisk("Insufficient connected research context is the primary risk."),),
-                catalysts=(ResearchCatalyst("Add thesis and signals."),),
-            ),
-        ),
-        generated_at=GENERATED_AT,
-        evidence_notes=(
-            "No portfolio service connected.",
-            "No watchlist service connected.",
-            "No intelligence service connected.",
-        ),
-    )
-
-    body = InvestmentResearchReportRenderer().render(report)
-
-    assert body.count("No portfolio service connected.") == 1
-    assert body.count("No watchlist service connected.") == 1
-    assert body.count("No intelligence service connected.") == 1
-
-
-def test_renderer_keeps_report_advisory_only() -> None:
-    body = InvestmentResearchReportRenderer().render(_sample_report())
-
-    assert "advisory guidance" in body
-    assert "automatic trading" not in body.lower()
-    assert "broker" not in body.lower()
-    assert "execute trade" not in body.lower()
-
-
-def test_renderer_handles_empty_report_gracefully() -> None:
-    report = InvestmentResearchReport(
-        ticker_reports=(),
-        generated_at=GENERATED_AT,
-        evidence_notes=("No tickers requested.",),
-    )
-
-    body = InvestmentResearchReportRenderer().render(report)
-
-    assert "# Morning Investment Report" in body
-    assert "- No position decisions currently require user action." in body
-    assert "- No action-required position cards available." in body
-    assert "- No stable holdings available." in body
-    assert "- Report evidence: No tickers requested." in body
 
 
 def _sample_report(

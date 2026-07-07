@@ -50,7 +50,7 @@ def build_parser(
         "--output",
         type=Path,
         default=None,
-        help="Optional Markdown path to also write the generated report.",
+        help="Optional HTML path to also write the generated report.",
     )
     parser.add_argument(
         "--archive",

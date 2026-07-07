@@ -52,10 +52,10 @@ class FakeRenderer:
 
     def render(self, report: InvestmentResearchReport) -> str:
         self.calls.append(report)
-        return "plain text report body\n"
+        return "<!doctype html>\n<html></html>\n"
 
 
-def test_composer_generates_report_and_renders_plain_text_body() -> None:
+def test_composer_generates_report_and_renders_html_body() -> None:
     report = _sample_report()
     service = FakeResearchService(report)
     renderer = FakeRenderer()
@@ -66,7 +66,7 @@ def test_composer_generates_report_and_renders_plain_text_body() -> None:
 
     body = composer.compose([" nvda "])
 
-    assert body == "plain text report body\n"
+    assert body == "<!doctype html>\n<html></html>\n"
     assert service.calls == [
         {
             "tickers": [" nvda "],
@@ -79,7 +79,7 @@ def test_composer_generates_report_and_renders_plain_text_body() -> None:
     assert renderer.calls == [report]
 
 
-def test_composer_can_render_interactive_html_email_body() -> None:
+def test_composer_accepts_only_interactive_html_attachment_format() -> None:
     report = _sample_report()
     service = FakeResearchService(report)
     renderer = FakeRenderer()
@@ -90,12 +90,11 @@ def test_composer_can_render_interactive_html_email_body() -> None:
 
     body = composer.compose(
         ["NVDA"],
-        body_format=ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+        body_format=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
     )
 
-    assert body.startswith("<!doctype html>\n")
-    assert "<html>" in body
-    assert renderer.calls == []
+    assert body == "<!doctype html>\n<html></html>\n"
+    assert renderer.calls == [report]
 
 
 def test_composer_passes_account_id_as_of_date_and_generated_at_through() -> None:
@@ -129,29 +128,29 @@ def test_composer_passes_account_id_as_of_date_and_generated_at_through() -> Non
 def test_default_composer_can_generate_and_render_report_body() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
-    assert body.startswith("# Morning Investment Report\n")
-    assert "Morning Investment Brief\n" in body
+    assert body.startswith("<!doctype html>\n<html>\n")
+    assert "Morning Investment Brief" in body
     assert "Report Mode: morning" in body
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: TSLA" in body
     assert "Recommendations" not in body
-    assert "**Final consensus:**" in body
+    assert "<strong>Final consensus:</strong>" in body
 
 
 def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
-    assert "## 1. Action Required" in body
-    assert "## 2. Position Cards" in body
-    assert "## 3. Stable Holdings" in body
-    assert "## 4. New Opportunities" in body
-    assert "## 5. Market Overview" in body
-    assert "## 6. Raw Evidence" in body
-    assert "**Dongdong:**" in body
-    assert "**Xixi:**" in body
-    assert "**Youyou:**" in body
-    assert "**Final consensus:**" in body
-    assert "**Confidence:**" in body
+    assert ">1. Action Required</h2>" in body
+    assert ">2. Position Cards</h2>" in body
+    assert ">3. Stable Holdings</h2>" in body
+    assert ">4. New Opportunities</h2>" in body
+    assert ">5. Market Overview</h2>" in body
+    assert ">6. Raw Evidence</h2>" in body
+    assert "<strong>Dongdong:</strong>" in body
+    assert "<strong>Xixi:</strong>" in body
+    assert "<strong>Youyou:</strong>" in body
+    assert "<strong>Final consensus:</strong>" in body
+    assert "<strong>Confidence:</strong>" in body
 
 
 def _sample_report() -> InvestmentResearchReport:

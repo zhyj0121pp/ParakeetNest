@@ -198,29 +198,6 @@ def test_daily_delivery_passes_delivery_inputs_to_delivery_service(monkeypatch) 
     assert attachment.content_type == "text/html"
 
 
-def test_daily_delivery_can_request_interactive_html_email() -> None:
-    composer = FakeComposer(body="<!doctype html>\n<html></html>\n")
-    delivery_service = FakeDeliveryService()
-    service = DailyReportDeliveryService(
-        composer=composer,
-        delivery_service=delivery_service,
-    )
-
-    service.deliver(
-        DailyReportDeliveryRequest(
-            tickers=("NVDA",),
-            recipient_email="investor@example.com",
-            body_format=ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
-        )
-    )
-
-    assert composer.calls[0]["body_format"] is (
-        ReportBodyFormat.INTERACTIVE_HTML_EMAIL
-    )
-    assert delivery_service.calls[0]["body"] == "<!doctype html>\n<html></html>\n"
-    assert delivery_service.calls[0]["content_type"] == "text/html"
-
-
 def test_daily_delivery_can_send_interactive_html_as_attachment_only(
     monkeypatch,
 ) -> None:
@@ -247,7 +224,6 @@ def test_daily_delivery_can_send_interactive_html_as_attachment_only(
                 tickers=("NVDA",),
                 recipient_email="investor@example.com",
                 as_of_date=AS_OF_DATE,
-                body_format=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
             )
         )
     finally:
@@ -294,7 +270,6 @@ def test_daily_delivery_attachment_only_localizes_chinese_body(
                 tickers=("NVDA",),
                 recipient_email="investor@example.com",
                 as_of_date=AS_OF_DATE,
-                body_format=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
             )
         )
     finally:

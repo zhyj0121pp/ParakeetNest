@@ -25,9 +25,6 @@ class _DailyReportComposer(Protocol):
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
-        body_format: ReportBodyFormat | str = (
-            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
-        ),
     ) -> str:
         """Compose a daily investment report body."""
 
@@ -56,7 +53,6 @@ class DailyReportDeliveryRequest:
     as_of_date: date | None = None
     generated_at: datetime | None = None
     subject: str | None = None
-    body_format: ReportBodyFormat | str = ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
     metadata: Mapping[str, str] | None = field(default_factory=dict)
 
 
@@ -73,63 +69,45 @@ class DailyReportDeliveryService:
         self._delivery_service = delivery_service
 
     def deliver(self, request: DailyReportDeliveryRequest) -> ReportDeliveryResult:
-        """Compose the daily report body and deliver it through the delivery service."""
-        body_format = ReportBodyFormat.from_value(request.body_format)
-        body = self._composer.compose(
+        """Compose interactive HTML and deliver it as an attachment."""
+        html_report = self._composer.compose(
             request.tickers,
             account_id=request.account_id,
             as_of_date=request.as_of_date,
             generated_at=request.generated_at,
-            body_format=body_format,
+            body_format=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         )
         report_date = _report_date(
             as_of_date=request.as_of_date,
             generated_at=request.generated_at,
         )
-        attachments: tuple[ReportDeliveryAttachment, ...] = ()
-        if _is_html_attachment_format(body_format):
-            localization = get_report_localization()
-            filename = f"morning-report-{report_date.isoformat()}.html"
-            attachment_content = body
-            body = _minimal_attachment_body(
-                title=localization.report_title,
-                report_date=report_date,
-                attachment_filename=filename,
-                language=localization.language,
-            )
-            subject = (
-                request.subject
-                or f"{localization.report_title} - {report_date.isoformat()}"
-            )
-            attachments = (
-                ReportDeliveryAttachment(
-                    filename=filename,
-                    content=attachment_content,
-                    content_type="text/html",
-                ),
-            )
-        else:
-            subject = request.subject or _default_subject(
-                as_of_date=request.as_of_date,
-                generated_at=request.generated_at,
-            )
+        localization = get_report_localization()
+        filename = f"morning-report-{report_date.isoformat()}.html"
+        body = _minimal_attachment_body(
+            title=localization.report_title,
+            report_date=report_date,
+            attachment_filename=filename,
+            language=localization.language,
+        )
+        subject = (
+            request.subject
+            or f"{localization.report_title} - {report_date.isoformat()}"
+        )
+        attachments = (
+            ReportDeliveryAttachment(
+                filename=filename,
+                content=html_report,
+                content_type="text/html",
+            ),
+        )
         return self._delivery_service.deliver_report(
             recipient_email=request.recipient_email,
             subject=subject,
             body=body,
-            content_type=body_format.content_type,
+            content_type=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT.content_type,
             metadata=request.metadata if request.metadata is not None else {},
             attachments=attachments,
         )
-
-
-def _default_subject(
-    *,
-    as_of_date: date | None = None,
-    generated_at: datetime | None = None,
-) -> str:
-    report_date = _report_date(as_of_date=as_of_date, generated_at=generated_at)
-    return f"Daily Investment Report - {report_date.isoformat()}"
 
 
 def _report_date(
@@ -143,10 +121,6 @@ def _report_date(
     if report_date is None:
         report_date = date.today()
     return report_date
-
-
-def _is_html_attachment_format(body_format: ReportBodyFormat) -> bool:
-    return body_format is ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
 
 
 def _minimal_attachment_body(

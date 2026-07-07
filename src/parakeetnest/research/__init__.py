@@ -37,10 +37,8 @@ from parakeetnest.research.models import (
     ResearchTickerReport,
 )
 from parakeetnest.research.rendering import (
-    InteractiveHtmlEmailInvestmentResearchReportRenderer,
-    InvestmentResearchReportRenderer,
-    render_investment_research_report,
-    render_investment_research_report_interactive_html_email,
+    InteractiveHtmlInvestmentResearchReportRenderer,
+    render_investment_research_report_interactive_html,
 )
 from parakeetnest.research.service import InvestmentResearchService
 
@@ -49,8 +47,7 @@ __all__ = [
     "DailyReportDeliveryRequest",
     "DailyReportDeliveryService",
     "InvestmentResearchReport",
-    "InteractiveHtmlEmailInvestmentResearchReportRenderer",
-    "InvestmentResearchReportRenderer",
+    "InteractiveHtmlInvestmentResearchReportRenderer",
     "InvestmentResearchService",
     "NoOpReportDeliveryProvider",
     "ReportDeliveryAttachment",
@@ -74,6 +71,5 @@ __all__ = [
     "compose_daily_investment_report",
     "get_configured_report_language",
     "get_report_localization",
-    "render_investment_research_report",
-    "render_investment_research_report_interactive_html_email",
+    "render_investment_research_report_interactive_html",
 ]

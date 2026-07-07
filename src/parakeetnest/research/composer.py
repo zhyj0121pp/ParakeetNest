@@ -8,8 +8,7 @@ from typing import Protocol
 
 from parakeetnest.research.models import InvestmentResearchReport, ReportMode
 from parakeetnest.research.rendering import (
-    InteractiveHtmlEmailInvestmentResearchReportRenderer,
-    InvestmentResearchReportRenderer,
+    InteractiveHtmlInvestmentResearchReportRenderer,
 )
 from parakeetnest.research.service import InvestmentResearchService
 
@@ -35,15 +34,11 @@ class _ResearchReportRenderer(Protocol):
 class ReportBodyFormat(StrEnum):
     """Supported daily report body formats."""
 
-    MARKDOWN = "markdown"
-    INTERACTIVE_HTML_EMAIL = "interactive_html_email"
     INTERACTIVE_HTML_ATTACHMENT = "interactive_html_attachment"
 
     @property
     def content_type(self) -> str:
         """Return the MIME content type for this report body format."""
-        if self is ReportBodyFormat.INTERACTIVE_HTML_EMAIL:
-            return "text/html"
         return "text/plain"
 
     @classmethod
@@ -51,7 +46,10 @@ class ReportBodyFormat(StrEnum):
         """Normalize a report body format value."""
         if isinstance(value, cls):
             return value
-        return cls(str(value).strip().lower())
+        normalized = str(value).strip().lower()
+        if normalized != cls.INTERACTIVE_HTML_ATTACHMENT:
+            raise ValueError(f"{normalized!r} is not a valid ReportBodyFormat")
+        return cls.INTERACTIVE_HTML_ATTACHMENT
 
 
 class DailyInvestmentReportComposer:
@@ -64,7 +62,7 @@ class DailyInvestmentReportComposer:
         renderer: _ResearchReportRenderer | None = None,
     ) -> None:
         self._research_service = research_service or InvestmentResearchService()
-        self._renderer = renderer or InvestmentResearchReportRenderer()
+        self._renderer = renderer or InteractiveHtmlInvestmentResearchReportRenderer()
 
     def compose(
         self,
@@ -74,7 +72,9 @@ class DailyInvestmentReportComposer:
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
         mode: ReportMode | str = ReportMode.MORNING,
-        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
+        body_format: ReportBodyFormat | str = (
+            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
+        ),
     ) -> str:
         """Generate and render a daily investment report body."""
         report = self.compose_report(
@@ -84,7 +84,8 @@ class DailyInvestmentReportComposer:
             generated_at=generated_at,
             mode=mode,
         )
-        return self._renderer_for(body_format).render(report)
+        ReportBodyFormat.from_value(body_format)
+        return self._renderer.render(report)
 
     def compose_report(
         self,
@@ -104,19 +105,6 @@ class DailyInvestmentReportComposer:
             mode=mode,
         )
 
-    def _renderer_for(
-        self,
-        body_format: ReportBodyFormat | str,
-    ) -> _ResearchReportRenderer:
-        normalized_format = ReportBodyFormat.from_value(body_format)
-        if normalized_format in {
-            ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
-            ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
-        }:
-            return InteractiveHtmlEmailInvestmentResearchReportRenderer()
-        return self._renderer
-
-
 def compose_daily_investment_report(
     tickers: tuple[str, ...] | list[str],
     *,
@@ -124,7 +112,9 @@ def compose_daily_investment_report(
     as_of_date: date | None = None,
     generated_at: datetime | None = None,
     mode: ReportMode | str = ReportMode.MORNING,
-    body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
+    body_format: ReportBodyFormat | str = (
+        ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
+    ),
 ) -> str:
     """Compose a daily investment report body."""
     return DailyInvestmentReportComposer().compose(

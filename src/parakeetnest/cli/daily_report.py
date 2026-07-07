@@ -16,12 +16,16 @@ from parakeetnest.config import (
     get_settings,
     portfolio_config_from_settings,
 )
-from parakeetnest.email import EmailService
+from parakeetnest.email import EmailReportDeliveryProvider
 from parakeetnest.reports import (
     DailyReportOrchestrator,
     DailyReportRequest,
 )
-from parakeetnest.research import DailyInvestmentReportComposer, ReportMode
+from parakeetnest.research import (
+    DailyInvestmentReportComposer,
+    ReportDeliveryService,
+    ReportMode,
+)
 from parakeetnest.research.service import InvestmentResearchService
 
 
@@ -148,8 +152,8 @@ def build_daily_report_orchestrator(
     """Build the daily report orchestrator from parsed CLI arguments."""
     return DailyReportOrchestrator(
         composer=_build_daily_report_composer(app),
-        email_service=(
-            EmailService(app.email_provider)
+        delivery_service=(
+            ReportDeliveryService(_report_delivery_provider(app))
             if request.email_recipient
             else None
         ),
@@ -184,6 +188,13 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
             ),
         )
     )
+
+
+def _report_delivery_provider(app: object) -> object:
+    provider = getattr(app, "report_delivery_provider", None)
+    if provider is not None:
+        return provider
+    return EmailReportDeliveryProvider(app.email_provider)
 
 
 def _context_provider(app: object, provider_id: str) -> object | None:

@@ -104,6 +104,7 @@ class RecordingApp:
         portfolio_service: object | None = None,
         portfolio_config: FakePortfolioConfig | None = None,
         email_provider: object | None = None,
+        report_delivery_provider: object | None = None,
         report_recipient_email: str | None = None,
     ) -> None:
         self.config = FakeConfig(
@@ -111,6 +112,7 @@ class RecordingApp:
             report_recipient_email=report_recipient_email,
         )
         self.email_provider = email_provider or object()
+        self.report_delivery_provider = report_delivery_provider
         self.portfolio_service = portfolio_service
         self.watchlist_intelligence_service = (
             watchlist_service or EmptyWatchlistService()
@@ -129,6 +131,17 @@ class RecordingApp:
 
     def close(self) -> None:
         self.closed = True
+
+
+class RecordingReportDeliveryProvider:
+    provider_name = "recording"
+
+    def __init__(self) -> None:
+        self.requests: list[object] = []
+
+    def deliver(self, request: object) -> object:
+        self.requests.append(request)
+        return object()
 
 
 @pytest.fixture
@@ -253,41 +266,18 @@ def test_cli_invokes_email_service_when_email_is_specified(
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
+    delivery_provider = RecordingReportDeliveryProvider()
+    recording_app.report_delivery_provider = delivery_provider
     composer = RecordingComposer(
         "Market Summary\n",
         html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
     )
-    sent: list[dict[str, object]] = []
-
-    class RecordingEmailService:
-        def __init__(self, provider: object) -> None:
-            self.provider = provider
-
-        def send(
-            self,
-            report: str,
-            *,
-            recipient: str,
-            as_of_date: date | None = None,
-            mode: ReportMode | str | None = None,
-            content_type: str = "text/plain",
-        ) -> None:
-            sent.append(
-                {
-                    "report": report,
-                    "recipient": recipient,
-                    "as_of_date": as_of_date,
-                    "mode": mode,
-                    "content_type": content_type,
-                }
-            )
 
     monkeypatch.setattr(
         daily_report,
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
 
     exit_code = daily_report.main(
         [
@@ -304,15 +294,16 @@ def test_cli_invokes_email_service_when_email_is_specified(
     assert capsys.readouterr().out == (
         "<!doctype html>\n<html><body>Market Summary</body></html>\n"
     )
-    assert sent == [
-        {
-            "report": "<!doctype html>\n<html><body>Market Summary</body></html>\n",
-            "recipient": "investor@example.com",
-            "as_of_date": date(2026, 7, 1),
-            "mode": ReportMode.MORNING,
-            "content_type": "text/html",
-        }
-    ]
+    assert len(delivery_provider.requests) == 1
+    request = delivery_provider.requests[0]
+    assert request.recipient.email == "investor@example.com"
+    assert request.body.startswith("Morning Investment Report\nDate: 2026-07-01")
+    assert request.content_type == "text/plain"
+    assert request.attachments[0].filename == "morning-report-2026-07-01.html"
+    assert request.attachments[0].content == (
+        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    )
+    assert request.attachments[0].content_type == "text/html"
 
 
 def test_cli_sends_report_through_app_email_provider(

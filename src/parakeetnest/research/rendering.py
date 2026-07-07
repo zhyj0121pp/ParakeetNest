@@ -1,4 +1,4 @@
-"""Plain-text rendering for investment research reports."""
+"""Email-friendly Markdown rendering for investment research reports."""
 
 from __future__ import annotations
 

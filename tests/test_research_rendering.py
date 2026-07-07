@@ -1,4 +1,4 @@
-"""Tests for investment research report plain-text rendering."""
+"""Tests for investment research report email-friendly Markdown rendering."""
 
 from __future__ import annotations
 
@@ -59,6 +59,31 @@ def test_renderer_produces_email_friendly_morning_markdown() -> None:
     assert "**Youyou:** Sizing risk requires monitoring." in body
     assert "**Final consensus:** Committee recommends reviewing the position. No automatic action. User review recommended." in body
     assert "Recommendations" not in body
+
+
+def test_morning_report_does_not_use_markdown_tables() -> None:
+    body = render_investment_research_report(_sample_report())
+
+    assert "| ---" not in body
+    assert "|---" not in body
+    assert not any(
+        line.strip().startswith("|") and line.strip().endswith("|")
+        for line in body.splitlines()
+    )
+
+
+def test_critical_recommendation_fields_are_visible_outside_details() -> None:
+    body = render_investment_research_report(_sample_report())
+    visible_body = _without_details(body)
+
+    assert "### NVDA — Trim" in visible_body
+    assert "**Recommendation:** Trim" in visible_body
+    assert "**Confidence:** High" in visible_body
+    assert "**Rationale:** Committee recommends reviewing the position." in visible_body
+    assert "**Dongdong:** Opportunity remains attractive." in visible_body
+    assert "**Xixi:** Fundamentals remain strong." in visible_body
+    assert "**Youyou:** Sizing risk requires monitoring." in visible_body
+    assert "**Final consensus:**" in visible_body
 
 
 def test_morning_report_section_order_is_exact() -> None:
@@ -400,3 +425,14 @@ def _section(body: str, start: str, end: str | None) -> str:
     start_index = body.index(start)
     end_index = len(body) if end is None else body.index(end, start_index)
     return body[start_index:end_index]
+
+
+def _without_details(body: str) -> str:
+    visible_parts: list[str] = []
+    remaining = body
+    while "<details>" in remaining:
+        before, after_start = remaining.split("<details>", 1)
+        visible_parts.append(before)
+        _, remaining = after_start.split("</details>", 1)
+    visible_parts.append(remaining)
+    return "".join(visible_parts)

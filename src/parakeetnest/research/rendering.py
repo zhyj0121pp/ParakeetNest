@@ -1138,16 +1138,18 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
         return "\n".join(
             [
                 (
-                    '<div style="background: #ffffff; border: 1px solid #e5e7eb; '
+                    '<details style="background: #ffffff; border: 1px solid #e5e7eb; '
                     f"border-left: 5px solid {border_color}; border-radius: 10px; "
                     'padding: 14px; margin: 12px 0;">'
                 ),
                 (
-                    '<h3 style="font-size: 18px; margin: 0 0 8px; color: #111827;">'
-                    f"{_html(title)}</h3>"
+                    '<summary style="cursor: pointer; color: #111827; '
+                    'font-weight: 800;">'
+                    '<span style="font-size: 18px;">'
+                    f"{_html(title)}</span></summary>"
                 ),
                 body,
-                "</div>",
+                "</details>",
             ]
         )
 

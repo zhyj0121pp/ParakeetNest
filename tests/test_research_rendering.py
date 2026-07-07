@@ -119,6 +119,16 @@ def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
     assert "<link" not in body.lower()
 
 
+def test_interactive_html_stock_cards_are_collapsible() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+    card = _first_html_card(body)
+
+    assert card.startswith('<details style="background: #ffffff;')
+    assert "<summary" in card
+    assert "NVDA - 减仓复核" in _section(card, "<summary", "</summary>")
+    assert "<strong>建议:</strong> 减仓复核" in card
+
+
 def test_interactive_html_email_uses_chinese_section_titles() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
 
@@ -166,7 +176,7 @@ def test_interactive_html_email_contains_progressive_details_sections() -> None:
 
 def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
-    visible_body = _without_html_details(body)
+    visible_body = _without_inner_html_details(_first_html_card(body))
 
     assert "NVDA - 减仓复核" in visible_body
     assert "<strong>建议:</strong> 减仓复核" in visible_body
@@ -189,19 +199,21 @@ def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
 
 def test_interactive_html_position_evidence_is_inside_details() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
-    card = _section(body, "<h3", f"{HTML_H2_STYLE}3. 稳定持仓</h2>")
-    details = _section(card, "<details", "</details>") + "</details>"
+    card = _first_html_card(body)
+    details = _section(card, "事实依据", "</details>") + "</details>"
 
     assert "<strong>东东:</strong>" in card
     assert "<strong>西西:</strong>" in card
     assert "<strong>悠悠:</strong>" in card
     assert "Committee reviewed supplied context." in details
-    assert "Committee reviewed supplied context." not in _without_html_details(card)
+    assert "Committee reviewed supplied context." not in _without_inner_html_details(
+        card
+    )
 
 
 def test_interactive_html_trim_card_includes_actionable_sizing_section() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
-    visible_body = _without_html_details(body)
+    visible_body = _without_inner_html_details(_first_html_card(body))
 
     assert "当前状态:</strong> 仓位偏高" in visible_body
     assert "建议动作:</strong> 减仓复核" in visible_body
@@ -220,7 +232,7 @@ def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
     body = render_investment_research_report_interactive_html_email(
         replace(report, position_decisions=(sell_decision,))
     )
-    visible_body = _without_html_details(body)
+    visible_body = _without_inner_html_details(_first_html_card(body))
 
     assert "卖出复核" in visible_body
     assert "当前状态:</strong> 风险偏高" in visible_body
@@ -634,6 +646,26 @@ def _section(body: str, start: str, end: str | None) -> str:
     start_index = body.index(start)
     end_index = len(body) if end is None else body.index(end, start_index)
     return body[start_index:end_index]
+
+
+def _first_html_card(body: str) -> str:
+    return _section(
+        body,
+        '<details style="background: #ffffff;',
+        f"{HTML_H2_STYLE}3. 稳定持仓</h2>",
+    )
+
+
+def _without_inner_html_details(card: str) -> str:
+    visible_parts: list[str] = []
+    remaining = card
+    marker = '<details style="margin-top: 12px;">'
+    while marker in remaining:
+        before, after_start = remaining.split(marker, 1)
+        visible_parts.append(before)
+        _, remaining = after_start.split("</details>", 1)
+    visible_parts.append(remaining)
+    return "".join(visible_parts)
 
 
 def _without_details(body: str) -> str:

@@ -22,17 +22,20 @@ class EmailService:
         recipient: str,
         as_of_date: date | None = None,
         mode: ReportMode | str | None = None,
+        content_type: str = "text/plain",
     ) -> EmailMessage:
         """Send a generated daily report through the configured provider."""
         message = EmailMessage(
             subject=self._build_subject(as_of_date=as_of_date, mode=mode),
             body=report,
             recipient=recipient,
+            content_type=content_type,
         )
         self._provider.send(
             subject=message.subject,
             body=message.body,
             recipient=message.recipient,
+            content_type=message.content_type,
         )
         return message
 

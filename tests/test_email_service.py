@@ -14,12 +14,20 @@ class RecordingEmailProvider:
     def __init__(self) -> None:
         self.calls: list[dict[str, str]] = []
 
-    def send(self, subject: str, body: str, recipient: str) -> None:
+    def send(
+        self,
+        subject: str,
+        body: str,
+        recipient: str,
+        *,
+        content_type: str = "text/plain",
+    ) -> None:
         self.calls.append(
             {
                 "subject": subject,
                 "body": body,
                 "recipient": recipient,
+                "content_type": content_type,
             }
         )
 
@@ -37,13 +45,29 @@ def test_email_service_delegates_to_provider() -> None:
     assert message.subject == "Daily Investment Report - 2026-07-01"
     assert message.body == "daily report body"
     assert message.recipient == "investor@example.com"
+    assert message.content_type == "text/plain"
     assert provider.calls == [
         {
             "subject": "Daily Investment Report - 2026-07-01",
             "body": "daily report body",
             "recipient": "investor@example.com",
+            "content_type": "text/plain",
         }
     ]
+
+
+def test_email_service_can_send_html_message() -> None:
+    provider = RecordingEmailProvider()
+
+    message = EmailService(provider).send(
+        "<!doctype html><html></html>",
+        recipient="investor@example.com",
+        as_of_date=date(2026, 7, 1),
+        content_type="text/html",
+    )
+
+    assert message.content_type == "text/html"
+    assert provider.calls[0]["content_type"] == "text/html"
 
 
 def test_email_service_includes_morning_report_mode_in_subject() -> None:

@@ -2,6 +2,7 @@
 
 from parakeetnest.research.composer import (
     DailyInvestmentReportComposer,
+    ReportBodyFormat,
     compose_daily_investment_report,
 )
 from parakeetnest.research.delivery import (
@@ -51,6 +52,7 @@ __all__ = [
     "ReportDeliveryService",
     "ReportDeliveryStatus",
     "ReportRecipient",
+    "ReportBodyFormat",
     "ReportMode",
     "ResearchCatalyst",
     "ResearchCommitteeConsensus",

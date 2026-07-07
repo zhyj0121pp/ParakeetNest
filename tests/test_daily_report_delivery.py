@@ -9,6 +9,7 @@ from parakeetnest.research import (
     DailyReportDeliveryRequest,
     DailyReportDeliveryService,
     NoOpReportDeliveryProvider,
+    ReportBodyFormat,
     ReportDeliveryResult,
     ReportDeliveryService,
     ReportDeliveryStatus,
@@ -31,6 +32,7 @@ class FakeComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
+        body_format: ReportBodyFormat | str = ReportBodyFormat.MARKDOWN,
     ) -> str:
         self.calls.append(
             {
@@ -38,6 +40,7 @@ class FakeComposer:
                 "account_id": account_id,
                 "as_of_date": as_of_date,
                 "generated_at": generated_at,
+                "body_format": body_format,
             }
         )
         return self.body
@@ -53,6 +56,7 @@ class FakeDeliveryService:
         recipient_email: str,
         subject: str,
         body: str,
+        content_type: str = "text/plain",
         metadata: Mapping[str, str] | None = None,
     ) -> ReportDeliveryResult:
         self.calls.append(
@@ -60,6 +64,7 @@ class FakeDeliveryService:
                 "recipient_email": recipient_email,
                 "subject": subject,
                 "body": body,
+                "content_type": content_type,
                 "metadata": metadata,
             }
         )
@@ -90,6 +95,7 @@ def test_daily_delivery_composes_and_delivers_via_noop_provider() -> None:
     assert provider.requests[0].recipient.email == "investor@example.com"
     assert provider.requests[0].subject == "Daily Investment Report - 2026-07-01"
     assert "Tickers: NVDA" in provider.requests[0].body
+    assert provider.requests[0].content_type == "text/plain"
 
 
 def test_daily_delivery_passes_research_inputs_to_composer() -> None:
@@ -116,6 +122,7 @@ def test_daily_delivery_passes_research_inputs_to_composer() -> None:
             "account_id": "main",
             "as_of_date": AS_OF_DATE,
             "generated_at": GENERATED_AT,
+            "body_format": ReportBodyFormat.MARKDOWN,
         }
     ]
 
@@ -144,9 +151,33 @@ def test_daily_delivery_passes_delivery_inputs_to_delivery_service() -> None:
             "recipient_email": "investor@example.com",
             "subject": "Custom Daily Report",
             "body": "rendered daily body",
+            "content_type": "text/plain",
             "metadata": metadata,
         }
     ]
+
+
+def test_daily_delivery_can_request_interactive_html_email() -> None:
+    composer = FakeComposer(body="<!doctype html>\n<html></html>\n")
+    delivery_service = FakeDeliveryService()
+    service = DailyReportDeliveryService(
+        composer=composer,
+        delivery_service=delivery_service,
+    )
+
+    service.deliver(
+        DailyReportDeliveryRequest(
+            tickers=("NVDA",),
+            recipient_email="investor@example.com",
+            body_format=ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+        )
+    )
+
+    assert composer.calls[0]["body_format"] is (
+        ReportBodyFormat.INTERACTIVE_HTML_EMAIL
+    )
+    assert delivery_service.calls[0]["body"] == "<!doctype html>\n<html></html>\n"
+    assert delivery_service.calls[0]["content_type"] == "text/html"
 
 
 def test_daily_delivery_builds_default_subject_from_as_of_date() -> None:

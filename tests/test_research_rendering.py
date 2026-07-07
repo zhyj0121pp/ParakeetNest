@@ -110,13 +110,48 @@ def test_interactive_html_email_uses_inline_card_layout_and_badges() -> None:
     assert 'style="' in body
     assert "border-left: 5px solid #f97316" in body
     assert "border-radius: 10px" in body
-    assert ">Trim</span>" in body
-    assert ">High confidence</span>" in body
-    assert ">High urgency</span>" in body
-    assert ">Human review required</span>" in body
+    assert ">减仓复核</span>" in body
+    assert ">信心：高</span>" in body
+    assert ">紧急程度：高</span>" in body
+    assert ">需要人工复核</span>" in body
     assert "<script" not in body.lower()
     assert "<style" not in body.lower()
     assert "<link" not in body.lower()
+
+
+def test_interactive_html_email_uses_chinese_section_titles() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert ">1. 需要处理</h2>" in body
+    assert ">2. 持仓决策卡片</h2>" in body
+    assert ">3. 稳定持仓</h2>" in body
+    assert ">4. 新机会</h2>" in body
+    assert ">5. 市场概览</h2>" in body
+    assert ">6. 原始证据</h2>" in body
+
+
+def test_interactive_html_email_uses_chinese_field_labels() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert "<strong>建议:</strong> 减仓复核" in body
+    assert "<strong>信心:</strong> 高" in body
+    assert "<strong>紧急程度:</strong> 高" in body
+    assert "<strong>理由:</strong> Committee recommends reviewing the position." in body
+    assert "<strong>最终共识:</strong>" in body
+    assert "<strong>东东:</strong> Opportunity remains attractive." in body
+    assert "<strong>西西:</strong> Fundamentals remain strong." in body
+    assert "<strong>悠悠:</strong> Sizing risk requires monitoring." in body
+
+
+def test_interactive_html_email_localizes_recommendation_confidence_and_urgency() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert "减仓复核" in body
+    assert "继续持有" in body
+    assert "继续观察" in body
+    assert "信心：高" in body
+    assert "信心：中" in body
+    assert "紧急程度：高" in body
 
 
 def test_interactive_html_email_contains_progressive_details_sections() -> None:
@@ -124,60 +159,93 @@ def test_interactive_html_email_contains_progressive_details_sections() -> None:
 
     assert "<details" in body
     assert "<summary" in body
-    assert "Committee opinions and factual evidence" in body
-    assert "Show stable holdings" in body
-    assert "Show raw evidence" in body
+    assert "事实依据" in body
+    assert "查看稳定持仓" in body
+    assert "查看原始证据" in body
 
 
 def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
     visible_body = _without_html_details(body)
 
-    assert "NVDA - Trim" in visible_body
-    assert "<strong>Recommendation:</strong> Trim" in visible_body
-    assert "<strong>Confidence:</strong> High" in visible_body
+    assert "NVDA - 减仓复核" in visible_body
+    assert "<strong>建议:</strong> 减仓复核" in visible_body
+    assert "<strong>信心:</strong> 高" in visible_body
+    assert "<strong>紧急程度:</strong> 高" in visible_body
     assert (
-        "<strong>Rationale:</strong> Committee recommends reviewing the position."
+        "<strong>理由:</strong> Committee recommends reviewing the position."
         in visible_body
     )
-    assert "<strong>Final consensus:</strong>" in visible_body
-    assert "<strong>Dongdong:</strong> Opportunity remains attractive." in visible_body
-    assert "<strong>Xixi:</strong> Fundamentals remain strong." in visible_body
-    assert "<strong>Youyou:</strong> Sizing risk requires monitoring." in visible_body
+    assert "<strong>最终共识:</strong>" in visible_body
+    assert "<strong>东东:</strong> Opportunity remains attractive." in visible_body
+    assert "<strong>西西:</strong> Fundamentals remain strong." in visible_body
+    assert "<strong>悠悠:</strong> Sizing risk requires monitoring." in visible_body
+    assert "<strong>行动与仓位复核</strong>" in visible_body
+    assert "<strong>参考股数:</strong> 具体股数需人工确认" in visible_body
+    assert "<strong>目标仓位:</strong> 具体比例需人工确认" in visible_body
+    assert "<strong>执行方式:</strong> 建议分批复核，不自动交易" in visible_body
     assert "Committee reviewed supplied context." not in visible_body
 
 
 def test_interactive_html_position_evidence_is_inside_details() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
-    card = _section(body, "<h3", f"{HTML_H2_STYLE}3. Stable Holdings</h2>")
+    card = _section(body, "<h3", f"{HTML_H2_STYLE}3. 稳定持仓</h2>")
     details = _section(card, "<details", "</details>") + "</details>"
 
-    assert "<strong>Dongdong:</strong>" in card
-    assert "<strong>Xixi:</strong>" in card
-    assert "<strong>Youyou:</strong>" in card
+    assert "<strong>东东:</strong>" in card
+    assert "<strong>西西:</strong>" in card
+    assert "<strong>悠悠:</strong>" in card
     assert "Committee reviewed supplied context." in details
     assert "Committee reviewed supplied context." not in _without_html_details(card)
+
+
+def test_interactive_html_trim_card_includes_actionable_sizing_section() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+    visible_body = _without_html_details(body)
+
+    assert "当前状态:</strong> 仓位偏高" in visible_body
+    assert "建议动作:</strong> 减仓复核" in visible_body
+    assert "参考股数:</strong> 具体股数需人工确认" in visible_body
+    assert "目标仓位:</strong> 具体比例需人工确认" in visible_body
+    assert "执行方式:</strong> 建议分批复核，不自动交易" in visible_body
+
+
+def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
+    report = _sample_report()
+    sell_decision = replace(
+        report.position_decisions[0],
+        recommendation=PositionRecommendation.SELL,
+        final_rationale="Exit risk is elevated.",
+    )
+    body = render_investment_research_report_interactive_html_email(
+        replace(report, position_decisions=(sell_decision,))
+    )
+    visible_body = _without_html_details(body)
+
+    assert "卖出复核" in visible_body
+    assert "当前状态:</strong> 风险偏高" in visible_body
+    assert "参考股数:</strong> 具体股数需人工确认" in visible_body
 
 
 def test_interactive_html_stable_holdings_are_inside_details() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
     stable_section = _section(
         body,
-        ">3. Stable Holdings</h2>",
-        ">4. New Opportunities</h2>",
+        ">3. 稳定持仓</h2>",
+        ">4. 新机会</h2>",
     )
 
     assert "<details" in stable_section
     assert "<summary" in stable_section
-    assert "MSFT: Hold" in stable_section
-    assert "MSFT: Hold" not in _without_html_details(stable_section)
+    assert "MSFT: 继续持有" in stable_section
+    assert "MSFT: 继续持有" not in _without_html_details(stable_section)
 
 
 def test_interactive_html_raw_evidence_is_bottom_details() -> None:
     body = render_investment_research_report_interactive_html_email(_sample_report())
-    raw_section = _section(body, ">6. Raw Evidence</h2>", None)
+    raw_section = _section(body, ">6. 原始证据</h2>", None)
 
-    assert body.rfind(">6. Raw Evidence</h2>") > body.rfind(">5. Market Overview</h2>")
+    assert body.rfind(">6. 原始证据</h2>") > body.rfind(">5. 市场概览</h2>")
     assert "<details" in raw_section
     assert "<summary" in raw_section
     assert (
@@ -187,6 +255,18 @@ def test_interactive_html_raw_evidence_is_bottom_details() -> None:
     assert raw_section.index("<details") < raw_section.index(
         "Report evidence: Research assembled from provider-neutral services."
     )
+
+
+def test_interactive_html_email_hides_sensitive_portfolio_values() -> None:
+    body = render_investment_research_report_interactive_html_email(_sample_report())
+
+    assert "12500" not in body
+    assert "12,500" not in body
+    assert "500" not in body
+    assert "$500" not in body
+    assert "$1,200.00" not in body
+    assert "10 shares" not in body
+    assert "10 股" not in body
 
 
 def test_interactive_html_escapes_dynamic_text() -> None:

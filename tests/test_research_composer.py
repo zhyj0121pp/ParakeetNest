@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from parakeetnest.research import (
     DailyInvestmentReportComposer,
     InvestmentResearchReport,
+    ReportBodyFormat,
     ReportMode,
     ResearchCatalyst,
     ResearchRisk,
@@ -76,6 +77,25 @@ def test_composer_generates_report_and_renders_plain_text_body() -> None:
         }
     ]
     assert renderer.calls == [report]
+
+
+def test_composer_can_render_interactive_html_email_body() -> None:
+    report = _sample_report()
+    service = FakeResearchService(report)
+    renderer = FakeRenderer()
+    composer = DailyInvestmentReportComposer(
+        research_service=service,
+        renderer=renderer,
+    )
+
+    body = composer.compose(
+        ["NVDA"],
+        body_format=ReportBodyFormat.INTERACTIVE_HTML_EMAIL,
+    )
+
+    assert body.startswith("<!doctype html>\n")
+    assert "<html>" in body
+    assert renderer.calls == []
 
 
 def test_composer_passes_account_id_as_of_date_and_generated_at_through() -> None:

@@ -19,12 +19,13 @@ class EmailReportDeliveryProvider:
     provider_name: str = "email"
 
     def deliver(self, request: ReportDeliveryRequest) -> ReportDeliveryResult:
-        """Deliver a report request as a plain-text email."""
+        """Deliver a report request as an email."""
         try:
             self.email_provider.send(
                 subject=request.subject,
                 body=request.body,
                 recipient=request.recipient.email,
+                content_type=request.content_type,
             )
         except Exception as exc:  # noqa: BLE001 - normalize provider failures.
             return ReportDeliveryResult.failed(

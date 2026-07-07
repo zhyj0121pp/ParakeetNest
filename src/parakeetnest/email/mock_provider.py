@@ -18,10 +18,22 @@ class MockEmailProvider:
         """Return messages accepted by this provider."""
         return tuple(self._messages)
 
-    def send(self, subject: str, body: str, recipient: str) -> None:
+    def send(
+        self,
+        subject: str,
+        body: str,
+        recipient: str,
+        *,
+        content_type: str = "text/plain",
+    ) -> None:
         """Record a provider-neutral email message."""
         self._messages.append(
-            EmailMessage(subject=subject, body=body, recipient=recipient)
+            EmailMessage(
+                subject=subject,
+                body=body,
+                recipient=recipient,
+                content_type=content_type,
+            )
         )
 
 

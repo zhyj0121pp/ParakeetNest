@@ -12,8 +12,15 @@ class ConsoleEmailProvider:
     def __init__(self, stream: TextIO | None = None) -> None:
         self._stream = stream
 
-    def send(self, subject: str, body: str, recipient: str) -> None:
-        """Print a plain-text email envelope and body."""
+    def send(
+        self,
+        subject: str,
+        body: str,
+        recipient: str,
+        *,
+        content_type: str = "text/plain",
+    ) -> None:
+        """Print an email envelope and body."""
         stream = self._stream or sys.stdout
         print("==== EMAIL ====", file=stream)
         print(f"To: {recipient}", file=stream)

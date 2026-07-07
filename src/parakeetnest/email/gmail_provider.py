@@ -38,9 +38,21 @@ class GmailEmailProvider:
             return
         self.client = self._build_client()
 
-    def send(self, subject: str, body: str, recipient: str) -> None:
-        """Send a plain-text email message through Gmail."""
-        message = EmailMessage(subject=subject, body=body, recipient=recipient)
+    def send(
+        self,
+        subject: str,
+        body: str,
+        recipient: str,
+        *,
+        content_type: str = "text/plain",
+    ) -> None:
+        """Send an email message through Gmail."""
+        message = EmailMessage(
+            subject=subject,
+            body=body,
+            recipient=recipient,
+            content_type=content_type,
+        )
         raw_message = self._encode_message(message)
         try:
             response = (
@@ -85,7 +97,11 @@ class GmailEmailProvider:
             mime_message["From"] = self.sender_email.strip()
         mime_message["To"] = message.recipient
         mime_message["Subject"] = message.subject
-        mime_message.set_content(message.body)
+        if message.content_type == "text/html":
+            mime_message.set_content("")
+            mime_message.add_alternative(message.body, subtype="html")
+        else:
+            mime_message.set_content(message.body)
         raw_bytes = mime_message.as_bytes()
         return base64.urlsafe_b64encode(raw_bytes).decode("ascii")
 

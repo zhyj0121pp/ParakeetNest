@@ -91,6 +91,35 @@ def test_gmail_provider_sends_plain_text_email_with_fake_client() -> None:
     assert decoded.get_payload() == "Plain-text report body.\n"
 
 
+def test_gmail_provider_sends_html_email_as_mime_alternative() -> None:
+    client = FakeGmailClient(response={"id": "gmail-html-123"})
+    provider = GmailEmailProvider(
+        client=client,
+        sender_email="sender@example.com",
+    )
+
+    provider.send(
+        subject="Daily Investment Report - 2026-07-01",
+        body="<!doctype html>\n<html><body>HTML report body.</body></html>\n",
+        recipient="investor@example.com",
+        content_type="text/html",
+    )
+
+    assert provider.last_message_id == "gmail-html-123"
+    encoded = client.send_calls[0]["body"]["raw"]
+    decoded = message_from_bytes(base64.urlsafe_b64decode(encoded.encode("ascii")))
+    html_parts = [
+        part
+        for part in decoded.walk()
+        if part.get_content_type() == "text/html"
+    ]
+    assert decoded.is_multipart()
+    assert len(html_parts) == 1
+    assert html_parts[0].get_payload(decode=True).decode("utf-8").startswith(
+        "<!doctype html>\n"
+    )
+
+
 def test_gmail_provider_validates_message_before_calling_client() -> None:
     client = FakeGmailClient()
     provider = GmailEmailProvider(client=client)

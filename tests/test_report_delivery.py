@@ -32,7 +32,19 @@ def test_can_create_delivery_request_with_normalized_fields() -> None:
     assert request.recipient.email == "investor@example.com"
     assert request.subject == "Daily report"
     assert request.body == "Plain-text report body."
+    assert request.content_type == "text/plain"
     assert request.metadata == {"run_id": "epic-028"}
+
+
+def test_can_create_html_delivery_request() -> None:
+    request = ReportDeliveryRequest(
+        recipient=ReportRecipient(email="investor@example.com"),
+        subject="Daily report",
+        body="<!doctype html><html></html>",
+        content_type="text/html",
+    )
+
+    assert request.content_type == "text/html"
 
 
 def test_delivery_request_validates_required_inputs() -> None:
@@ -51,6 +63,14 @@ def test_delivery_request_validates_required_inputs() -> None:
             recipient=ReportRecipient(email="investor@example.com"),
             subject="Daily report",
             body=" ",
+        )
+
+    with pytest.raises(ValueError, match="content_type"):
+        ReportDeliveryRequest(
+            recipient=ReportRecipient(email="investor@example.com"),
+            subject="Daily report",
+            body="Report body.",
+            content_type="application/json",
         )
 
 

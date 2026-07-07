@@ -26,16 +26,22 @@ class ReportRecipient:
 
 @dataclass(frozen=True)
 class ReportDeliveryRequest:
-    """Provider-neutral request to deliver a plain-text report."""
+    """Provider-neutral request to deliver a report."""
 
     recipient: ReportRecipient
     subject: str
     body: str
+    content_type: str = "text/plain"
     metadata: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "subject", _required_text(self.subject, "subject"))
         object.__setattr__(self, "body", _required_text(self.body, "body"))
+        object.__setattr__(
+            self,
+            "content_type",
+            _normalize_content_type(self.content_type),
+        )
         object.__setattr__(self, "metadata", _normalize_metadata(self.metadata))
 
 
@@ -162,14 +168,16 @@ class ReportDeliveryService:
         recipient_email: str,
         subject: str,
         body: str,
+        content_type: str = "text/plain",
         metadata: Mapping[str, str] | None = None,
     ) -> ReportDeliveryResult:
-        """Build and deliver a plain-text report request."""
+        """Build and deliver a report request."""
         return self.deliver(
             ReportDeliveryRequest(
                 recipient=ReportRecipient(email=recipient_email),
                 subject=subject,
                 body=body,
+                content_type=content_type,
                 metadata=metadata or {},
             )
         )
@@ -201,6 +209,13 @@ def _optional_text(value: str | None) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _normalize_content_type(value: str) -> str:
+    content_type = _required_text(value, "content_type").lower()
+    if content_type not in {"text/plain", "text/html"}:
+        raise ValueError("content_type must be text/plain or text/html")
+    return content_type
 
 
 def _normalize_metadata(metadata: Mapping[str, str]) -> dict[str, str]:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from enum import Enum
 from html import escape
+import math
 from typing import Any
 
 from parakeetnest.context.models import PortfolioPosition
@@ -736,13 +737,13 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
             [
                 (
                     '<h1 style="font-size: 28px; line-height: 1.2; margin: 0 0 '
-                    '8px;">Morning Investment Report</h1>'
+                    '8px;">晨间投资报告</h1>'
                 ),
                 (
                     '<p style="margin: 0 0 18px; color: #4b5563;">'
-                    f"{_html(report.title)} | Report Mode: {_html(report.mode.value)} "
-                    f"| Generated At: {_html(report.generated_at.isoformat())} "
-                    f"| Tickers: {_html(tickers)}</p>"
+                    f"{_html(report.title)} | 报告模式: {_html(report.mode.value)} "
+                    f"| 生成时间: {_html(report.generated_at.isoformat())} "
+                    f"| 标的: {_html(tickers)}</p>"
                 ),
             ]
         )
@@ -751,15 +752,15 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
         return (
             '<p style="padding: 12px; background: #fff7ed; border-left: 4px solid '
             '#f97316; margin: 0 0 18px;">'
-            "<strong>Human-in-the-loop:</strong> This report is advisory guidance "
-            "only. It does not execute trades.</p>"
+            "<strong>人工复核:</strong> 本报告仅提供研究和复核建议，不自动交易，"
+            "也不代表已经或将会执行任何交易。</p>"
         )
 
     def _render_html_action_required(self, report: InvestmentResearchReport) -> str:
         items: list[str] = []
         for decision in self._html_action_decisions(report):
             review = (
-                " User review recommended."
+                " 需要人工复核。"
                 if decision.human_review_required
                 else ""
             )
@@ -767,21 +768,22 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
                 "<li>"
                 f"<strong>{_html(decision.symbol)}:</strong> "
                 f"{_html(self._recommendation_label(decision.recommendation))} "
-                f"({_html(decision.confidence.value)} confidence, "
-                f"{_html(decision.urgency.value)} urgency).{review}</li>"
+                f"(信心：{_html(self._localized_level(decision.confidence.value))}，"
+                f"紧急程度：{_html(self._localized_level(decision.urgency.value))})。"
+                f"{review}</li>"
             )
         if not items:
             items.append(
-                "<li>No position decisions currently require user action.</li>"
+                "<li>当前没有需要处理的持仓决策。</li>"
             )
         if report.portfolio_decision_summary is not None:
             for item in report.portfolio_decision_summary.action_items:
                 items.append(
-                    f"<li><strong>Portfolio action item:</strong> {_html(item)}</li>"
+                    f"<li><strong>组合待办：</strong> {_html(item)}</li>"
                 )
         return "\n".join(
             [
-                self._html_section_heading("1. Action Required"),
+                self._html_section_heading("1. 需要处理"),
                 '<ul style="margin: 0 0 18px 20px; padding: 0;">',
                 *items,
                 "</ul>",
@@ -804,55 +806,61 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
             )
         if not cards:
             cards.append(
-                '<p style="margin: 0 0 18px;">No action-required position cards '
-                "available.</p>"
+                '<p style="margin: 0 0 18px;">暂无需要处理的持仓决策卡片。</p>'
             )
-        return "\n".join([self._html_section_heading("2. Position Cards"), *cards])
+        return "\n".join([self._html_section_heading("2. 持仓决策卡片"), *cards])
 
     def _render_html_decision_card(self, decision: PositionDecision) -> str:
         recommendation = self._recommendation_label(decision.recommendation)
         badges = [
             self._html_badge(recommendation, kind="recommendation"),
             self._html_badge(
-                f"{self._title_value(decision.confidence.value)} confidence",
+                f"信心：{self._localized_level(decision.confidence.value)}",
                 kind="confidence",
             ),
             self._html_badge(
-                f"{self._title_value(decision.urgency.value)} urgency",
+                f"紧急程度：{self._localized_level(decision.urgency.value)}",
                 kind="urgency",
             ),
         ]
         if decision.human_review_required:
-            badges.append(self._html_badge("Human review required", kind="review"))
+            badges.append(self._html_badge("需要人工复核", kind="review"))
         return self._html_card(
             title=f"{decision.symbol} - {recommendation}",
             border_color=self._recommendation_border_color(recommendation),
             body="\n".join(
                 [
                     self._html_badge_row(badges),
-                    self._html_field("Recommendation", recommendation),
+                    self._html_field("建议", recommendation),
                     self._html_field(
-                        "Confidence",
-                        self._title_value(decision.confidence.value),
+                        "信心",
+                        self._localized_level(decision.confidence.value),
                     ),
-                    self._html_field("Rationale", decision.final_rationale),
                     self._html_field(
-                        "Final consensus",
+                        "紧急程度",
+                        self._localized_level(decision.urgency.value),
+                    ),
+                    self._html_field("理由", decision.final_rationale),
+                    self._html_field(
+                        "最终共识",
                         (
-                            f"{decision.final_rationale} No automatic action. "
-                            "User review recommended."
+                            f"{decision.final_rationale} 不自动交易，"
+                            "建议人工复核后再决定。"
                         ),
                     ),
-                    self._html_field("Dongdong", decision.dongdong_opinion),
-                    self._html_field("Xixi", decision.xixi_opinion),
-                    self._html_field("Youyou", decision.youyou_opinion),
+                    self._render_html_actionable_sizing(decision),
+                    self._html_field("东东", decision.dongdong_opinion),
+                    self._html_field("西西", decision.xixi_opinion),
+                    self._html_field("悠悠", decision.youyou_opinion),
                     self._html_details(
-                        "Committee opinions and factual evidence",
+                        "事实依据",
                         [
-                            self._html_field("Dongdong", decision.dongdong_opinion),
-                            self._html_field("Xixi", decision.xixi_opinion),
-                            self._html_field("Youyou", decision.youyou_opinion),
-                            self._html_list(decision.factual_evidence),
+                            self._html_field("东东", decision.dongdong_opinion),
+                            self._html_field("西西", decision.xixi_opinion),
+                            self._html_field("悠悠", decision.youyou_opinion),
+                            self._html_list(
+                                self._privacy_safe_values(decision.factual_evidence)
+                            ),
                         ],
                     ),
                 ]
@@ -865,17 +873,19 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
         report: InvestmentResearchReport,
         opinions: dict[str, str],
     ) -> str:
-        recommendation = self._title_value(report.committee_consensus.final_action)
+        recommendation = self._localized_recommendation_text(
+            report.committee_consensus.final_action
+        )
         badges = [
             self._html_badge(recommendation, kind="recommendation"),
             self._html_badge(
                 (
-                    f"{self._title_value(report.committee_consensus.confidence)} "
-                    "confidence"
+                    "信心："
+                    f"{self._localized_level(report.committee_consensus.confidence)}"
                 ),
                 kind="confidence",
             ),
-            self._html_badge("Human review required", kind="review"),
+            self._html_badge("需要人工复核", kind="review"),
         ]
         return self._html_card(
             title=f"{ticker_report.ticker} - {recommendation}",
@@ -883,29 +893,33 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
             body="\n".join(
                 [
                     self._html_badge_row(badges),
-                    self._html_field("Recommendation", recommendation),
+                    self._html_field("建议", recommendation),
                     self._html_field(
-                        "Confidence",
-                        self._title_value(report.committee_consensus.confidence),
+                        "信心",
+                        self._localized_level(report.committee_consensus.confidence),
                     ),
-                    self._html_field("Rationale", ticker_report.summary),
+                    self._html_field("理由", ticker_report.summary),
                     self._html_field(
-                        "Final consensus",
+                        "最终共识",
                         (
-                            f"{report.committee_consensus.rationale} No automatic "
-                            "action. User review recommended."
+                            f"{report.committee_consensus.rationale} 不自动交易，"
+                            "建议人工复核后再决定。"
                         ),
                     ),
-                    self._html_field("Dongdong", opinions.get("dongdong")),
-                    self._html_field("Xixi", opinions.get("xixi")),
-                    self._html_field("Youyou", opinions.get("youyou")),
+                    self._html_field("东东", opinions.get("dongdong")),
+                    self._html_field("西西", opinions.get("xixi")),
+                    self._html_field("悠悠", opinions.get("youyou")),
                     self._html_details(
-                        "Committee opinions and factual evidence",
+                        "事实依据",
                         [
-                            self._html_field("Dongdong", opinions.get("dongdong")),
-                            self._html_field("Xixi", opinions.get("xixi")),
-                            self._html_field("Youyou", opinions.get("youyou")),
-                            self._html_list(self._ticker_evidence(ticker_report)),
+                            self._html_field("东东", opinions.get("dongdong")),
+                            self._html_field("西西", opinions.get("xixi")),
+                            self._html_field("悠悠", opinions.get("youyou")),
+                            self._html_list(
+                                self._privacy_safe_values(
+                                    self._ticker_evidence(ticker_report)
+                                )
+                            ),
                         ],
                     ),
                 ]
@@ -923,28 +937,23 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
             recommendation = self._recommendation_label(decision.recommendation)
             items.append(
                 f"{decision.symbol}: {recommendation} "
-                f"({decision.confidence.value} confidence). {decision.final_rationale}"
+                f"(信心：{self._localized_level(decision.confidence.value)})。"
+                f"{decision.final_rationale}"
             )
         if not items:
             for position in self._stable_portfolio_positions(report):
-                details = [
-                    f"{position.symbol}: {position.quantity:g} shares",
-                    f"value {_format_money(position.market_value)}",
-                ]
-                if position.weight is not None:
-                    details.append(f"weight {_format_percent(position.weight)}")
-                items.append(", ".join(details))
+                items.append(f"{position.symbol}: 当前无需处理，敏感持仓数据已隐藏。")
         stable_symbols = {decision.symbol for decision in stable_decisions}
         if report.portfolio_decision_summary is not None:
             for symbol in report.portfolio_decision_summary.no_action_positions:
                 if symbol not in stable_symbols:
-                    items.append(f"{symbol}: no action currently recommended.")
+                    items.append(f"{symbol}: 当前无需处理。")
         if not items:
-            items.append("No stable holdings available.")
+            items.append("暂无稳定持仓信息。")
         return "\n".join(
             [
-                self._html_section_heading("3. Stable Holdings"),
-                self._html_details("Show stable holdings", [self._html_list(items)]),
+                self._html_section_heading("3. 稳定持仓"),
+                self._html_details("查看稳定持仓", [self._html_list(items)]),
             ]
         )
 
@@ -952,7 +961,6 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
         cards: list[str] = []
         for opportunity in report.new_opportunities:
             recommendation = self._recommendation_label(opportunity.suggested_action)
-            confidence = self._title_value(opportunity.confidence.value)
             cards.append(
                 self._html_card(
                     title=f"{opportunity.symbol} - {recommendation}",
@@ -966,17 +974,23 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
                                         kind="recommendation",
                                     ),
                                     self._html_badge(
-                                        f"{confidence} confidence",
+                                        (
+                                            "信心："
+                                            f"{self._localized_level(opportunity.confidence.value)}"
+                                        ),
                                         kind="confidence",
                                     ),
                                 ]
                             ),
-                            self._html_field("Recommendation", recommendation),
-                            self._html_field("Confidence", confidence),
-                            self._html_field("Rationale", opportunity.rationale),
+                            self._html_field("建议", recommendation),
+                            self._html_field(
+                                "信心",
+                                self._localized_level(opportunity.confidence.value),
+                            ),
+                            self._html_field("理由", opportunity.rationale),
                             (
                                 '<p style="margin: 8px 0 4px;">'
-                                "<strong>Risks:</strong></p>"
+                                "<strong>风险:</strong></p>"
                             ),
                             self._html_list(opportunity.risks),
                         ]
@@ -987,34 +1001,34 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
             cards.append(
                 f'<p style="margin: 0 0 18px;">{_html(report.watchlist_review)}</p>'
             )
-        return "\n".join([self._html_section_heading("4. New Opportunities"), *cards])
+        return "\n".join([self._html_section_heading("4. 新机会"), *cards])
 
     def _render_html_market_overview(self, report: InvestmentResearchReport) -> str:
         items = [
             report.market_summary,
-            f"Portfolio context: {report.portfolio_review}",
+            f"组合背景：{report.portfolio_review}",
         ]
         if report.portfolio_decision_summary is not None:
             items.append(
-                "Portfolio view: "
+                "组合观点："
                 f"{report.portfolio_decision_summary.overall_portfolio_view}"
             )
             items.extend(
-                f"Concentration risk: {risk}"
+                f"集中度风险：{risk}"
                 for risk in report.portfolio_decision_summary.concentration_risks
             )
             items.extend(
-                f"Sector exposure: {note}"
+                f"行业暴露：{note}"
                 for note in report.portfolio_decision_summary.sector_exposure_notes
             )
             items.extend(
-                f"Cash allocation: {note}"
+                f"现金安排：{note}"
                 for note in report.portfolio_decision_summary.cash_allocation_notes
             )
         return "\n".join(
             [
-                self._html_section_heading("5. Market Overview"),
-                self._html_list(items),
+                self._html_section_heading("5. 市场概览"),
+                self._html_list(self._privacy_safe_values(items)),
             ]
         )
 
@@ -1023,13 +1037,86 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
             line.lstrip("- ").strip()
             for line in self._raw_evidence_lines(report)
         )
-        evidence = raw_lines or ("No raw evidence available.",)
+        evidence = self._privacy_safe_values(raw_lines) or ("暂无原始证据。",)
         return "\n".join(
             [
-                self._html_section_heading("6. Raw Evidence"),
-                self._html_details("Show raw evidence", [self._html_list(evidence)]),
+                self._html_section_heading("6. 原始证据"),
+                self._html_details("查看原始证据", [self._html_list(evidence)]),
             ]
         )
+
+    def _render_html_actionable_sizing(self, decision: PositionDecision) -> str:
+        fields = [
+            ("当前状态", self._current_status_label(decision)),
+            ("建议动作", self._recommendation_label(decision.recommendation)),
+            ("参考股数", self._share_guidance(decision)),
+            ("目标仓位", self._target_weight_guidance(decision)),
+            ("执行方式", "建议分批复核，不自动交易"),
+        ]
+        return "\n".join(
+            [
+                (
+                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
+                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
+                ),
+                '<p style="margin: 0 0 6px;"><strong>行动与仓位复核</strong></p>',
+                *[self._html_field(label, value) for label, value in fields],
+                "</div>",
+            ]
+        )
+
+    def _current_status_label(self, decision: PositionDecision) -> str:
+        if decision.recommendation is PositionRecommendation.SELL:
+            return "风险偏高"
+        if decision.recommendation is PositionRecommendation.TRIM:
+            return "仓位偏高"
+        return "仓位需要复核"
+
+    def _share_guidance(self, decision: PositionDecision) -> str:
+        explicit = _first_existing_attr(
+            decision,
+            (
+                "suggested_share_range",
+                "suggested_shares_range",
+                "approx_share_range",
+                "estimated_share_range",
+            ),
+        )
+        if explicit is not None:
+            return _format_share_guidance(explicit)
+        numeric = _first_existing_attr(
+            decision,
+            (
+                "suggested_shares",
+                "estimated_shares",
+                "shares_to_trade",
+                "shares_to_buy",
+                "shares_to_sell",
+            ),
+        )
+        if numeric is not None:
+            return _format_share_guidance(numeric)
+        return "具体股数需人工确认"
+
+    def _target_weight_guidance(self, decision: PositionDecision) -> str:
+        explicit = _first_existing_attr(
+            decision,
+            (
+                "target_weight_range",
+                "target_weight_band",
+                "target_risk_band",
+            ),
+        )
+        if explicit is not None:
+            return _format_weight_guidance(explicit)
+        lower = getattr(decision, "target_weight_min", None)
+        upper = getattr(decision, "target_weight_max", None)
+        if lower is not None and upper is not None:
+            return _format_weight_guidance((lower, upper))
+        target = getattr(decision, "target_weight", None)
+        if target is not None:
+            return _format_weight_guidance(target)
+        return "具体比例需人工确认"
 
     def _html_action_decisions(
         self,
@@ -1072,7 +1159,7 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
 
     def _html_list(self, values: Iterable[str]) -> str:
         normalized = tuple(value.strip() for value in values if value.strip())
-        items = normalized or ("Not available",)
+        items = normalized or ("暂无可用信息",)
         lines = ['<ul style="margin: 8px 0 0 20px; padding: 0;">']
         lines.extend(f"<li>{_html(item)}</li>" for item in items)
         lines.append("</ul>")
@@ -1106,36 +1193,161 @@ class InteractiveHtmlEmailInvestmentResearchReportRenderer(
     def _badge_colors(self, label: str, *, kind: str) -> tuple[str, str]:
         normalized = label.strip().lower()
         if kind == "confidence":
-            if "high" in normalized:
+            if "high" in normalized or "高" in normalized:
                 return "#dcfce7", "#166534"
-            if "medium" in normalized:
+            if "medium" in normalized or "中" in normalized:
                 return "#fef3c7", "#92400e"
             return "#f3f4f6", "#374151"
         if kind == "review":
             return "#fee2e2", "#991b1b"
         if kind == "urgency":
-            if "high" in normalized:
+            if "high" in normalized or "高" in normalized:
                 return "#fee2e2", "#991b1b"
-            if "medium" in normalized:
+            if "medium" in normalized or "中" in normalized:
                 return "#ffedd5", "#9a3412"
             return "#e5e7eb", "#374151"
-        if any(value in normalized for value in ("trim", "reduce", "sell", "required")):
+        if any(
+            value in normalized
+            for value in ("trim", "reduce", "sell", "required", "减仓", "卖出")
+        ):
             return "#ffedd5", "#9a3412"
-        if any(value in normalized for value in ("watch", "new opportunity")):
+        if any(value in normalized for value in ("watch", "new opportunity", "观察")):
             return "#f3e8ff", "#6b21a8"
-        if any(value in normalized for value in ("buy", "add")):
+        if any(value in normalized for value in ("buy", "add", "买入")):
             return "#dcfce7", "#166534"
         return "#e0f2fe", "#075985"
 
     def _recommendation_border_color(self, label: str) -> str:
         normalized = label.strip().lower()
-        if any(value in normalized for value in ("trim", "reduce", "sell", "required")):
+        if any(
+            value in normalized
+            for value in ("trim", "reduce", "sell", "required", "减仓", "卖出")
+        ):
             return "#f97316"
-        if any(value in normalized for value in ("watch", "new opportunity")):
+        if any(value in normalized for value in ("watch", "new opportunity", "观察")):
             return "#a855f7"
-        if any(value in normalized for value in ("buy", "add")):
+        if any(value in normalized for value in ("buy", "add", "买入")):
             return "#22c55e"
         return "#60a5fa"
+
+    def _localized_level(self, value: str) -> str:
+        return {
+            "high": "高",
+            "medium": "中",
+            "low": "低",
+            "none": "无",
+        }.get(str(value).strip().lower(), self._title_value(str(value)))
+
+    def _recommendation_label(self, value: PositionRecommendation | str) -> str:
+        recommendation = (
+            value
+            if isinstance(value, PositionRecommendation)
+            else PositionRecommendation(str(value).strip().lower())
+        )
+        return {
+            PositionRecommendation.BUY_MORE: "买入复核",
+            PositionRecommendation.HOLD: "继续持有",
+            PositionRecommendation.WATCH: "继续观察",
+            PositionRecommendation.TRIM: "减仓复核",
+            PositionRecommendation.SELL: "卖出复核",
+            PositionRecommendation.NO_ACTION: "继续持有",
+        }[recommendation]
+
+    def _localized_recommendation_text(self, value: str) -> str:
+        normalized = str(value).strip().lower().replace(" ", "_")
+        if normalized == "buy":
+            normalized = PositionRecommendation.BUY_MORE.value
+        try:
+            return self._recommendation_label(PositionRecommendation(normalized))
+        except ValueError:
+            return self._title_value(str(value))
+
+    def _privacy_safe_values(self, values: Iterable[str]) -> tuple[str, ...]:
+        return tuple(value for value in values if not _looks_portfolio_sensitive(value))
+
+
+def _first_existing_attr(obj: object, names: Iterable[str]) -> object | None:
+    for name in names:
+        value = getattr(obj, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _format_share_guidance(value: object) -> str:
+    if isinstance(value, tuple | list) and len(value) >= 2:
+        lower = _coerce_positive_float(value[0])
+        upper = _coerce_positive_float(value[1])
+        if lower is not None and upper is not None:
+            return _format_share_range(lower, upper)
+    numeric = _coerce_positive_float(value)
+    if numeric is None:
+        return "具体股数需人工确认"
+    lower, upper = _approximate_share_range(numeric)
+    return _format_share_range(lower, upper)
+
+
+def _format_share_range(lower: float, upper: float) -> str:
+    low = max(1, int(round(min(lower, upper))))
+    high = max(low, int(round(max(lower, upper))))
+    return f"约 {low:g}–{high:g} 股"
+
+
+def _approximate_share_range(value: float) -> tuple[float, float]:
+    if value <= 10:
+        lower = max(1, math.floor(value))
+        upper = max(lower + 1, math.ceil(value))
+        return lower, upper
+    if value <= 100:
+        step = 5 if value <= 50 else 10
+    else:
+        step = 10 if value <= 250 else 25
+    lower = max(step, math.floor(value / step) * step)
+    upper = max(lower + step, math.ceil(value / step) * step)
+    return lower, upper
+
+
+def _format_weight_guidance(value: object) -> str:
+    if isinstance(value, str):
+        text = value.strip()
+        return text or "具体比例需人工确认"
+    if isinstance(value, tuple | list) and len(value) >= 2:
+        lower = _coerce_positive_float(value[0])
+        upper = _coerce_positive_float(value[1])
+        if lower is not None and upper is not None:
+            return f"目标仓位 {_format_percent(lower)}–{_format_percent(upper)}"
+    numeric = _coerce_positive_float(value)
+    if numeric is not None:
+        return f"目标仓位 {_format_percent(numeric)}"
+    return "具体比例需人工确认"
+
+
+def _coerce_positive_float(value: object) -> float | None:
+    try:
+        number = abs(float(value))
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or number <= 0:
+        return None
+    return number
+
+
+def _looks_portfolio_sensitive(value: str) -> bool:
+    normalized = value.lower()
+    sensitive_terms = (
+        "position value",
+        "market value",
+        "total portfolio",
+        "total equity",
+        "total market value",
+        "total cash",
+        "cash balance",
+        "cash:",
+        "shares held",
+        " shares",
+        "$",
+    )
+    return any(term in normalized for term in sensitive_terms)
 
 
 def _format_money(value: float | None) -> str:

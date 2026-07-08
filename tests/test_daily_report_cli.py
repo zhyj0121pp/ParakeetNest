@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from parakeetnest.cli import daily_report
+from parakeetnest.config import get_settings
 from parakeetnest.research import ReportBodyFormat, ReportMode
 
 
@@ -144,6 +145,25 @@ class RecordingReportDeliveryProvider:
         return object()
 
 
+def _assert_html_attachment_delivery(
+    request: object,
+    *,
+    recipient: str,
+    report_date: str,
+    html_report: str,
+) -> None:
+    assert request.recipient.email == recipient
+    assert request.body == (
+        "Morning Investment Report\n"
+        f"Date: {report_date}\n"
+        f"Full report is attached: morning-report-{report_date}.html\n"
+    )
+    assert request.content_type == "text/plain"
+    assert request.attachments[0].filename == f"morning-report-{report_date}.html"
+    assert request.attachments[0].content == html_report
+    assert request.attachments[0].content_type == "text/html"
+
+
 @pytest.fixture
 def recording_app(monkeypatch: pytest.MonkeyPatch) -> RecordingApp:
     app = RecordingApp()
@@ -261,16 +281,20 @@ def test_cli_prints_report_to_stdout_without_default_file(
     assert composer.calls[0]["mode"] is ReportMode.MORNING
 
 
-def test_cli_invokes_email_service_when_email_is_specified(
+def test_cli_invokes_report_delivery_when_email_is_specified(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
     delivery_provider = RecordingReportDeliveryProvider()
     recording_app.report_delivery_provider = delivery_provider
+    html_report = "<!doctype html>\n<html><body>Market Summary</body></html>\n"
     composer = RecordingComposer(
         "Market Summary\n",
-        html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
+        html_body=html_report,
     )
 
     monkeypatch.setattr(
@@ -279,31 +303,29 @@ def test_cli_invokes_email_service_when_email_is_specified(
         lambda **kwargs: composer,
     )
 
-    exit_code = daily_report.main(
-        [
-            "--tickers",
-            "NVDA",
-            "--as-of-date",
-            "2026-07-01",
-            "--email",
-            "investor@example.com",
-        ]
-    )
+    try:
+        exit_code = daily_report.main(
+            [
+                "--tickers",
+                "NVDA",
+                "--as-of-date",
+                "2026-07-01",
+                "--email",
+                "investor@example.com",
+            ]
+        )
+    finally:
+        get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == (
-        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
-    )
+    assert capsys.readouterr().out == html_report
     assert len(delivery_provider.requests) == 1
-    request = delivery_provider.requests[0]
-    assert request.recipient.email == "investor@example.com"
-    assert request.body.startswith("Morning Investment Report\nDate: 2026-07-01")
-    assert request.content_type == "text/plain"
-    assert request.attachments[0].filename == "morning-report-2026-07-01.html"
-    assert request.attachments[0].content == (
-        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    _assert_html_attachment_delivery(
+        delivery_provider.requests[0],
+        recipient="investor@example.com",
+        report_date="2026-07-01",
+        html_report=html_report,
     )
-    assert request.attachments[0].content_type == "text/html"
 
 
 def test_cli_sends_report_through_app_email_provider(
@@ -311,117 +333,70 @@ def test_cli_sends_report_through_app_email_provider(
     capsys: pytest.CaptureFixture[str],
     recording_app: RecordingApp,
 ) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    delivery_provider = RecordingReportDeliveryProvider()
+    recording_app.report_delivery_provider = delivery_provider
+    html_report = (
+        "<!doctype html>\n"
+        "<html><body>Market Summary Committee Consensus</body></html>\n"
+    )
     composer = RecordingComposer(
         "Market Summary\nCommittee Consensus\n",
-        html_body=(
-            "<!doctype html>\n"
-            "<html><body>Market Summary Committee Consensus</body></html>\n"
-        ),
+        html_body=html_report,
     )
-    sent: list[dict[str, object]] = []
-
-    class RecordingEmailService:
-        def __init__(self, provider: object) -> None:
-            self.provider = provider
-
-        def send(
-            self,
-            report: str,
-            *,
-            recipient: str,
-            as_of_date: date | None = None,
-            mode: ReportMode | str | None = None,
-            content_type: str = "text/plain",
-        ) -> None:
-            sent.append(
-                {
-                    "provider": self.provider,
-                    "report": report,
-                    "recipient": recipient,
-                    "as_of_date": as_of_date,
-                    "mode": mode,
-                    "content_type": content_type,
-                }
-            )
 
     monkeypatch.setattr(
         daily_report,
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
 
-    exit_code = daily_report.main(
-        [
-            "--mode",
-            "evening",
-            "--tickers",
-            "NVDA",
-            "--as-of-date",
-            "2026-07-01",
-            "--email",
-            "investor@example.com",
-        ]
-    )
+    try:
+        exit_code = daily_report.main(
+            [
+                "--mode",
+                "evening",
+                "--tickers",
+                "NVDA",
+                "--as-of-date",
+                "2026-07-01",
+                "--email",
+                "investor@example.com",
+            ]
+        )
+    finally:
+        get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == (
-        "<!doctype html>\n"
-        "<html><body>Market Summary Committee Consensus</body></html>\n"
+    assert capsys.readouterr().out == html_report
+    assert len(delivery_provider.requests) == 1
+    _assert_html_attachment_delivery(
+        delivery_provider.requests[0],
+        recipient="investor@example.com",
+        report_date="2026-07-01",
+        html_report=html_report,
     )
-    assert sent == [
-        {
-            "provider": recording_app.email_provider,
-            "report": (
-                "<!doctype html>\n"
-                "<html><body>Market Summary Committee Consensus</body></html>\n"
-            ),
-            "recipient": "investor@example.com",
-            "as_of_date": date(2026, 7, 1),
-            "mode": ReportMode.EVENING,
-            "content_type": "text/html",
-        }
-    ]
 
 
 def test_cli_uses_configured_report_recipient_when_email_is_omitted(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    email_provider = object()
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    delivery_provider = RecordingReportDeliveryProvider()
     app = RecordingApp(
-        email_provider=email_provider,
+        report_delivery_provider=delivery_provider,
         report_recipient_email="configured@example.com",
     )
+    html_report = "<!doctype html>\n<html><body>Market Summary</body></html>\n"
     composer = RecordingComposer(
         "Market Summary\n",
-        html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
+        html_body=html_report,
     )
-    sent: list[dict[str, object]] = []
-
-    class RecordingEmailService:
-        def __init__(self, provider: object) -> None:
-            self.provider = provider
-
-        def send(
-            self,
-            report: str,
-            *,
-            recipient: str,
-            as_of_date: date | None = None,
-            mode: ReportMode | str | None = None,
-            content_type: str = "text/plain",
-        ) -> None:
-            sent.append(
-                {
-                    "provider": self.provider,
-                    "report": report,
-                    "recipient": recipient,
-                    "as_of_date": as_of_date,
-                    "mode": mode,
-                    "content_type": content_type,
-                }
-            )
 
     monkeypatch.setattr(daily_report, "create_app", lambda config: app)
     monkeypatch.setattr(
@@ -429,24 +404,23 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
 
-    exit_code = daily_report.main(["--tickers", "NVDA"])
+    try:
+        exit_code = daily_report.main(
+            ["--tickers", "NVDA", "--as-of-date", "2026-07-01"]
+        )
+    finally:
+        get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == (
-        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    assert capsys.readouterr().out == html_report
+    assert len(delivery_provider.requests) == 1
+    _assert_html_attachment_delivery(
+        delivery_provider.requests[0],
+        recipient="configured@example.com",
+        report_date="2026-07-01",
+        html_report=html_report,
     )
-    assert sent == [
-        {
-            "provider": email_provider,
-            "report": "<!doctype html>\n<html><body>Market Summary</body></html>\n",
-            "recipient": "configured@example.com",
-            "as_of_date": None,
-            "mode": ReportMode.MORNING,
-            "content_type": "text/html",
-        }
-    ]
 
 
 def test_cli_does_not_send_email_when_email_is_omitted(
@@ -458,21 +432,12 @@ def test_cli_does_not_send_email_when_email_is_omitted(
         "Market Summary\n",
         html_body="<!doctype html>\n<html><body>Market Summary</body></html>\n",
     )
-    sent: list[object] = []
-
-    class RecordingEmailService:
-        def __init__(self, provider: object) -> None:
-            self.provider = provider
-
-        def send(self, *args: object, **kwargs: object) -> None:
-            sent.append((args, kwargs))
 
     monkeypatch.setattr(
         daily_report,
         "DailyInvestmentReportComposer",
         lambda **kwargs: composer,
     )
-    monkeypatch.setattr(daily_report, "EmailService", RecordingEmailService)
 
     exit_code = daily_report.main(["--tickers", "NVDA"])
 
@@ -480,7 +445,7 @@ def test_cli_does_not_send_email_when_email_is_omitted(
     assert capsys.readouterr().out == (
         "<!doctype html>\n<html><body>Market Summary</body></html>\n"
     )
-    assert sent == []
+    assert recording_app.report_delivery_provider is None
 
 
 def test_cli_dispatches_morning_mode(

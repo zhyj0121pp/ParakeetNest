@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
+import pytest
+
+from parakeetnest.config import get_settings
 from parakeetnest.research import (
     DailyInvestmentReportComposer,
     InvestmentResearchReport,
@@ -18,6 +21,15 @@ from parakeetnest.research import (
 
 GENERATED_AT = datetime(2026, 7, 1, 15, 0, tzinfo=UTC)
 AS_OF_DATE = date(2026, 7, 1)
+
+
+@pytest.fixture(autouse=True)
+def _english_report_language(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 class FakeResearchService:

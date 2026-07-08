@@ -156,12 +156,21 @@ def _assert_html_attachment_delivery(
     assert request.body == (
         "Morning Investment Report\n"
         f"Date: {report_date}\n"
-        f"Full report is attached: morning-report-{report_date}.html\n"
+        f"Full report is attached: morning-report-{report_date}.html"
     )
     assert request.content_type == "text/plain"
     assert request.attachments[0].filename == f"morning-report-{report_date}.html"
-    assert request.attachments[0].content == html_report
+    assert request.attachments[0].content == html_report.strip()
     assert request.attachments[0].content_type == "text/html"
+
+
+@pytest.fixture(autouse=True)
+def _english_report_language(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture

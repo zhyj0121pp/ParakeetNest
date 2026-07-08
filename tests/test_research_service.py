@@ -235,11 +235,19 @@ def test_all_committee_opinions_include_daily_report_reasoning_fields() -> None:
     assert report.committee_consensus.todays_suggested_actions
 
 
-def test_committee_opinions_keep_persona_specific_lenses() -> None:
+def test_committee_opinions_keep_persona_specific_lenses(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
     service = InvestmentResearchService()
 
-    report = service.generate_report(("NVDA",), generated_at=AS_OF)
-    opinions = {opinion.display_name: opinion for opinion in report.committee_opinions}
+    try:
+        report = service.generate_report(("NVDA",), generated_at=AS_OF)
+        opinions = {
+            opinion.display_name: opinion for opinion in report.committee_opinions
+        }
+    finally:
+        get_settings.cache_clear()
 
     assert opinions["Dongdong"].stance == "neutral"
     assert "upside" in opinions["Dongdong"].reasoning_summary

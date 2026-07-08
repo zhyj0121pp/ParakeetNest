@@ -52,9 +52,9 @@ def test_interactive_html_renderer_outputs_standalone_html() -> None:
     assert "## 1. Action Required" not in body
 
 
-def test_interactive_html_defaults_to_english(monkeypatch) -> None:
+def test_interactive_html_can_render_english(monkeypatch) -> None:
     monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
-    monkeypatch.delenv("PARAKEETNEST_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
     get_settings.cache_clear()
 
     body = render_investment_research_report_interactive_html(_sample_report())

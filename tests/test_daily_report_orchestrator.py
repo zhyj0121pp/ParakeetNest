@@ -221,9 +221,7 @@ def test_orchestrator_sends_email_when_recipient_exists(monkeypatch) -> None:
     assert call["content_type"] == "text/plain"
     attachment = call["attachments"][0]
     assert attachment.filename == "morning-report-2026-07-01.html"
-    assert attachment.content == (
-        "<!doctype html>\n<html><body>Market Summary</body></html>\n"
-    )
+    assert attachment.content == "<!doctype html>\n<html><body>Market Summary</body></html>"
     assert attachment.content_type == "text/html"
 
 

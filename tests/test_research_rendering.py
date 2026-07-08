@@ -47,6 +47,7 @@ def test_interactive_html_renderer_outputs_standalone_html() -> None:
         _sample_report()
     )
     assert body.startswith("<!doctype html>\n<html>\n")
+    assert '<meta charset="utf-8">' in body
     assert "<body style=" in body
     assert body.endswith("</html>\n")
     assert "## 1. Action Required" not in body

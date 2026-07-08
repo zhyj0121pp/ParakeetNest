@@ -102,6 +102,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         sections = [
             "<!doctype html>",
             "<html>",
+            '<head><meta charset="utf-8"></head>',
             (
                 '<body style="font-family: -apple-system, BlinkMacSystemFont, '
                 "Segoe UI, Arial, sans-serif; color: #111827; line-height: 1.5; "

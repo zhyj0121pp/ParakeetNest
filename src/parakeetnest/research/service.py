@@ -26,6 +26,7 @@ from parakeetnest.research.models import (
     ReportMode,
     ResearchCatalyst,
     ResearchFinding,
+    ResearchPositionDecision,
     ResearchRisk,
     ResearchTickerReport,
 )
@@ -169,6 +170,13 @@ class InvestmentResearchService:
             evidence_notes=evidence_notes,
         )
         committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
+        position_committee_reviews = tuple(
+            self._build_position_committee_review(
+                ticker_report,
+                dependency_notes=dependency_notes,
+            )
+            for ticker_report in ticker_reports
+        )
         return InvestmentResearchReport(
             ticker_reports=ticker_reports,
             mode=report_mode,
@@ -185,6 +193,7 @@ class InvestmentResearchService:
                 ticker_reports,
                 language=prompt_contexts[0].report_language if prompt_contexts else None,
             ),
+            position_committee_reviews=position_committee_reviews,
             source_summaries=source_summaries,
             evidence_notes=evidence_notes,
         )
@@ -205,6 +214,52 @@ class InvestmentResearchService:
             findings=findings,
             source_summaries=_source_summaries(inputs),
             evidence_notes=(),
+        )
+
+    def _build_position_committee_review(
+        self,
+        ticker_report: ResearchTickerReport,
+        *,
+        dependency_notes: tuple[str, ...],
+    ) -> ResearchPositionDecision:
+        ticker_reports = (ticker_report,)
+        market_summary = _market_summary(ticker_reports)
+        portfolio_review = _portfolio_review(
+            ticker_reports,
+            has_portfolio=self._has_portfolio_context(),
+        )
+        watchlist_review = _watchlist_review(
+            ticker_reports,
+            has_watchlist=self._watchlist_service is not None,
+        )
+        evidence_notes = _unique(dependency_notes + ticker_report.evidence_notes)
+        prompt_contexts = _build_committee_prompt_contexts(
+            self._committee_service,
+            ticker_reports,
+            market_summary=market_summary,
+            portfolio_review=portfolio_review,
+            watchlist_review=watchlist_review,
+            evidence_notes=evidence_notes,
+        )
+        committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
+        opinions = self._judgment_service.build_opinions(
+            committee_prompts,
+            ticker_reports,
+        )
+        consensus = self._judgment_service.build_consensus(
+            ticker_reports,
+            language=prompt_contexts[0].report_language if prompt_contexts else None,
+        )
+        return ResearchPositionDecision(
+            ticker=ticker_report.ticker,
+            dongdong_opinion=_opinion_text(opinions, "dongdong"),
+            xixi_opinion=_opinion_text(opinions, "xixi"),
+            youyou_opinion=_opinion_text(opinions, "youyou"),
+            consensus=consensus,
+            recommendation=consensus.final_action,
+            confidence=consensus.confidence,
+            rationale=consensus.rationale,
+            evidence=_ticker_evidence(ticker_report),
         )
 
     def _get_portfolio_snapshot(self, account_id: str | None) -> Any | None:
@@ -579,6 +634,28 @@ def _build_committee_prompt_contexts(
             advisory_only_disclaimer=ADVISORY_ONLY_DISCLAIMER,
         )
         for member in committee_service.daily_investment_committee()
+    )
+
+
+def _opinion_text(
+    opinions: tuple[Any, ...],
+    persona_id: str,
+) -> str:
+    for opinion in opinions:
+        if getattr(opinion, "persona_id", "") == persona_id:
+            return str(getattr(opinion, "reasoning_summary", "")).strip()
+    return "Committee opinion is unavailable for this ticker."
+
+
+def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
+    return _unique(
+        tuple(finding.summary for finding in ticker_report.findings)
+        + ticker_report.bull_case
+        + ticker_report.bear_case
+        + tuple(risk.summary for risk in ticker_report.risks)
+        + tuple(catalyst.summary for catalyst in ticker_report.catalysts)
+        + ticker_report.source_summaries
+        + ticker_report.evidence_notes
     )
 
 

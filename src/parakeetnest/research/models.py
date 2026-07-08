@@ -288,6 +288,58 @@ class ResearchCommitteeConsensus:
 
 
 @dataclass(frozen=True)
+class ResearchPositionDecision:
+    """Per-ticker committee review for daily research report cards."""
+
+    ticker: str
+    dongdong_opinion: str
+    xixi_opinion: str
+    youyou_opinion: str
+    consensus: ResearchCommitteeConsensus
+    recommendation: str
+    confidence: str
+    rationale: str
+    evidence: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "ticker", _normalize_ticker(self.ticker))
+        object.__setattr__(
+            self,
+            "dongdong_opinion",
+            _required_text(self.dongdong_opinion, "dongdong_opinion"),
+        )
+        object.__setattr__(
+            self,
+            "xixi_opinion",
+            _required_text(self.xixi_opinion, "xixi_opinion"),
+        )
+        object.__setattr__(
+            self,
+            "youyou_opinion",
+            _required_text(self.youyou_opinion, "youyou_opinion"),
+        )
+        object.__setattr__(self, "consensus", self.consensus)
+        recommendation = _required_text(self.recommendation, "recommendation").lower()
+        if recommendation not in {"buy", "hold", "watch", "reduce", "sell"}:
+            raise ValueError(
+                "position decision recommendation must be buy, hold, watch, reduce, or sell"
+            )
+        confidence = _required_text(self.confidence, "confidence").lower()
+        if confidence not in {"high", "medium", "low"}:
+            raise ValueError("position decision confidence must be high, medium, or low")
+        object.__setattr__(self, "recommendation", recommendation)
+        object.__setattr__(self, "confidence", confidence)
+        object.__setattr__(
+            self,
+            "rationale",
+            _required_text(self.rationale, "rationale"),
+        )
+        object.__setattr__(self, "evidence", _normalize_text_tuple(self.evidence))
+        if not self.evidence:
+            raise ValueError("position decision evidence is required")
+
+
+@dataclass(frozen=True)
 class InvestmentResearchReport:
     """Top-level daily investment research report payload."""
 
@@ -314,6 +366,9 @@ class InvestmentResearchReport:
             final_risk_posture="Advisory only; human investor makes the final decision.",
             todays_suggested_actions=("Review evidence before making any decision.",),
         )
+    )
+    position_committee_reviews: tuple[ResearchPositionDecision, ...] = field(
+        default_factory=tuple
     )
     position_decisions: tuple[PositionDecision, ...] = field(default_factory=tuple)
     portfolio_decision_summary: PortfolioDecisionSummary | None = None
@@ -361,6 +416,11 @@ class InvestmentResearchReport:
             self,
             "committee_consensus",
             self.committee_consensus,
+        )
+        object.__setattr__(
+            self,
+            "position_committee_reviews",
+            tuple(self.position_committee_reviews),
         )
         object.__setattr__(
             self,
@@ -426,6 +486,7 @@ __all__ = [
     "ResearchCommitteeOpinion",
     "ResearchCommitteePortfolioView",
     "ResearchFinding",
+    "ResearchPositionDecision",
     "ResearchRisk",
     "ResearchTickerReport",
 ]

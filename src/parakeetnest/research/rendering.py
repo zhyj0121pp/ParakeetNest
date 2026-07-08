@@ -14,6 +14,7 @@ from parakeetnest.models import (
 )
 from parakeetnest.research.models import (
     InvestmentResearchReport,
+    ResearchPositionDecision,
     ResearchTickerReport,
 )
 from parakeetnest.research.localization import (
@@ -57,6 +58,15 @@ class _InvestmentResearchReportFormattingHelpers:
         for opinion in report.committee_opinions:
             opinions[opinion.persona_id] = opinion.reasoning_summary
         return opinions
+
+    def _position_committee_review_lookup(
+        self,
+        report: InvestmentResearchReport,
+    ) -> dict[str, ResearchPositionDecision]:
+        return {
+            review.ticker: review
+            for review in report.position_committee_reviews
+        }
 
     def _ticker_evidence(self, ticker_report: ResearchTickerReport) -> tuple[str, ...]:
         evidence: list[str] = []
@@ -216,8 +226,14 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             )
         else:
             opinions = self._committee_opinion_lookup(report)
+            position_reviews = self._position_committee_review_lookup(report)
             cards.extend(
-                self._render_html_ticker_card(ticker_report, report, opinions)
+                self._render_html_ticker_card(
+                    ticker_report,
+                    report,
+                    opinions,
+                    position_reviews.get(ticker_report.ticker),
+                )
                 for ticker_report in report.ticker_reports
             )
         if not cards:
@@ -299,17 +315,48 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         ticker_report: ResearchTickerReport,
         report: InvestmentResearchReport,
         opinions: dict[str, str],
+        position_review: ResearchPositionDecision | None,
     ) -> str:
         l10n = self._localization
+        recommendation_value = (
+            position_review.recommendation
+            if position_review is not None
+            else report.committee_consensus.final_action
+        )
+        confidence_value = (
+            position_review.confidence
+            if position_review is not None
+            else report.committee_consensus.confidence
+        )
+        rationale = (
+            position_review.rationale
+            if position_review is not None
+            else report.committee_consensus.rationale
+        )
+        dongdong_opinion = (
+            position_review.dongdong_opinion
+            if position_review is not None
+            else opinions.get("dongdong")
+        )
+        xixi_opinion = (
+            position_review.xixi_opinion
+            if position_review is not None
+            else opinions.get("xixi")
+        )
+        youyou_opinion = (
+            position_review.youyou_opinion
+            if position_review is not None
+            else opinions.get("youyou")
+        )
         recommendation = self._localized_recommendation_text(
-            report.committee_consensus.final_action
+            recommendation_value
         )
         badges = [
             self._html_badge(recommendation, kind="recommendation"),
             self._html_badge(
                 self._label_value_badge(
                     l10n.confidence,
-                    report.committee_consensus.confidence,
+                    confidence_value,
                 ),
                 kind="confidence",
             ),
@@ -324,28 +371,32 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                     self._html_field(l10n.recommendation, recommendation),
                     self._html_field(
                         l10n.confidence,
-                        self._localized_level(report.committee_consensus.confidence),
+                        self._localized_level(confidence_value),
                     ),
                     self._html_field(l10n.rationale, ticker_report.summary),
                     self._html_field(
                         l10n.final_consensus,
                         (
-                            f"{report.committee_consensus.rationale} "
+                            f"{rationale} "
                             f"{l10n.no_automatic_action_review_recommended}"
                         ),
                     ),
-                    self._html_field(l10n.dongdong, opinions.get("dongdong")),
-                    self._html_field(l10n.xixi, opinions.get("xixi")),
-                    self._html_field(l10n.youyou, opinions.get("youyou")),
+                    self._html_field(l10n.dongdong, dongdong_opinion),
+                    self._html_field(l10n.xixi, xixi_opinion),
+                    self._html_field(l10n.youyou, youyou_opinion),
                     self._html_details(
                         l10n.factual_evidence,
                         [
-                            self._html_field(l10n.dongdong, opinions.get("dongdong")),
-                            self._html_field(l10n.xixi, opinions.get("xixi")),
-                            self._html_field(l10n.youyou, opinions.get("youyou")),
+                            self._html_field(l10n.dongdong, dongdong_opinion),
+                            self._html_field(l10n.xixi, xixi_opinion),
+                            self._html_field(l10n.youyou, youyou_opinion),
                             self._html_list(
                                 self._privacy_safe_values(
-                                    self._ticker_evidence(ticker_report)
+                                    (
+                                        position_review.evidence
+                                        if position_review is not None
+                                        else self._ticker_evidence(ticker_report)
+                                    )
                                 )
                             ),
                         ],
@@ -452,6 +503,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         items = [
             report.market_summary,
             f"{l10n.portfolio_context}: {report.portfolio_review}",
+            f"{l10n.final_consensus}: {report.committee_consensus.rationale}",
         ]
         if report.portfolio_decision_summary is not None:
             items.append(

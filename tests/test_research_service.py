@@ -235,6 +235,42 @@ def test_all_committee_opinions_include_daily_report_reasoning_fields() -> None:
     assert report.committee_consensus.todays_suggested_actions
 
 
+def test_generate_report_builds_per_position_committee_reviews(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    service = InvestmentResearchService()
+
+    try:
+        report = service.generate_report(("AAPL", "MSFT"), generated_at=AS_OF)
+    finally:
+        get_settings.cache_clear()
+
+    assert tuple(review.ticker for review in report.position_committee_reviews) == (
+        "AAPL",
+        "MSFT",
+    )
+    reviews = {
+        review.ticker: review
+        for review in report.position_committee_reviews
+    }
+    assert "AAPL" in reviews["AAPL"].dongdong_opinion
+    assert "MSFT" not in reviews["AAPL"].dongdong_opinion
+    assert "AAPL" in reviews["AAPL"].xixi_opinion
+    assert "MSFT" not in reviews["AAPL"].xixi_opinion
+    assert "AAPL" in reviews["AAPL"].youyou_opinion
+    assert "MSFT" not in reviews["AAPL"].youyou_opinion
+    assert "MSFT" in reviews["MSFT"].dongdong_opinion
+    assert "AAPL" not in reviews["MSFT"].dongdong_opinion
+    assert "MSFT" in reviews["MSFT"].xixi_opinion
+    assert "AAPL" not in reviews["MSFT"].xixi_opinion
+    assert "MSFT" in reviews["MSFT"].youyou_opinion
+    assert "AAPL" not in reviews["MSFT"].youyou_opinion
+    assert "across 1 ticker(s)" in reviews["AAPL"].rationale
+    assert "across 1 ticker(s)" in reviews["MSFT"].rationale
+    assert "across 2 ticker(s)" in report.committee_consensus.rationale
+
+
 def test_committee_opinions_keep_persona_specific_lenses(monkeypatch) -> None:
     monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
     monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")

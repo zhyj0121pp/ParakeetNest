@@ -20,6 +20,7 @@ from parakeetnest.decision import (
 )
 from parakeetnest.research import (
     InteractiveHtmlInvestmentResearchReportRenderer,
+    InvestmentResearchService,
     InvestmentResearchReport,
     ReportMode,
     ResearchCatalyst,
@@ -65,6 +66,45 @@ def test_interactive_html_can_render_english(monkeypatch) -> None:
     assert "<strong>Recommendation:</strong> Trim" in body
     assert "<strong>Confidence:</strong> High" in body
     assert "This report is advisory guidance only." in body
+    get_settings.cache_clear()
+
+
+def test_interactive_html_position_cards_use_per_position_committee_reviews(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    report = InvestmentResearchService().generate_report(
+        ("AAPL", "MSFT"),
+        generated_at=GENERATED_AT,
+    )
+
+    body = render_investment_research_report_interactive_html(report)
+    position_cards = _section(
+        body,
+        f"{HTML_H2_STYLE}2. Position Cards</h2>",
+        f"{HTML_H2_STYLE}3. Stable Holdings</h2>",
+    )
+    aapl_card = _section(position_cards, "AAPL -", "MSFT -")
+    msft_card = _section(position_cards, "MSFT -", None)
+
+    assert "<strong>Dongdong:</strong>" in aapl_card
+    assert "<strong>Xixi:</strong>" in aapl_card
+    assert "<strong>Youyou:</strong>" in aapl_card
+    assert "AAPL:" in aapl_card
+    assert "MSFT" not in aapl_card
+    assert "across 2 ticker(s)" not in aapl_card
+    assert "<strong>Dongdong:</strong>" in msft_card
+    assert "<strong>Xixi:</strong>" in msft_card
+    assert "<strong>Youyou:</strong>" in msft_card
+    assert "MSFT:" in msft_card
+    assert "AAPL" not in msft_card
+    assert "across 2 ticker(s)" not in msft_card
+    assert "across 2 ticker(s)" in body
+    assert body.index("across 2 ticker(s)") > body.index(
+        f"{HTML_H2_STYLE}5. Market Overview</h2>"
+    )
     get_settings.cache_clear()
 
 

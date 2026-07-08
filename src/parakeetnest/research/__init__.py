@@ -33,6 +33,7 @@ from parakeetnest.research.models import (
     ResearchCommitteeOpinion,
     ResearchCommitteePortfolioView,
     ResearchFinding,
+    ResearchPositionDecision,
     ResearchRisk,
     ResearchTickerReport,
 )
@@ -66,6 +67,7 @@ __all__ = [
     "ResearchCommitteeOpinion",
     "ResearchCommitteePortfolioView",
     "ResearchFinding",
+    "ResearchPositionDecision",
     "ResearchRisk",
     "ResearchTickerReport",
     "compose_daily_investment_report",

@@ -12,6 +12,10 @@ from parakeetnest.committee.personas import (
     CommitteePersona,
 )
 from parakeetnest.models import PositionContext, PositionRecommendation
+from parakeetnest.portfolio.privacy import (
+    PortfolioPositionContext,
+    PortfolioSummary,
+)
 
 
 ADVISORY_ONLY_DISCLAIMER = (
@@ -52,6 +56,11 @@ class CommitteePromptContext:
     evidence_notes: tuple[str, ...]
     key_risks: tuple[str, ...]
     upcoming_catalysts: tuple[str, ...]
+    portfolio_summary: PortfolioSummary | None = None
+    position_context: PortfolioPositionContext | None = None
+    public_market_facts: tuple[str, ...] = field(default_factory=tuple)
+    company_facts: tuple[str, ...] = field(default_factory=tuple)
+    macro_facts: tuple[str, ...] = field(default_factory=tuple)
     advisory_only_disclaimer: str = ADVISORY_ONLY_DISCLAIMER
     report_language: object | str = field(default_factory=_configured_report_language)
 
@@ -91,6 +100,21 @@ class CommitteePromptContext:
             self,
             "upcoming_catalysts",
             _normalize_text_tuple(self.upcoming_catalysts),
+        )
+        object.__setattr__(
+            self,
+            "public_market_facts",
+            _normalize_text_tuple(self.public_market_facts),
+        )
+        object.__setattr__(
+            self,
+            "company_facts",
+            _normalize_text_tuple(self.company_facts),
+        )
+        object.__setattr__(
+            self,
+            "macro_facts",
+            _normalize_text_tuple(self.macro_facts),
         )
         object.__setattr__(
             self,
@@ -227,6 +251,18 @@ class PersonaDrivenCommitteePromptBuilder:
                 "- Upcoming catalysts:",
                 *_render_items(context.upcoming_catalysts),
                 "",
+                "PUBLIC FACTS",
+                "- Yahoo / market data facts:",
+                *_render_items(context.public_market_facts),
+                "- SEC EDGAR facts:",
+                *_render_items(context.company_facts),
+                "- FRED macro facts:",
+                *_render_items(context.macro_facts),
+                "",
+                "PRIVATE PORTFOLIO CONTEXT, BUCKETED",
+                *_render_portfolio_summary(context.portfolio_summary),
+                *_render_position_context(context.position_context),
+                "",
                 "Advisory Boundary",
                 f"- {context.advisory_only_disclaimer}",
                 "",
@@ -326,14 +362,6 @@ class PersonaDrivenPositionReviewPromptBuilder:
                 "Position Context",
                 f"- Symbol: {context.symbol}",
                 f"- Company name: {context.company_name}",
-                f"- Quantity: {context.quantity:g}",
-                f"- Market value: {context.market_value:g}",
-                f"- Portfolio weight: {context.portfolio_weight:g}",
-                f"- Cost basis: {_format_optional_number(context.cost_basis)}",
-                (
-                    "- Unrealized gain/loss: "
-                    f"{_format_optional_number(context.unrealized_gain_loss)}"
-                ),
                 f"- Current price: {_format_optional_number(context.current_price)}",
                 (
                     "- Recent price change: "
@@ -387,6 +415,39 @@ def _render_items(values: tuple[str, ...]) -> list[str]:
     if not normalized:
         return ["  - None supplied."]
     return [f"  - {value}" for value in normalized]
+
+
+def _render_portfolio_summary(summary: PortfolioSummary | None) -> list[str]:
+    if summary is None:
+        return ["- Portfolio summary: None supplied."]
+    return [
+        f"- Portfolio privacy level: {summary.privacy_level}",
+        f"- Number of positions: {summary.number_of_positions}",
+        f"- Cash allocation bucket: {summary.cash_allocation_bucket}",
+        f"- Concentration level: {summary.concentration_level}",
+        f"- Largest position bucket: {summary.largest_position_bucket}",
+        f"- Top 5 concentration bucket: {summary.top5_concentration_bucket}",
+        f"- Dominant sector: {summary.dominant_sector or 'unknown'}",
+        f"- Style exposure: {summary.style_exposure}",
+    ]
+
+
+def _render_position_context(
+    context: PortfolioPositionContext | None,
+) -> list[str]:
+    if context is None:
+        return ["- Position context: None supplied."]
+    return [
+        f"- Ticker: {context.ticker}",
+        f"- Privacy level: {context.privacy_level}",
+        f"- Is holding: {context.is_holding}",
+        f"- Position size bucket: {context.position_size_bucket}",
+        f"- Portfolio rank bucket: {context.portfolio_rank_bucket}",
+        f"- Unrealized return bucket: {context.unrealized_return_bucket}",
+        f"- Holding role: {context.holding_role}",
+        f"- Add allowed: {context.add_allowed}",
+        f"- Trim candidate: {context.trim_candidate}",
+    ]
 
 
 def _format_optional_number(value: float | None) -> str:

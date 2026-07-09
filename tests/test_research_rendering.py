@@ -33,6 +33,7 @@ from parakeetnest.research import (
     render_investment_research_report_interactive_html,
 )
 from parakeetnest.config import get_settings
+from parakeetnest.portfolio import PortfolioPositionContext, PortfolioSummary
 
 
 GENERATED_AT = datetime(2026, 7, 1, 15, 0, tzinfo=UTC)
@@ -257,6 +258,43 @@ def test_interactive_html_contains_progressive_details_sections() -> None:
     assert "展开原始证据" in body
 
 
+def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_context() -> None:
+    report = replace(_sample_report(), position_decisions=())
+    body = render_investment_research_report_interactive_html(
+        report,
+        language="en",
+    )
+    card = _section(
+        body,
+        '<details style="background: #ffffff;',
+        f"{HTML_H2_STYLE}3. New Opportunities</h2>",
+    )
+
+    assert "Public facts" in card
+    assert "Portfolio context, privacy-safe" in card
+    assert "Yahoo/market_data: NVDA price=204.12" in card
+    assert "SEC EDGAR: NVDA 10-Q" in card
+    assert "FRED/macro: Fed Funds 3.5" in card
+    assert "position size bucket: large" in card
+    assert "rank bucket: largest" in card
+    assert "return bucket: gain" in card
+    assert "add allowed: False" in card
+    assert "trim candidate: True" in card
+
+    forbidden = (
+        "Quantity",
+        "Market value",
+        "Cost basis",
+        "Average cost",
+        "account_id",
+        "1234",
+        "1840",
+        "820",
+        "0.25",
+    )
+    assert all(term not in card for term in forbidden)
+
+
 def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
     body = render_investment_research_report_interactive_html(
         _sample_report(),
@@ -469,6 +507,28 @@ def _sample_report(
         ),
         source_summaries=("portfolio: current holding facts",),
         evidence_notes=("Existing portfolio holding.",),
+        portfolio_summary=PortfolioSummary(
+            number_of_positions=12,
+            cash_allocation_bucket="low",
+            concentration_level="high",
+            largest_position_bucket="large",
+            top5_concentration_bucket="high",
+            dominant_sector="Technology",
+            style_exposure="growth_tilt",
+        ),
+        position_context=PortfolioPositionContext(
+            ticker="NVDA",
+            is_holding=True,
+            position_size_bucket="large",
+            portfolio_rank_bucket="largest",
+            unrealized_return_bucket="gain",
+            holding_role="core_holding",
+            add_allowed=False,
+            trim_candidate=True,
+        ),
+        public_market_facts=("Yahoo/market_data: NVDA price=204.12",),
+        company_facts=("SEC EDGAR: NVDA 10-Q",),
+        macro_facts=("FRED/macro: Fed Funds 3.5",),
     )
     aapl = ResearchTickerReport(
         ticker="AAPL",

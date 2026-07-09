@@ -40,6 +40,18 @@ class _InvestmentResearchReportFormattingHelpers:
                 lines.extend(
                     f"    - Evidence note: {note}" for note in finding.evidence_notes
                 )
+            lines.extend(
+                f"  - Public market fact: {fact}"
+                for fact in ticker_report.public_market_facts
+            )
+            lines.extend(
+                f"  - Company fact: {fact}" for fact in ticker_report.company_facts
+            )
+            lines.extend(f"  - Macro fact: {fact}" for fact in ticker_report.macro_facts)
+            lines.extend(
+                f"  - Privacy-safe portfolio context: {line}"
+                for line in _portfolio_context_lines(ticker_report)
+            )
             for risk in ticker_report.risks:
                 if risk.evidence_notes:
                     lines.append(f"  - Risk: {risk.summary}")
@@ -87,6 +99,10 @@ class _InvestmentResearchReportFormattingHelpers:
             evidence.extend(
                 f"{finding.source}: {note}" for note in finding.evidence_notes
             )
+        evidence.extend(ticker_report.public_market_facts)
+        evidence.extend(ticker_report.company_facts)
+        evidence.extend(ticker_report.macro_facts)
+        evidence.extend(_portfolio_context_lines(ticker_report))
         for risk in ticker_report.risks:
             if risk.evidence_notes:
                 evidence.append(f"risk: {risk.summary}")
@@ -406,6 +422,8 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                             (l10n.youyou, youyou_opinion),
                         )
                     ),
+                    self._render_html_public_facts(ticker_report),
+                    self._render_html_portfolio_context(ticker_report),
                     self._html_details(
                         l10n.factual_evidence,
                         [
@@ -422,6 +440,60 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                     ),
                 ]
             ),
+        )
+
+    def _render_html_public_facts(self, ticker_report: ResearchTickerReport) -> str:
+        title = (
+            "公开事实"
+            if self._localization.language is ReportLanguage.ZH
+            else "Public facts"
+        )
+        yahoo_title = "Yahoo / market data"
+        sec_title = "SEC EDGAR"
+        fred_title = "FRED / macro"
+        return "\n".join(
+            [
+                (
+                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
+                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
+                ),
+                (
+                    '<p style="margin: 0 0 6px;"><strong>'
+                    f"{_html(title)}</strong></p>"
+                ),
+                self._html_field(yahoo_title, None),
+                self._html_list(ticker_report.public_market_facts),
+                self._html_field(sec_title, None),
+                self._html_list(ticker_report.company_facts),
+                self._html_field(fred_title, None),
+                self._html_list(ticker_report.macro_facts),
+                "</div>",
+            ]
+        )
+
+    def _render_html_portfolio_context(
+        self,
+        ticker_report: ResearchTickerReport,
+    ) -> str:
+        title = (
+            "组合背景（隐私安全桶）"
+            if self._localization.language is ReportLanguage.ZH
+            else "Portfolio context, privacy-safe"
+        )
+        values = list(_portfolio_context_lines(ticker_report))
+        return "\n".join(
+            [
+                (
+                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
+                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
+                ),
+                (
+                    '<p style="margin: 0 0 6px;"><strong>'
+                    f"{_html(title)}</strong></p>"
+                ),
+                self._html_list(values),
+                "</div>",
+            ]
         )
 
     def _render_html_committee_discussion(
@@ -961,6 +1033,38 @@ def _looks_portfolio_sensitive(value: str) -> bool:
         "盈亏",
     )
     return any(term in normalized for term in sensitive_terms)
+
+
+def _portfolio_context_lines(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
+    lines: list[str] = []
+    summary = ticker_report.portfolio_summary
+    if summary is not None:
+        lines.extend(
+            (
+                f"portfolio privacy level: {summary.privacy_level}",
+                f"number of positions: {summary.number_of_positions}",
+                f"cash allocation bucket: {summary.cash_allocation_bucket}",
+                f"concentration level: {summary.concentration_level}",
+                f"largest position bucket: {summary.largest_position_bucket}",
+                f"top5 concentration bucket: {summary.top5_concentration_bucket}",
+                f"dominant sector: {summary.dominant_sector or 'unknown'}",
+                f"style exposure: {summary.style_exposure}",
+            )
+        )
+    position_context = ticker_report.position_context
+    if position_context is not None:
+        lines.extend(
+            (
+                f"position size bucket: {position_context.position_size_bucket}",
+                f"rank bucket: {position_context.portfolio_rank_bucket}",
+                f"return bucket: {position_context.unrealized_return_bucket}",
+                f"holding role: {position_context.holding_role}",
+                f"add allowed: {position_context.add_allowed}",
+                f"trim candidate: {position_context.trim_candidate}",
+                f"position privacy level: {position_context.privacy_level}",
+            )
+        )
+    return tuple(lines)
 
 
 def _format_percent(value: float | None) -> str:

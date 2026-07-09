@@ -13,6 +13,7 @@ from parakeetnest.committee import (
     PersonaDrivenPositionReviewPromptBuilder,
 )
 from parakeetnest.decision import PositionContext
+from parakeetnest.portfolio import PortfolioPositionContext, PortfolioSummary
 
 
 def test_prompt_builder_creates_three_prompts_in_daily_committee_order() -> None:
@@ -50,6 +51,38 @@ def test_each_prompt_contains_relevant_ticker_report_context() -> None:
         assert "AAPL: watchlist item with services-margin thesis." in prompt.prompt_text
         assert "NVDA: Export controls." in prompt.prompt_text
         assert "AAPL: Services growth." in prompt.prompt_text
+
+
+def test_committee_prompt_separates_public_facts_and_bucketed_portfolio_context() -> None:
+    context = _context_for(PERMANENT_COMMITTEE_PERSONAS[0])
+
+    prompt = PersonaDrivenCommitteePromptBuilder().build_prompt(context)
+
+    assert "PUBLIC FACTS" in prompt.prompt_text
+    assert "Yahoo / market data facts:" in prompt.prompt_text
+    assert "SEC EDGAR facts:" in prompt.prompt_text
+    assert "FRED macro facts:" in prompt.prompt_text
+    assert "PRIVATE PORTFOLIO CONTEXT, BUCKETED" in prompt.prompt_text
+    assert "Yahoo/market_data: NVDA price=204.12" in prompt.prompt_text
+    assert "SEC EDGAR: NVDA 10-Q" in prompt.prompt_text
+    assert "FRED/macro: Fed Funds 3.5" in prompt.prompt_text
+    assert "- Position size bucket: large" in prompt.prompt_text
+    assert "- Portfolio rank bucket: largest" in prompt.prompt_text
+    assert "- Unrealized return bucket: gain" in prompt.prompt_text
+    assert "- Add allowed: False" in prompt.prompt_text
+
+    forbidden = (
+        "Quantity",
+        "Market value",
+        "Cost basis",
+        "Average cost",
+        "account_id",
+        "1234",
+        "1840",
+        "820",
+        "0.25",
+    )
+    assert all(term not in prompt.prompt_text for term in forbidden)
 
 
 def test_prompt_builder_uses_persona_fields_instead_of_id_branches() -> None:
@@ -204,6 +237,28 @@ def _context_for(
         evidence_notes=("Research assembled from provider-neutral services.",),
         key_risks=("NVDA: Export controls.", "AAPL: China demand risk."),
         upcoming_catalysts=("NVDA: Datacenter demand.", "AAPL: Services growth."),
+        portfolio_summary=PortfolioSummary(
+            number_of_positions=12,
+            cash_allocation_bucket="low",
+            concentration_level="high",
+            largest_position_bucket="large",
+            top5_concentration_bucket="high",
+            dominant_sector="Technology",
+            style_exposure="growth_tilt",
+        ),
+        position_context=PortfolioPositionContext(
+            ticker="NVDA",
+            is_holding=True,
+            position_size_bucket="large",
+            portfolio_rank_bucket="largest",
+            unrealized_return_bucket="gain",
+            holding_role="core_holding",
+            add_allowed=False,
+            trim_candidate=True,
+        ),
+        public_market_facts=("Yahoo/market_data: NVDA price=204.12",),
+        company_facts=("SEC EDGAR: NVDA 10-Q",),
+        macro_facts=("FRED/macro: Fed Funds 3.5",),
         report_language=report_language,
     )
 

@@ -138,7 +138,12 @@ def _committee_reasoning(
     confidence_summary = _committee_confidence(ticker_reports)
     catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
     risk_summary = _summarize_context_values(context.key_risks)
-    evidence_summary = _summarize_context_values(context.ticker_summaries)
+    evidence_summary = _summarize_context_values(
+        context.company_facts + context.public_market_facts + context.ticker_summaries
+    )
+    macro_summary = _summarize_context_values(context.macro_facts)
+    position_summary = _position_context_summary(context)
+    portfolio_summary = _portfolio_summary_text(context)
     missing_growth = _missing_growth_evidence(context)
     missing_fundamentals = _missing_fundamental_evidence(context)
     missing_risk = _missing_risk_evidence(context)
@@ -150,55 +155,68 @@ def _committee_reasoning(
                 f"{tickers}: 上行空间只看可验证增长、催化剂和机会窗口。"
                 f"当前行动观点为 {action_summary}，信心为 {confidence_summary}；"
                 f"催化剂证据：{catalyst_summary}。"
+                f"组合约束：{position_summary}。"
                 f"缺口：{missing_growth}。"
             )
         return (
             f"{tickers}: upside depends on verifiable growth, catalysts, and "
             f"opportunity windows. Current action view is {action_summary} with "
             f"{confidence_summary} confidence; catalyst evidence: "
-            f"{catalyst_summary}. Missing growth evidence: {missing_growth}."
+            f"{catalyst_summary}. Portfolio add constraint: {position_summary}. "
+            f"Missing growth evidence: {missing_growth}."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
         if _context_is_zh(context):
             return (
                 f"{tickers}: 资本保护优先，重点看下行、仓位大小和风险预算。"
                 f"报告支持 {action_summary}，信心为 {confidence_summary}；"
-                f"主要下行证据：{risk_summary}。缺口：{missing_risk}。"
+                f"主要下行证据：{risk_summary}。宏观：{macro_summary}。"
+                f"组合风险：{portfolio_summary}; {position_summary}。"
+                f"缺口：{missing_risk}。"
             )
         return (
             f"{tickers}: capital preservation comes first, with attention to "
             f"downside, position sizing, and risk budget. The report supports "
             f"{action_summary} with {confidence_summary} confidence. Primary "
-            f"downside evidence: {risk_summary}. Missing risk evidence: "
-            f"{missing_risk}."
+            f"downside evidence: {risk_summary}. Macro facts: {macro_summary}. "
+            f"Portfolio risk context: {portfolio_summary}; {position_summary}. "
+            f"Missing risk evidence: {missing_risk}."
         )
     if _context_is_zh(context):
         return (
             f"{tickers}: 基本面、估值和执行质量需要先验证 "
             f"{action_summary} 行动观点。证据基础：{evidence_summary}。"
+            f"当前持仓角色：{position_summary}。"
             f"缺口：{missing_fundamentals}。"
         )
     return (
         f"{tickers}: fundamentals, valuation, and execution quality should "
         f"validate the {action_summary} action view before risk is added. "
-        f"Evidence base: {evidence_summary}. Missing fundamental evidence: "
-        f"{missing_fundamentals}."
+        f"Evidence base: {evidence_summary}. Current exposure: "
+        f"{position_summary}. Missing fundamental evidence: {missing_fundamentals}."
     )
 
 
 def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
-        values = context.upcoming_catalysts + context.ticker_summaries
+        values = (
+            context.upcoming_catalysts
+            + context.public_market_facts
+            + context.ticker_summaries
+        )
     elif role is CommitteeRole.CHIEF_RISK_OFFICER:
         values = (
             context.key_risks
+            + context.macro_facts
             + (context.market_summary, context.portfolio_review)
             + context.evidence_notes
         )
     else:
         values = (
-            context.ticker_summaries
+            context.company_facts
+            + context.public_market_facts
+            + context.ticker_summaries
             + (context.portfolio_review, context.watchlist_review)
             + context.evidence_notes
         )
@@ -255,6 +273,13 @@ def _committee_suggested_action(
     )
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
+        if context.position_context is not None and not context.position_context.add_allowed:
+            if _context_is_zh(context):
+                return "组合桶位显示当前不宜加仓，除非新的公开增长证据显著改变判断。"
+            return (
+                "Bucketed portfolio context does not allow adding exposure "
+                "without stronger public growth evidence."
+            )
         if _context_is_zh(context):
             return (
                 f"将 {actions} 作为复核建议，并在提高暴露前优先跟进催化剂证据。"
@@ -264,6 +289,13 @@ def _committee_suggested_action(
             "before upgrading exposure."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
+        if context.position_context is not None and context.position_context.trim_candidate:
+            if _context_is_zh(context):
+                return f"将 {actions} 仅作为建议；桶位显示该持仓是减仓候选。"
+            return (
+                f"Treat {actions} as advisory only; bucketed portfolio context "
+                "marks this holding as a trim candidate."
+            )
         if _context_is_zh(context):
             return (
                 f"将 {actions} 仅作为建议；保留现金灵活性，避免在风险证据不足时加大仓位。"
@@ -396,7 +428,16 @@ def _committee_action_mix(
 
 
 def _committee_action(ticker_report: ResearchTickerReport) -> str:
-    has_holding = any(finding.source == "portfolio" for finding in ticker_report.findings)
+    has_holding = (
+        ticker_report.position_context.is_holding
+        if ticker_report.position_context is not None
+        else any(finding.source == "portfolio" for finding in ticker_report.findings)
+    )
+    if (
+        ticker_report.position_context is not None
+        and ticker_report.position_context.trim_candidate
+    ):
+        return "reduce"
     if has_holding and _ticker_has_elevated_risk(ticker_report):
         return "reduce"
     if has_holding:
@@ -453,9 +494,40 @@ def _has_elevated_risk(ticker_reports: tuple[ResearchTickerReport, ...]) -> bool
 
 def _ticker_has_elevated_risk(ticker_report: ResearchTickerReport) -> bool:
     risk_text = " ".join(risk.summary.lower() for risk in ticker_report.risks)
+    if (
+        ticker_report.portfolio_summary is not None
+        and ticker_report.portfolio_summary.concentration_level in {"high", "very_high"}
+    ):
+        return True
     return any(
         marker in risk_text
         for marker in ("high", "extreme", "severe", "concentration", "export controls")
+    )
+
+
+def _position_context_summary(context: CommitteePromptContext) -> str:
+    position_context = context.position_context
+    if position_context is None:
+        return "no bucketed position context"
+    return (
+        f"holding_role={position_context.holding_role}, "
+        f"position_size_bucket={position_context.position_size_bucket}, "
+        f"rank_bucket={position_context.portfolio_rank_bucket}, "
+        f"return_bucket={position_context.unrealized_return_bucket}, "
+        f"add_allowed={position_context.add_allowed}, "
+        f"trim_candidate={position_context.trim_candidate}"
+    )
+
+
+def _portfolio_summary_text(context: CommitteePromptContext) -> str:
+    summary = context.portfolio_summary
+    if summary is None:
+        return "no bucketed portfolio summary"
+    return (
+        f"cash_bucket={summary.cash_allocation_bucket}, "
+        f"concentration_level={summary.concentration_level}, "
+        f"largest_position_bucket={summary.largest_position_bucket}, "
+        f"top5_bucket={summary.top5_concentration_bucket}"
     )
 
 

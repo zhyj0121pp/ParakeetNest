@@ -16,11 +16,17 @@ from parakeetnest.committee.prompting import (
 )
 from parakeetnest.context.models import (
     ContextRequest,
+    MeetingContext,
     PortfolioAllocationContextItem,
     PortfolioPosition,
     PortfolioSnapshot,
 )
 from parakeetnest.context.provider import ContextProviderResult
+from parakeetnest.portfolio.privacy import (
+    PortfolioPositionContext,
+    PortfolioPrivacyContextBuilder,
+    PortfolioSummary,
+)
 from parakeetnest.research.models import (
     InvestmentResearchReport,
     ReportMode,
@@ -47,6 +53,11 @@ class _WatchlistService(Protocol):
         """Return watchlist insight for a symbol."""
 
 
+class _ContextService(Protocol):
+    def build_context(self, request: ContextRequest) -> MeetingContext:
+        """Return assembled public context for requested symbols."""
+
+
 class _IntelligenceService(Protocol):
     def build_context(
         self,
@@ -69,6 +80,11 @@ class _TickerInputs:
     holding: Any | None = None
     watchlist_insight: Any | None = None
     intelligence_context: Any | None = None
+    portfolio_summary: PortfolioSummary | None = None
+    position_context: PortfolioPositionContext | None = None
+    public_market_facts: tuple[str, ...] = ()
+    company_facts: tuple[str, ...] = ()
+    macro_facts: tuple[str, ...] = ()
     evidence_notes: tuple[str, ...] = ()
 
 
@@ -80,6 +96,7 @@ class InvestmentResearchService:
         *,
         portfolio_service: _PortfolioService | None = None,
         portfolio_context_provider: _PortfolioContextProvider | None = None,
+        public_context_service: _ContextService | None = None,
         watchlist_service: _WatchlistService | None = None,
         intelligence_service: _IntelligenceService | None = None,
         committee_service: _PermanentCommitteeService | None = None,
@@ -88,6 +105,7 @@ class InvestmentResearchService:
     ) -> None:
         self._portfolio_service = portfolio_service
         self._portfolio_context_provider = portfolio_context_provider
+        self._public_context_service = public_context_service
         self._watchlist_service = watchlist_service
         self._intelligence_service = intelligence_service
         self._committee_service = committee_service or PermanentCommitteeService()
@@ -116,6 +134,18 @@ class InvestmentResearchService:
             as_of=generated_at,
             portfolio_snapshot=portfolio_snapshot,
         )
+        public_context = self._get_public_context(
+            normalized_tickers,
+            as_of=generated_at,
+        )
+        privacy_summary, privacy_positions = PortfolioPrivacyContextBuilder().build(
+            portfolio_snapshot or portfolio_context,
+            normalized_tickers,
+        )
+        privacy_by_ticker = {
+            position_context.ticker: position_context
+            for position_context in privacy_positions
+        }
         dependency_notes = _dependency_notes(
             has_portfolio=self._has_portfolio_context(),
             has_watchlist=self._watchlist_service is not None,
@@ -134,6 +164,11 @@ class InvestmentResearchService:
                         ticker,
                         as_of_date=as_of_date,
                     ),
+                    portfolio_summary=privacy_summary,
+                    position_context=privacy_by_ticker.get(ticker),
+                    public_market_facts=_public_market_facts(public_context, ticker),
+                    company_facts=_company_facts(public_context, ticker),
+                    macro_facts=_macro_facts(public_context),
                     evidence_notes=dependency_notes,
                 )
             )
@@ -214,6 +249,11 @@ class InvestmentResearchService:
             findings=findings,
             source_summaries=_source_summaries(inputs),
             evidence_notes=(),
+            portfolio_summary=inputs.portfolio_summary,
+            position_context=inputs.position_context,
+            public_market_facts=inputs.public_market_facts,
+            company_facts=inputs.company_facts,
+            macro_facts=inputs.macro_facts,
         )
 
     def _build_position_committee_review(
@@ -307,6 +347,28 @@ class InvestmentResearchService:
         except ValueError:
             return None
 
+    def _get_public_context(
+        self,
+        tickers: tuple[str, ...],
+        *,
+        as_of: datetime | None,
+    ) -> MeetingContext | None:
+        if self._public_context_service is None:
+            return None
+        try:
+            return self._public_context_service.build_context(
+                ContextRequest(
+                    question="Build public factual context for daily report.",
+                    symbols=tickers,
+                    as_of=as_of,
+                    include_portfolio=False,
+                    include_macro=True,
+                    include_knowledge_base=False,
+                )
+            )
+        except Exception:
+            return None
+
     def _get_intelligence_context(
         self,
         ticker: str,
@@ -326,7 +388,7 @@ def _build_findings(inputs: _TickerInputs) -> tuple[ResearchFinding, ...]:
     if inputs.holding is not None:
         findings.append(
             ResearchFinding(
-                summary=_holding_summary(inputs.holding),
+                summary=_portfolio_position_summary(inputs),
                 source="portfolio",
                 evidence_notes=("Existing portfolio holding.",),
             )
@@ -375,7 +437,7 @@ def _build_risks(inputs: _TickerInputs) -> tuple[ResearchRisk, ...]:
     if inputs.holding is not None:
         risks.append(
             ResearchRisk(
-                summary="; ".join(_holding_facts(inputs.holding)),
+                summary=_portfolio_position_summary(inputs),
                 evidence_notes=("Existing portfolio holding.",),
             )
         )
@@ -424,9 +486,10 @@ def _build_bull_case(inputs: _TickerInputs) -> tuple[str, ...]:
     if inputs.watchlist_insight is not None:
         bull_case.extend(inputs.watchlist_insight.bullish_factors)
     unrealized_return = _holding_unrealized_return(inputs.holding)
-    if unrealized_return is not None:
+    if unrealized_return is not None and inputs.position_context is not None:
         bull_case.append(
-            f"Portfolio unrealized return: {_format_percent(unrealized_return)}."
+            "Portfolio unrealized return bucket: "
+            f"{inputs.position_context.unrealized_return_bucket}."
         )
     if not bull_case:
         bull_case.append("No connected factual context available.")
@@ -441,9 +504,10 @@ def _build_bear_case(
     if inputs.watchlist_insight is not None:
         bear_case.extend(inputs.watchlist_insight.bearish_factors)
     unrealized_return = _holding_unrealized_return(inputs.holding)
-    if unrealized_return is not None:
+    if unrealized_return is not None and inputs.position_context is not None:
         bear_case.append(
-            f"Portfolio unrealized return: {_format_percent(unrealized_return)}."
+            "Portfolio unrealized return bucket: "
+            f"{inputs.position_context.unrealized_return_bucket}."
         )
     if not bear_case:
         bear_case.append("No connected factual context available.")
@@ -466,32 +530,20 @@ def _summary(inputs: _TickerInputs) -> str:
     )
 
 
-def _holding_summary(holding: Any) -> str:
-    symbol = _holding_symbol(holding)
-    market_value = getattr(holding, "market_value", None)
-    return_percent = getattr(holding, "unrealized_gain_loss_percent", None)
-    if return_percent is None:
-        return (
-            f"{symbol} position value is {_format_money(market_value)} "
-            "with unrealized return unknown."
-        )
+def _portfolio_position_summary(inputs: _TickerInputs) -> str:
+    context = inputs.position_context
+    if context is None:
+        return f"{inputs.ticker} is a current portfolio holding."
     return (
-        f"{symbol} position value is {_format_money(market_value)} "
-        f"with unrealized return {_format_percent(return_percent)}."
+        f"{inputs.ticker} portfolio context: "
+        f"position size bucket={context.position_size_bucket}; "
+        f"rank bucket={context.portfolio_rank_bucket}; "
+        f"return bucket={context.unrealized_return_bucket}; "
+        f"holding role={context.holding_role}; "
+        f"add allowed={context.add_allowed}; "
+        f"trim candidate={context.trim_candidate}; "
+        f"privacy level={context.privacy_level}."
     )
-
-
-def _holding_facts(holding: Any) -> tuple[str, ...]:
-    facts = [
-        f"Portfolio market value: {_format_money(getattr(holding, 'market_value', None))}"
-    ]
-    weight = getattr(holding, "weight", None)
-    if weight is not None:
-        facts.append(f"Portfolio weight: {_format_percent(weight)}")
-    unrealized_return = _holding_unrealized_return(holding)
-    if unrealized_return is not None:
-        facts.append(f"Unrealized return: {_format_percent(unrealized_return)}")
-    return tuple(facts)
 
 
 def _market_context_summary(context: Any) -> str:
@@ -551,12 +603,89 @@ def _market_context_risk_facts(context: Any | None) -> tuple[str, ...]:
     return tuple(facts)
 
 
+def _public_market_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
+    if context is None or context.market is None:
+        return ()
+    facts: list[str] = []
+    for point in context.market.points:
+        if point.symbol.upper() != ticker.upper():
+            continue
+        values = [f"Yahoo/market_data: {point.symbol}"]
+        if point.price is not None:
+            values.append(f"price={point.price:.2f}")
+        if point.daily_change_percent is not None:
+            values.append(f"daily_change_percent={point.daily_change_percent:.2f}")
+        if point.volume is not None:
+            values.append(f"volume_bucket={_volume_bucket(point.volume)}")
+        if point.observed_at is not None:
+            values.append(f"observed_at={point.observed_at.isoformat()}")
+        facts.append(", ".join(values))
+    return tuple(facts)
+
+
+def _company_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
+    if context is None or context.filings is None:
+        return ()
+    facts: list[str] = []
+    for item in context.filings.items:
+        if item.symbol.upper() != ticker.upper():
+            continue
+        values = [f"SEC EDGAR: {item.symbol} {item.filing_type}"]
+        if item.filed_at is not None:
+            values.append(f"filed_at={item.filed_at.date().isoformat()}")
+        if item.accession_number:
+            values.append(f"accession_number={item.accession_number}")
+        if item.summary:
+            values.append(f"summary={item.summary}")
+        facts.append(", ".join(values))
+    return tuple(facts[:5])
+
+
+def _macro_facts(context: MeetingContext | None) -> tuple[str, ...]:
+    if context is None:
+        return ()
+    facts: list[str] = []
+    if context.macro is not None:
+        facts.extend(f"FRED/macro: {item}" for item in context.macro.indicators)
+        if context.macro.summary:
+            facts.append(f"FRED/macro summary: {context.macro.summary}")
+    if context.economic_regime is not None:
+        facts.append(
+            "FRED/economic_regime: "
+            f"regime={context.economic_regime.regime}, "
+            f"confidence={context.economic_regime.confidence}"
+        )
+        facts.extend(
+            f"FRED/economic_regime indicator: {item}"
+            for item in context.economic_regime.indicators
+        )
+    return tuple(facts)
+
+
+def _volume_bucket(volume: float) -> str:
+    if volume < 1_000_000:
+        return "low"
+    if volume < 10_000_000:
+        return "moderate"
+    if volume < 50_000_000:
+        return "high"
+    return "very_high"
+
+
 def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
     summaries: list[str] = []
     if inputs.holding is not None:
         summaries.append("portfolio: current holding facts")
     if inputs.watchlist_insight is not None:
         summaries.append("watchlist: user thesis and notes")
+    if inputs.public_market_facts:
+        summaries.append("market_data: public market facts")
+    if inputs.company_facts:
+        summaries.append("sec_filings: public company filings")
+    if inputs.macro_facts:
+        summaries.append("macro: public macro facts")
+    if inputs.position_context is not None:
+        summaries.append("portfolio: privacy-safe bucketed context")
     if inputs.intelligence_context is not None:
         summaries.append("market_context: factual market context")
     if not summaries:
@@ -648,6 +777,30 @@ def _build_committee_prompt_contexts(
             evidence_notes=evidence_notes,
             key_risks=key_risks,
             upcoming_catalysts=upcoming_catalysts,
+            portfolio_summary=_first_existing(
+                ticker_report.portfolio_summary
+                for ticker_report in ticker_reports
+            ),
+            position_context=_first_existing(
+                ticker_report.position_context
+                for ticker_report in ticker_reports
+                if len(ticker_reports) == 1
+            ),
+            public_market_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.public_market_facts
+            ),
+            company_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.company_facts
+            ),
+            macro_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.macro_facts
+            ),
             advisory_only_disclaimer=ADVISORY_ONLY_DISCLAIMER,
         )
         for member in committee_service.daily_investment_committee()
@@ -669,6 +822,11 @@ def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
     for finding in ticker_report.findings:
         evidence.append(f"{finding.source}: {finding.summary}")
         evidence.extend(f"{finding.source}: {note}" for note in finding.evidence_notes)
+    evidence.extend(ticker_report.public_market_facts)
+    evidence.extend(ticker_report.company_facts)
+    evidence.extend(ticker_report.macro_facts)
+    evidence.extend(_portfolio_summary_evidence(ticker_report.portfolio_summary))
+    evidence.extend(_position_context_evidence(ticker_report.position_context))
     for risk in ticker_report.risks:
         if risk.evidence_notes:
             evidence.append(f"risk: {risk.summary}")
@@ -684,8 +842,48 @@ def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
     return _unique(tuple(evidence))
 
 
+def _portfolio_summary_evidence(summary: PortfolioSummary | None) -> tuple[str, ...]:
+    if summary is None:
+        return ()
+    return (
+        f"portfolio_summary: privacy_level={summary.privacy_level}",
+        f"portfolio_summary: number_of_positions={summary.number_of_positions}",
+        f"portfolio_summary: cash_allocation_bucket={summary.cash_allocation_bucket}",
+        f"portfolio_summary: concentration_level={summary.concentration_level}",
+        f"portfolio_summary: largest_position_bucket={summary.largest_position_bucket}",
+        f"portfolio_summary: top5_concentration_bucket={summary.top5_concentration_bucket}",
+        f"portfolio_summary: dominant_sector={summary.dominant_sector or 'unknown'}",
+        f"portfolio_summary: style_exposure={summary.style_exposure}",
+    )
+
+
+def _position_context_evidence(
+    context: PortfolioPositionContext | None,
+) -> tuple[str, ...]:
+    if context is None:
+        return ()
+    return (
+        f"position_context: ticker={context.ticker}",
+        f"position_context: privacy_level={context.privacy_level}",
+        f"position_context: is_holding={context.is_holding}",
+        f"position_context: position_size_bucket={context.position_size_bucket}",
+        f"position_context: portfolio_rank_bucket={context.portfolio_rank_bucket}",
+        f"position_context: unrealized_return_bucket={context.unrealized_return_bucket}",
+        f"position_context: holding_role={context.holding_role}",
+        f"position_context: add_allowed={context.add_allowed}",
+        f"position_context: trim_candidate={context.trim_candidate}",
+    )
+
+
 def _is_connected_factual_context(value: str) -> bool:
     return value.strip() != "No connected factual context available."
+
+
+def _first_existing(values: Any) -> Any | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
 
 
 def _get_ticker(value: str) -> str:
@@ -802,12 +1000,6 @@ def _dependency_notes(
     if not has_intelligence:
         notes.append("No market context service connected.")
     return tuple(notes)
-
-
-def _format_money(value: float | None) -> str:
-    if value is None:
-        return "unknown"
-    return f"${float(value):,.2f}"
 
 
 def _format_percent(value: float | None) -> str:

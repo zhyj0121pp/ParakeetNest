@@ -12,6 +12,17 @@ from parakeetnest.committee import (
     PermanentCommitteeService,
 )
 from parakeetnest.config import get_settings
+from parakeetnest.context.models import (
+    ContextMetadata,
+    ContextRequest,
+    EconomicRegimeContextSnapshot,
+    FilingItem,
+    FilingSnapshot,
+    MacroSnapshot,
+    MarketDataPoint,
+    MarketSnapshot,
+    MeetingContext,
+)
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
 from parakeetnest.research import service as research_service
@@ -71,6 +82,51 @@ class FakeIntelligenceService:
         return FakeIntelligenceContext()
 
 
+class FakePublicContextService:
+    def __init__(self) -> None:
+        self.calls: list[ContextRequest] = []
+
+    def build_context(self, request: ContextRequest) -> MeetingContext:
+        self.calls.append(request)
+        return MeetingContext(
+            request=request,
+            metadata=ContextMetadata(sources=("market_data", "sec_filings", "macro")),
+            market=MarketSnapshot(
+                source="market_data",
+                points=(
+                    MarketDataPoint(
+                        symbol="NVDA",
+                        source="market_data",
+                        price=204.12,
+                        daily_change_percent=4.2,
+                        volume=145_000_000,
+                    ),
+                ),
+            ),
+            filings=FilingSnapshot(
+                source="sec_filings",
+                items=(
+                    FilingItem(
+                        symbol="NVDA",
+                        filing_type="10-Q",
+                        source="edgar",
+                        accession_number="000-test",
+                        summary="10-Q",
+                    ),
+                ),
+            ),
+            macro=MacroSnapshot(
+                source="macro",
+                indicators=("Interest Rates: Fed Funds 3.5 as of 2026-07-01",),
+            ),
+            economic_regime=EconomicRegimeContextSnapshot(
+                source="economic_regime",
+                regime="expansion",
+                confidence="medium",
+            ),
+        )
+
+
 def _portfolio_snapshot() -> PortfolioSnapshot:
     return PortfolioSnapshot(
         account_id="main",
@@ -102,8 +158,10 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
         }
     )
     intelligence = FakeIntelligenceService()
+    public_context = FakePublicContextService()
     service = InvestmentResearchService(
         portfolio_service=portfolio,
+        public_context_service=public_context,
         watchlist_service=watchlist,
         intelligence_service=intelligence,
     )
@@ -138,6 +196,18 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert "market_context: factual market context" in (
         ticker_report.source_summaries
     )
+    assert "market_data: public market facts" in ticker_report.source_summaries
+    assert "sec_filings: public company filings" in ticker_report.source_summaries
+    assert "macro: public macro facts" in ticker_report.source_summaries
+    assert "portfolio: privacy-safe bucketed context" in (
+        ticker_report.source_summaries
+    )
+    assert ticker_report.public_market_facts
+    assert ticker_report.company_facts
+    assert ticker_report.macro_facts
+    assert ticker_report.portfolio_summary is not None
+    assert ticker_report.position_context is not None
+    assert ticker_report.position_context.privacy_level == "bucketed"
     review = report.position_committee_reviews[0]
     assert any(item.startswith("portfolio:") for item in review.evidence)
     assert any(item.startswith("watchlist:") for item in review.evidence)
@@ -151,13 +221,27 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
         for label in ("Dongdong", "Xixi", "Youyou", "Committee:")
     )
     assert "Risk is moderate and manageable" not in " ".join(review.evidence)
-    assert "yahoo" not in " ".join(review.evidence).lower()
+    assert "yahoo/market_data" in " ".join(review.evidence).lower()
     report_text = _report_text(report)
     assert "investment_intelligence" not in report_text
     assert "market_context" in report_text
+    assert "Yahoo/market_data" in report_text
+    assert "SEC EDGAR" in report_text
+    assert "FRED/macro" in report_text
+    forbidden_private_terms = (
+        "quantity",
+        "market_value",
+            "cost_basis",
+            "average_cost",
+            "account_id",
+            "742192826",
+        )
+    assert all(term not in " ".join(review.evidence) for term in forbidden_private_terms)
     assert portfolio.calls == ["main"]
     assert watchlist.calls == ["NVDA"]
     assert intelligence.calls == [("NVDA", date(2026, 7, 1))]
+    assert public_context.calls
+    assert public_context.calls[0].include_portfolio is False
 
 
 def test_generate_report_supports_watchlist_only_tickers() -> None:

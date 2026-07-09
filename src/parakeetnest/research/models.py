@@ -12,6 +12,10 @@ from parakeetnest.models import (
     PortfolioDecisionSummary,
     PositionDecision,
 )
+from parakeetnest.portfolio.privacy import (
+    PortfolioPositionContext,
+    PortfolioSummary,
+)
 
 
 class ReportMode(str, Enum):
@@ -223,6 +227,11 @@ class ResearchTickerReport:
     findings: tuple[ResearchFinding, ...] = field(default_factory=tuple)
     source_summaries: tuple[str, ...] = field(default_factory=tuple)
     evidence_notes: tuple[str, ...] = field(default_factory=tuple)
+    portfolio_summary: PortfolioSummary | None = None
+    position_context: PortfolioPositionContext | None = None
+    public_market_facts: tuple[str, ...] = field(default_factory=tuple)
+    company_facts: tuple[str, ...] = field(default_factory=tuple)
+    macro_facts: tuple[str, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "ticker", _normalize_ticker(self.ticker))
@@ -241,6 +250,21 @@ class ResearchTickerReport:
             self,
             "evidence_notes",
             _normalize_text_tuple(self.evidence_notes),
+        )
+        object.__setattr__(
+            self,
+            "public_market_facts",
+            _normalize_text_tuple(self.public_market_facts),
+        )
+        object.__setattr__(
+            self,
+            "company_facts",
+            _normalize_text_tuple(self.company_facts),
+        )
+        object.__setattr__(
+            self,
+            "macro_facts",
+            _normalize_text_tuple(self.macro_facts),
         )
 
     @property

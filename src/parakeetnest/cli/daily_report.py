@@ -180,6 +180,7 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
         research_service=InvestmentResearchService(
             portfolio_service=getattr(app, "portfolio_service", None),
             portfolio_context_provider=_context_provider(app, "portfolio"),
+            public_context_service=getattr(app, "context_service", None),
             watchlist_service=getattr(app, "watchlist_intelligence_service", None),
             intelligence_service=getattr(
                 app,

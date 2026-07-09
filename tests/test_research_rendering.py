@@ -272,7 +272,7 @@ def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_con
     )
 
     assert "Public facts" in card
-    assert "Fact interpretation" in card
+    assert "Pre-committee analysis" in card
     assert "Portfolio context, privacy-safe" in card
     assert "Yahoo/market_data: NVDA price=204.12" in card
     assert "Yahoo/news: NVDA, title=Nvidia supplier demand expands" in card
@@ -281,6 +281,9 @@ def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_con
     assert "SEC EDGAR: NVDA 10-Q" in card
     assert "FRED/macro: Fed Funds 3.5" in card
     assert "valuation_label=revenue_multiple_risk" in card
+    assert "Committee discussion" in card
+    assert card.index("Committee discussion") < card.index("Pre-committee analysis")
+    assert card.index("Pre-committee analysis") < card.index("Public facts")
     assert "position size bucket: large" in card
     assert "rank bucket: largest" in card
     assert "return bucket: gain" in card
@@ -299,6 +302,28 @@ def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_con
         "0.25",
     )
     assert all(term not in card for term in forbidden)
+
+
+def test_interactive_html_keeps_pre_committee_analysis_out_of_factual_evidence() -> None:
+    report = replace(_sample_report(), position_decisions=())
+    body = render_investment_research_report_interactive_html(
+        report,
+        language="en",
+    )
+    card = _section(
+        body,
+        '<details style="background: #ffffff;',
+        f"{HTML_H2_STYLE}3. New Opportunities</h2>",
+    )
+    evidence = _section(card, ">Factual evidence</summary>", "</details>")
+
+    assert "Pre-committee analysis" in card
+    assert "valuation_label=revenue_multiple_risk" in card
+    assert "large position size; valuation revenue_multiple_risk" in card
+    assert "Yahoo/market_data: NVDA price=204.12" in evidence
+    assert "Yahoo/news: NVDA, title=Nvidia supplier demand expands" in evidence
+    assert "valuation_label=revenue_multiple_risk" not in evidence
+    assert "large position size; valuation revenue_multiple_risk" not in evidence
 
 
 def test_interactive_html_critical_fields_are_visible_outside_details() -> None:

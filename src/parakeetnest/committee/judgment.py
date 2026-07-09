@@ -161,7 +161,7 @@ def _committee_reasoning(
                 f"{tickers}: 上行空间只看可验证增长、催化剂和机会窗口。"
                 f"当前行动观点为 {action_summary}，信心为 {confidence_summary}；"
                 f"催化剂证据：{catalyst_summary}。"
-                f"事实解释：{interpretation_summary}。"
+                f"委员会前分析：{interpretation_summary}。"
                 f"组合约束：{position_summary}。"
                 f"缺口：{missing_growth}。"
             )
@@ -169,7 +169,7 @@ def _committee_reasoning(
             f"{tickers}: upside depends on verifiable growth, catalysts, and "
             f"opportunity windows. Current action view is {action_summary} with "
             f"{confidence_summary} confidence; catalyst evidence: "
-            f"{catalyst_summary}. Fact interpretation: {interpretation_summary}. "
+            f"{catalyst_summary}. Pre-committee analysis: {interpretation_summary}. "
             f"Portfolio add constraint: {position_summary}. "
             f"Missing growth evidence: {missing_growth}."
         )
@@ -179,7 +179,7 @@ def _committee_reasoning(
                 f"{tickers}: 资本保护优先，重点看下行、仓位大小和风险预算。"
                 f"报告支持 {action_summary}，信心为 {confidence_summary}；"
                 f"主要下行证据：{risk_summary}。宏观：{macro_summary}。"
-                f"事实解释：{interpretation_summary}。"
+                f"委员会前分析：{interpretation_summary}。"
                 f"组合风险：{portfolio_summary}; {position_summary}。"
                 f"缺口：{missing_risk}。"
             )
@@ -188,7 +188,7 @@ def _committee_reasoning(
             f"downside, position sizing, and risk budget. The report supports "
             f"{action_summary} with {confidence_summary} confidence. Primary "
             f"downside evidence: {risk_summary}. Macro facts: {macro_summary}. "
-            f"Fact interpretation: {interpretation_summary}. "
+            f"Pre-committee analysis: {interpretation_summary}. "
             f"Portfolio risk context: {portfolio_summary}; {position_summary}. "
             f"Missing risk evidence: {missing_risk}."
         )
@@ -196,7 +196,7 @@ def _committee_reasoning(
         return (
             f"{tickers}: 基本面、估值和执行质量需要先验证 "
             f"{action_summary} 行动观点。证据基础：{evidence_summary}。"
-            f"事实解释：{interpretation_summary}。"
+            f"委员会前分析：{interpretation_summary}。"
             f"当前持仓角色：{position_summary}。"
             f"缺口：{missing_fundamentals}。"
         )
@@ -204,7 +204,7 @@ def _committee_reasoning(
         f"{tickers}: fundamentals, valuation, and execution quality should "
         f"validate the {action_summary} action view before risk is added. "
         f"Evidence base: {evidence_summary}. Current exposure: "
-        f"{position_summary}. Fact interpretation: {interpretation_summary}. "
+        f"{position_summary}. Pre-committee analysis: {interpretation_summary}. "
         f"Missing fundamental evidence: {missing_fundamentals}."
     )
 

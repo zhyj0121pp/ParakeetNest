@@ -53,10 +53,6 @@ class _InvestmentResearchReportFormattingHelpers:
                 for fact in ticker_report.valuation_facts
             )
             lines.extend(
-                f"  - Interpreted fact: {note}"
-                for note in ticker_report.fact_interpretation.evidence_notes
-            )
-            lines.extend(
                 f"  - Public news fact: {fact}" for fact in ticker_report.news_facts
             )
             lines.extend(
@@ -117,7 +113,6 @@ class _InvestmentResearchReportFormattingHelpers:
         evidence.extend(ticker_report.public_market_facts)
         evidence.extend(ticker_report.profile_facts)
         evidence.extend(ticker_report.valuation_facts)
-        evidence.extend(ticker_report.fact_interpretation.evidence_notes)
         evidence.extend(ticker_report.news_facts)
         evidence.extend(ticker_report.company_facts)
         evidence.extend(ticker_report.macro_facts)
@@ -505,9 +500,9 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         ticker_report: ResearchTickerReport,
     ) -> str:
         title = (
-            "事实解释"
+            "委员会前分析"
             if self._localization.language is ReportLanguage.ZH
-            else "Fact interpretation"
+            else "Pre-committee analysis"
         )
         interpretation = ticker_report.fact_interpretation
         return "\n".join(

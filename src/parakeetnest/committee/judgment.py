@@ -206,6 +206,8 @@ def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
         values = (
             context.upcoming_catalysts
             + context.public_market_facts
+            + context.profile_facts
+            + context.valuation_facts
             + context.news_facts
             + context.ticker_summaries
         )
@@ -220,6 +222,8 @@ def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
         values = (
             context.company_facts
             + context.public_market_facts
+            + context.profile_facts
+            + context.valuation_facts
             + context.news_facts
             + context.ticker_summaries
             + (context.portfolio_review, context.watchlist_review)

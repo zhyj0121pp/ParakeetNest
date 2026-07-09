@@ -45,6 +45,14 @@ class _InvestmentResearchReportFormattingHelpers:
                 for fact in ticker_report.public_market_facts
             )
             lines.extend(
+                f"  - Yahoo profile fact: {fact}"
+                for fact in ticker_report.profile_facts
+            )
+            lines.extend(
+                f"  - Yahoo valuation fact: {fact}"
+                for fact in ticker_report.valuation_facts
+            )
+            lines.extend(
                 f"  - Public news fact: {fact}" for fact in ticker_report.news_facts
             )
             lines.extend(
@@ -103,6 +111,8 @@ class _InvestmentResearchReportFormattingHelpers:
                 f"{finding.source}: {note}" for note in finding.evidence_notes
             )
         evidence.extend(ticker_report.public_market_facts)
+        evidence.extend(ticker_report.profile_facts)
+        evidence.extend(ticker_report.valuation_facts)
         evidence.extend(ticker_report.news_facts)
         evidence.extend(ticker_report.company_facts)
         evidence.extend(ticker_report.macro_facts)
@@ -453,6 +463,8 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             else "Public facts"
         )
         yahoo_title = "Yahoo / market data"
+        profile_title = "Yahoo / profile"
+        valuation_title = "Yahoo / valuation"
         news_title = "Yahoo / news"
         sec_title = "SEC EDGAR"
         fred_title = "FRED / macro"
@@ -468,6 +480,10 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 ),
                 self._html_field(yahoo_title, None),
                 self._html_list(ticker_report.public_market_facts),
+                self._html_field(profile_title, None),
+                self._html_list(ticker_report.profile_facts),
+                self._html_field(valuation_title, None),
+                self._html_list(ticker_report.valuation_facts),
                 self._html_field(news_title, None),
                 self._html_list(ticker_report.news_facts[:5]),
                 self._html_field(sec_title, None),

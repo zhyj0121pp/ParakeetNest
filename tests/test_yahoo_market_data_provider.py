@@ -30,6 +30,12 @@ FAKE_YAHOO_COMPANY_INFO = {
     "country": "United States",
     "website": "https://www.apple.com",
     "marketCap": 3_200_000_000_000,
+    "beta": 1.18,
+    "trailingPE": 31.2,
+    "forwardPE": 28.7,
+    "enterpriseValue": 3_300_000_000_000,
+    "totalRevenue": 410_000_000_000,
+    "enterpriseToRevenue": 8.05,
     "fullTimeEmployees": 164_000,
     "longBusinessSummary": "Apple designs, manufactures, and markets consumer technology.",
 }
@@ -158,9 +164,72 @@ def test_get_company_info_maps_yfinance_info_to_domain_model() -> None:
         country="United States",
         website="https://www.apple.com",
         market_cap=3_200_000_000_000.0,
+        beta=1.18,
+        trailing_pe=31.2,
+        forward_pe=28.7,
+        enterprise_value=3_300_000_000_000.0,
+        revenue_ttm=410_000_000_000.0,
+        ev_to_sales=8.05,
         full_time_employees=164_000,
         summary="Apple designs, manufactures, and markets consumer technology.",
     )
+
+
+def test_get_company_info_calculates_ev_to_sales_when_yahoo_omits_it() -> None:
+    """Yahoo valuation should derive EV/Sales only from available EV and revenue."""
+
+    class CalculatedEvSalesTicker(FakeTicker):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.info = FAKE_YAHOO_COMPANY_INFO.copy()
+            self.info.pop("enterpriseToRevenue")
+
+    class CalculatedEvSalesYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> CalculatedEvSalesTicker:
+            ticker = CalculatedEvSalesTicker(symbol)
+            self.tickers.append(ticker)
+            return ticker
+
+    provider = YahooFinanceMarketDataProvider(CalculatedEvSalesYFinance())
+
+    company_info = provider.get_company_info("aapl")
+
+    assert company_info.ev_to_sales == pytest.approx(
+        3_300_000_000_000 / 410_000_000_000
+    )
+
+
+def test_get_company_info_omits_ev_to_sales_when_inputs_are_missing() -> None:
+    """Missing valuation metrics should stay unavailable instead of fabricated."""
+
+    class MissingValuationTicker(FakeTicker):
+        def __init__(self, symbol: str) -> None:
+            super().__init__(symbol)
+            self.info = FAKE_YAHOO_COMPANY_INFO.copy()
+            for key in (
+                "enterpriseToRevenue",
+                "enterpriseValue",
+                "totalRevenue",
+                "trailingPE",
+                "forwardPE",
+            ):
+                self.info.pop(key, None)
+
+    class MissingValuationYFinance(FakeYFinance):
+        def Ticker(self, symbol: str) -> MissingValuationTicker:
+            ticker = MissingValuationTicker(symbol)
+            self.tickers.append(ticker)
+            return ticker
+
+    provider = YahooFinanceMarketDataProvider(MissingValuationYFinance())
+
+    company_info = provider.get_company_info("aapl")
+
+    assert company_info.trailing_pe is None
+    assert company_info.forward_pe is None
+    assert company_info.enterprise_value is None
+    assert company_info.revenue_ttm is None
+    assert company_info.ev_to_sales is None
 
 
 def test_get_price_history_maps_dataframe_rows_to_price_bars() -> None:

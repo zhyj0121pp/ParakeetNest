@@ -192,6 +192,9 @@ class FakeDifferentiatedPublicContextService:
                         industry="Consumer Electronics",
                         forward_pe=28.7,
                         beta=1.18,
+                        enterprise_value=3_300_000_000_000,
+                        revenue_ttm=410_000_000_000,
+                        ev_to_sales=8.05,
                         observed_at=None,
                     ),
                     MarketDataPoint(
@@ -477,17 +480,41 @@ def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
     )
     assert any(
         "sector=Technology" in fact
-        for fact in by_ticker["AAPL"].public_market_facts
+        for fact in by_ticker["AAPL"].profile_facts
     )
     assert any(
         "industry=Consumer Electronics" in fact
-        for fact in by_ticker["AAPL"].public_market_facts
+        for fact in by_ticker["AAPL"].profile_facts
     )
     assert any(
         "forward_pe=28.70" in fact
-        for fact in by_ticker["AAPL"].public_market_facts
+        for fact in by_ticker["AAPL"].valuation_facts
     )
-    assert any("beta=1.18" in fact for fact in by_ticker["AAPL"].public_market_facts)
+    assert any("beta=1.18" in fact for fact in by_ticker["AAPL"].profile_facts)
+    assert any("ev_to_sales=8.05" in fact for fact in by_ticker["AAPL"].valuation_facts)
+    assert any(
+        fact.startswith("Yahoo/valuation: AAPL")
+        for fact in by_ticker["AAPL"].valuation_facts
+    )
+    assert not any(
+        "sector=" in fact or "industry=" in fact or "beta=" in fact
+        for fact in by_ticker["MSFT"].profile_facts
+    )
+    assert any(
+        "trailing_pe=38.90" in fact
+        for fact in by_ticker["MSFT"].valuation_facts
+    )
+    assert not any(
+        "ev_to_sales" in fact for fact in by_ticker["MSFT"].valuation_facts
+    )
+    all_public_facts = (
+        by_ticker["AAPL"].public_market_facts
+        + by_ticker["AAPL"].profile_facts
+        + by_ticker["AAPL"].valuation_facts
+        + by_ticker["AAPL"].news_facts
+        + by_ticker["AAPL"].company_facts
+    )
+    assert not any("Robinhood" in fact or "robinhood" in fact for fact in all_public_facts)
     assert any(
         "volume_bucket=moderate" in fact
         for fact in by_ticker["MSFT"].public_market_facts

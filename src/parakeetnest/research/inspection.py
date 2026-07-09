@@ -3,13 +3,9 @@
 Diagnostic summary:
 - Currently available in ResearchTickerReport from existing context models:
   price, absolute and percent daily change, volume bucket, market-cap bucket,
-  trailing PE, ticker-specific Yahoo news headlines, latest ticker-specific SEC
-  filing metadata, macro/regime facts, market_context risk facts, privacy-safe
-  portfolio buckets, and source labels.
-- Missing from current context boundaries unless a context provider already attaches
-  them to market points: sector, industry, forward PE, and beta.
-- Future expansion would require provider/model work to carry Yahoo company profile
-  fields or additional quote statistics through the context layer.
+  trailing PE, Yahoo profile facts, Yahoo valuation facts, ticker-specific Yahoo
+  news headlines, latest ticker-specific SEC filing metadata, macro/regime facts,
+  market_context risk facts, privacy-safe portfolio buckets, and source labels.
 """
 
 from __future__ import annotations
@@ -38,6 +34,8 @@ def _render_ticker_report(ticker_report: ResearchTickerReport) -> list[str]:
     return [
         f"ticker: {ticker_report.ticker}",
         *_render_section("public_market_facts", ticker_report.public_market_facts),
+        *_render_section("profile_facts", ticker_report.profile_facts),
+        *_render_section("valuation_facts", ticker_report.valuation_facts),
         *_render_section("news_facts", ticker_report.news_facts),
         *_render_section("company_facts", ticker_report.company_facts),
         *_render_section("macro_facts", ticker_report.macro_facts),

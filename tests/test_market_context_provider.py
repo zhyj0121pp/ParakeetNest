@@ -10,6 +10,7 @@ from parakeetnest.context import ContextRequest, ContextService
 from parakeetnest.context.providers import MarketContextProvider
 from parakeetnest.market_data import (
     AssetType,
+    CompanyInfo,
     MarketDataRange,
     MarketDataService,
     MarketDataSnapshot,
@@ -25,6 +26,7 @@ class RecordingMarketDataProvider:
     def __init__(self) -> None:
         self.support_calls: list[Symbol] = []
         self.snapshot_calls: list[Symbol] = []
+        self.company_info_calls: list[Symbol] = []
 
     def supports(self, symbol: Symbol) -> bool:
         self.support_calls.append(symbol)
@@ -40,6 +42,22 @@ class RecordingMarketDataProvider:
             timestamp=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
             previous_close=95.0,
             volume=1_000_000.0,
+        )
+
+    def get_company_info(self, symbol: Symbol) -> CompanyInfo:
+        self.company_info_calls.append(symbol)
+        return CompanyInfo(
+            symbol=symbol,
+            name="Apple Inc.",
+            sector="Technology",
+            industry="Consumer Electronics",
+            market_cap=3_200_000_000_000.0,
+            beta=1.18,
+            trailing_pe=31.2,
+            forward_pe=28.7,
+            enterprise_value=3_300_000_000_000.0,
+            revenue_ttm=410_000_000_000.0,
+            ev_to_sales=8.05,
         )
 
     def get_price_history(
@@ -60,14 +78,19 @@ def test_context_service_can_include_market_context_from_market_data_service() -
 
     context = context_service.build_context(request)
 
-    assert provider.support_calls == [Symbol("AAPL")]
+    assert provider.support_calls == [Symbol("AAPL"), Symbol("AAPL")]
     assert provider.snapshot_calls == [Symbol("AAPL")]
+    assert provider.company_info_calls == [Symbol("AAPL")]
     assert context.market is not None
     assert context.market.source == "market_data"
     assert context.market.points[0].symbol == "AAPL"
     assert context.market.points[0].price == 100.0
     assert context.market.points[0].daily_change == 5.0
     assert context.market.points[0].daily_change_percent == pytest.approx(5 / 95 * 100)
+    assert context.market.points[0].sector == "Technology"
+    assert context.market.points[0].industry == "Consumer Electronics"
+    assert context.market.points[0].forward_pe == 28.7
+    assert context.market.points[0].ev_to_sales == 8.05
     assert context.metadata.sources == ("market_data",)
     assert context.metadata.data_quality_notes == (
         "market_data.source=market_data_service",

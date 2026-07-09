@@ -183,6 +183,22 @@ class YahooFinanceMarketDataProvider:
                     symbol=normalized_symbol,
                 )
 
+            enterprise_value = self._optional_float(info.get("enterpriseValue"))
+            revenue_ttm = self._optional_float(
+                self._first_present({}, info, "totalRevenue", "revenueTTM")
+            )
+            ev_to_sales = self._optional_float(
+                self._first_present(
+                    {},
+                    info,
+                    "enterpriseToRevenue",
+                    "enterpriseToSales",
+                    "evToSales",
+                )
+            )
+            if ev_to_sales is None and enterprise_value is not None and revenue_ttm:
+                ev_to_sales = enterprise_value / revenue_ttm
+
             return CompanyInfo(
                 symbol=normalized_symbol,
                 name=name,
@@ -198,6 +214,12 @@ class YahooFinanceMarketDataProvider:
                 country=self._optional_string(info.get("country")),
                 website=self._optional_string(info.get("website")),
                 market_cap=self._optional_float(info.get("marketCap")),
+                beta=self._optional_float(info.get("beta")),
+                trailing_pe=self._optional_float(info.get("trailingPE")),
+                forward_pe=self._optional_float(info.get("forwardPE")),
+                enterprise_value=enterprise_value,
+                revenue_ttm=revenue_ttm,
+                ev_to_sales=ev_to_sales,
                 full_time_employees=self._optional_int(info.get("fullTimeEmployees")),
                 summary=self._optional_string(
                     self._first_present({}, info, "longBusinessSummary", "description")

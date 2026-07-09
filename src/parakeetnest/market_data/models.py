@@ -64,6 +64,12 @@ class CompanyInfo:
     country: str | None = None
     website: str | None = None
     market_cap: float | None = None
+    beta: float | None = None
+    trailing_pe: float | None = None
+    forward_pe: float | None = None
+    enterprise_value: float | None = None
+    revenue_ttm: float | None = None
+    ev_to_sales: float | None = None
     full_time_employees: int | None = None
     summary: str | None = None
 

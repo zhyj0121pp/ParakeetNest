@@ -83,6 +83,8 @@ class _TickerInputs:
     portfolio_summary: PortfolioSummary | None = None
     position_context: PortfolioPositionContext | None = None
     public_market_facts: tuple[str, ...] = ()
+    profile_facts: tuple[str, ...] = ()
+    valuation_facts: tuple[str, ...] = ()
     news_facts: tuple[str, ...] = ()
     company_facts: tuple[str, ...] = ()
     macro_facts: tuple[str, ...] = ()
@@ -168,6 +170,8 @@ class InvestmentResearchService:
                     portfolio_summary=privacy_summary,
                     position_context=privacy_by_ticker.get(ticker),
                     public_market_facts=_public_market_facts(public_context, ticker),
+                    profile_facts=_profile_facts(public_context, ticker),
+                    valuation_facts=_valuation_facts(public_context, ticker),
                     news_facts=_news_facts(public_context, ticker),
                     company_facts=_company_facts(public_context, ticker),
                     macro_facts=_macro_facts(public_context),
@@ -254,6 +258,8 @@ class InvestmentResearchService:
             portfolio_summary=inputs.portfolio_summary,
             position_context=inputs.position_context,
             public_market_facts=inputs.public_market_facts,
+            profile_facts=inputs.profile_facts,
+            valuation_facts=inputs.valuation_facts,
             news_facts=inputs.news_facts,
             company_facts=inputs.company_facts,
             macro_facts=inputs.macro_facts,
@@ -622,25 +628,68 @@ def _public_market_facts(context: MeetingContext | None, ticker: str) -> tuple[s
             values.append(f"daily_change_percent={point.daily_change_percent:.2f}")
         if point.volume is not None:
             values.append(f"volume_bucket={_volume_bucket(point.volume)}")
+        if point.pe_ratio is not None:
+            values.append(f"pe_ratio={point.pe_ratio:.2f}")
+        if point.market_cap is not None:
+            values.append(f"market_cap={_large_number_bucket(point.market_cap)}")
+        if point.observed_at is not None:
+            values.append(f"observed_at={point.observed_at.isoformat()}")
+        facts.append(", ".join(values))
+    return tuple(facts)
+
+
+def _profile_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
+    if context is None or context.market is None:
+        return ()
+    facts: list[str] = []
+    for point in context.market.points:
+        if point.symbol.upper() != ticker.upper():
+            continue
+        values = [f"Yahoo/profile: {point.symbol}"]
         sector = _optional_point_text(point, "sector")
         if sector is not None:
             values.append(f"sector={sector}")
         industry = _optional_point_text(point, "industry")
         if industry is not None:
             values.append(f"industry={industry}")
-        if point.pe_ratio is not None:
-            values.append(f"pe_ratio={point.pe_ratio:.2f}")
-        forward_pe = _optional_point_float(point, "forward_pe")
-        if forward_pe is not None:
-            values.append(f"forward_pe={forward_pe:.2f}")
-        if point.market_cap is not None:
-            values.append(f"market_cap={_large_number_bucket(point.market_cap)}")
+        market_cap = _optional_point_float(point, "market_cap")
+        if market_cap is not None:
+            values.append(f"market_cap={_large_number_bucket(market_cap)}")
         beta = _optional_point_float(point, "beta")
         if beta is not None:
             values.append(f"beta={beta:.2f}")
-        if point.observed_at is not None:
-            values.append(f"observed_at={point.observed_at.isoformat()}")
-        facts.append(", ".join(values))
+        if len(values) > 1:
+            facts.append(", ".join(values))
+    return tuple(facts)
+
+
+def _valuation_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
+    if context is None or context.market is None:
+        return ()
+    facts: list[str] = []
+    for point in context.market.points:
+        if point.symbol.upper() != ticker.upper():
+            continue
+        values = [f"Yahoo/valuation: {point.symbol}"]
+        trailing_pe = _optional_point_float(point, "pe_ratio")
+        if trailing_pe is not None:
+            values.append(f"trailing_pe={trailing_pe:.2f}")
+        forward_pe = _optional_point_float(point, "forward_pe")
+        if forward_pe is not None:
+            values.append(f"forward_pe={forward_pe:.2f}")
+        enterprise_value = _optional_point_float(point, "enterprise_value")
+        if enterprise_value is not None:
+            values.append(
+                f"enterprise_value={_large_number_bucket(enterprise_value)}"
+            )
+        revenue_ttm = _optional_point_float(point, "revenue_ttm")
+        if revenue_ttm is not None:
+            values.append(f"revenue_ttm={_large_number_bucket(revenue_ttm)}")
+        ev_to_sales = _optional_point_float(point, "ev_to_sales")
+        if ev_to_sales is not None:
+            values.append(f"ev_to_sales={ev_to_sales:.2f}")
+        if len(values) > 1:
+            facts.append(", ".join(values))
     return tuple(facts)
 
 
@@ -755,6 +804,10 @@ def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
         summaries.append("watchlist: user thesis and notes")
     if inputs.public_market_facts:
         summaries.append("market_data: public market facts")
+    if inputs.profile_facts:
+        summaries.append("profile: public Yahoo profile facts")
+    if inputs.valuation_facts:
+        summaries.append("valuation: public Yahoo valuation facts")
     if inputs.news_facts:
         summaries.append("news: public Yahoo news facts")
     if inputs.company_facts:
@@ -868,6 +921,16 @@ def _build_committee_prompt_contexts(
                 for ticker_report in ticker_reports
                 for fact in ticker_report.public_market_facts
             ),
+            profile_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.profile_facts
+            ),
+            valuation_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.valuation_facts
+            ),
             news_facts=_unique(
                 fact
                 for ticker_report in ticker_reports
@@ -905,6 +968,8 @@ def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
         evidence.append(f"{finding.source}: {finding.summary}")
         evidence.extend(f"{finding.source}: {note}" for note in finding.evidence_notes)
     evidence.extend(ticker_report.public_market_facts)
+    evidence.extend(ticker_report.profile_facts)
+    evidence.extend(ticker_report.valuation_facts)
     evidence.extend(ticker_report.news_facts)
     evidence.extend(ticker_report.company_facts)
     evidence.extend(ticker_report.macro_facts)

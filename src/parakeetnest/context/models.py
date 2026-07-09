@@ -31,6 +31,13 @@ class MarketDataPoint:
     volume: float | None = None
     market_cap: float | None = None
     pe_ratio: float | None = None
+    sector: str | None = None
+    industry: str | None = None
+    beta: float | None = None
+    forward_pe: float | None = None
+    enterprise_value: float | None = None
+    revenue_ttm: float | None = None
+    ev_to_sales: float | None = None
     eps: float | None = None
 
 

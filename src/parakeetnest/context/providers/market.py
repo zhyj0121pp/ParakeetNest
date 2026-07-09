@@ -13,7 +13,8 @@ from parakeetnest.context.provider import (
     ContextProviderResult,
     UnsupportedContextRequestError,
 )
-from parakeetnest.market_data.models import MarketDataSnapshot, Symbol
+from parakeetnest.market_data.errors import MarketDataError
+from parakeetnest.market_data.models import CompanyInfo, MarketDataSnapshot, Symbol
 from parakeetnest.market_data.service import MarketDataService
 
 
@@ -57,6 +58,7 @@ class MarketContextProvider:
 
     def _point_for(self, snapshot: MarketDataSnapshot) -> MarketDataPoint:
         daily_change = self._daily_change(snapshot)
+        company_info = self._company_info_for(snapshot.symbol)
         return MarketDataPoint(
             symbol=snapshot.symbol.ticker,
             source=self.provider_name,
@@ -65,7 +67,26 @@ class MarketContextProvider:
             daily_change=daily_change,
             daily_change_percent=self._daily_change_percent(snapshot, daily_change),
             volume=snapshot.volume,
+            market_cap=company_info.market_cap if company_info is not None else None,
+            pe_ratio=(
+                company_info.trailing_pe if company_info is not None else None
+            ),
+            sector=company_info.sector if company_info is not None else None,
+            industry=company_info.industry if company_info is not None else None,
+            beta=company_info.beta if company_info is not None else None,
+            forward_pe=company_info.forward_pe if company_info is not None else None,
+            enterprise_value=(
+                company_info.enterprise_value if company_info is not None else None
+            ),
+            revenue_ttm=company_info.revenue_ttm if company_info is not None else None,
+            ev_to_sales=company_info.ev_to_sales if company_info is not None else None,
         )
+
+    def _company_info_for(self, symbol: Symbol) -> CompanyInfo | None:
+        try:
+            return self._market_data_service.get_company_info(symbol)
+        except (AttributeError, MarketDataError):
+            return None
 
     @staticmethod
     def _daily_change(snapshot: MarketDataSnapshot) -> float | None:

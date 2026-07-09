@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from parakeetnest.committee.playbook_loader import PlaybookLoader
 from parakeetnest.committee.personas import (
     DONGDONG_PERSONA,
     XIXI_PERSONA,
@@ -212,6 +213,10 @@ class CommitteePromptBuilder(Protocol):
 class PersonaDrivenCommitteePromptBuilder:
     """Build deterministic prompt text from stable committee persona fields."""
 
+    def __init__(self, playbook_loader: PlaybookLoader | None = None) -> None:
+        self._playbook_loader = playbook_loader or PlaybookLoader()
+        self._playbook_loader.validate_required_files()
+
     def build_prompts(
         self,
         contexts: tuple[CommitteePromptContext, ...],
@@ -223,8 +228,18 @@ class PersonaDrivenCommitteePromptBuilder:
         """Build a prompt for one permanent committee persona."""
         persona = context.persona
         localization = _report_localization(context.report_language)
+        persona_playbook = self._playbook_loader.load_persona_playbook(persona.id)
         prompt_text = "\n".join(
             [
+                "System Playbook",
+                self._playbook_loader.load_system_playbook(),
+                "",
+                "Common Committee Rules",
+                self._playbook_loader.load_common_playbook(),
+                "",
+                "Persona Playbook",
+                persona_playbook,
+                "",
                 f"You are {persona.display_name}, {persona.role_title}.",
                 "",
                 "Persona",

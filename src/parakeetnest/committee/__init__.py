@@ -26,6 +26,10 @@ from parakeetnest.committee.models import (
     MeetingResult,
     MeetingStatus,
 )
+from parakeetnest.committee.playbook_loader import (
+    MissingCommitteePlaybookError,
+    PlaybookLoader,
+)
 from parakeetnest.committee.personas import (
     CommitteeMemberProfile,
     CommitteeOpinionStyle,
@@ -106,6 +110,7 @@ __all__ = [
     "MeetingRequest",
     "MeetingResult",
     "MeetingStatus",
+    "MissingCommitteePlaybookError",
     "PERMANENT_COMMITTEE_PERSONAS",
     "PermanentCommitteeService",
     "PersonaDrivenCommitteePromptBuilder",
@@ -113,6 +118,7 @@ __all__ = [
     "PositionReviewPrompt",
     "PositionReviewPromptBuilder",
     "PromptRenderer",
+    "PlaybookLoader",
     "UnknownCommitteePersonaError",
     "Xixi",
     "XixiAgent",

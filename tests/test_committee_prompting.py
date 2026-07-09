@@ -2,18 +2,51 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from parakeetnest.committee import (
     ADVISORY_ONLY_DISCLAIMER,
     CommitteeOpinionStyle,
     CommitteePersona,
     CommitteePromptContext,
     CommitteeRole,
+    MissingCommitteePlaybookError,
     PERMANENT_COMMITTEE_PERSONAS,
     PersonaDrivenCommitteePromptBuilder,
     PersonaDrivenPositionReviewPromptBuilder,
+    PlaybookLoader,
 )
 from parakeetnest.decision import PositionContext
 from parakeetnest.portfolio import PortfolioPositionContext, PortfolioSummary
+
+
+def test_all_committee_playbook_files_exist() -> None:
+    playbook_dir = Path("src/parakeetnest/committee/playbooks")
+
+    for filename in ("system.md", "common.md", "dongdong.md", "xixi.md", "youyou.md"):
+        assert (playbook_dir / filename).is_file()
+
+
+def test_playbook_loader_loads_system_common_and_persona_playbooks() -> None:
+    loader = PlaybookLoader()
+
+    assert (
+        "ParakeetNest is an AI investment advisory platform"
+        in loader.load_system_playbook()
+    )
+    assert "Use only supplied facts" in loader.load_common_playbook()
+    assert "growth acceleration" in loader.load_persona_playbook("dongdong")
+    assert "forward PE" in loader.load_persona_playbook("xixi")
+    assert "position_size_bucket" in loader.load_persona_playbook("youyou")
+
+
+def test_missing_playbook_raises_clear_error(tmp_path: Path) -> None:
+    loader = PlaybookLoader(playbook_dir=tmp_path)
+
+    with pytest.raises(MissingCommitteePlaybookError, match="Missing committee playbook"):
+        loader.load_system_playbook()
 
 
 def test_prompt_builder_creates_three_prompts_in_daily_committee_order() -> None:
@@ -83,6 +116,43 @@ def test_committee_prompt_separates_public_facts_and_bucketed_portfolio_context(
         "0.25",
     )
     assert all(term not in prompt.prompt_text for term in forbidden)
+
+
+def test_committee_prompts_include_reusable_playbook_checklists() -> None:
+    prompts = {
+        prompt.persona_id: prompt.prompt_text
+        for prompt in PersonaDrivenCommitteePromptBuilder().build_prompts(
+            _default_contexts(),
+        )
+    }
+
+    assert "growth durability" in prompts["dongdong"]
+    assert "portfolio add_allowed constraint" in prompts["dongdong"]
+
+    assert "PE" in prompts["xixi"]
+    assert "forward PE" in prompts["xixi"]
+    assert "whether valuation is justified by growth" in prompts["xixi"]
+
+    assert "position_size_bucket" in prompts["youyou"]
+    assert "trim_candidate" in prompts["youyou"]
+    assert "concentration_level" in prompts["youyou"]
+
+
+def test_generated_prompt_excludes_raw_robinhood_field_names() -> None:
+    prompt = PersonaDrivenCommitteePromptBuilder().build_prompt(
+        _context_for(PERMANENT_COMMITTEE_PERSONAS[0]),
+    )
+
+    forbidden_raw_fields = (
+        "shares",
+        "market_value",
+        "cost_basis",
+        "average_cost",
+        "exact_weight",
+        "account_id",
+    )
+
+    assert all(field not in prompt.prompt_text for field in forbidden_raw_fields)
 
 
 def test_prompt_builder_uses_persona_fields_instead_of_id_branches() -> None:

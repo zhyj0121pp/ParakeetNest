@@ -39,7 +39,7 @@ parakeetnest = "parakeetnest.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-parakeetnest = ["committee/prompts/*.md"]
+parakeetnest = ["committee/prompts/*.md", "committee/playbooks/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

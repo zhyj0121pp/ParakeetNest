@@ -543,7 +543,7 @@ def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
     if inputs.watchlist_insight is not None:
         summaries.append("watchlist: thesis, factors, and open questions")
     if inputs.intelligence_context is not None:
-        summaries.append("investment_intelligence: aggregate market context")
+        summaries.append("aggregate intelligence: investment_intelligence context")
     if not summaries:
         summaries.append("research_service: requested ticker only")
     return tuple(summaries)
@@ -648,15 +648,23 @@ def _opinion_text(
 
 
 def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
-    return _unique(
-        tuple(finding.summary for finding in ticker_report.findings)
-        + ticker_report.bull_case
-        + ticker_report.bear_case
-        + tuple(risk.summary for risk in ticker_report.risks)
-        + tuple(catalyst.summary for catalyst in ticker_report.catalysts)
-        + ticker_report.source_summaries
-        + ticker_report.evidence_notes
-    )
+    evidence: list[str] = []
+    for finding in ticker_report.findings:
+        evidence.append(f"{finding.source}: {finding.summary}")
+        evidence.extend(f"{finding.source}: {note}" for note in finding.evidence_notes)
+    evidence.extend(f"bull_case: {value}" for value in ticker_report.bull_case)
+    evidence.extend(f"bear_case: {value}" for value in ticker_report.bear_case)
+    for risk in ticker_report.risks:
+        evidence.append(f"risk: {risk.summary}")
+        evidence.extend(f"risk evidence: {note}" for note in risk.evidence_notes)
+    for catalyst in ticker_report.catalysts:
+        evidence.append(f"catalyst: {catalyst.summary}")
+        evidence.extend(
+            f"catalyst evidence: {note}" for note in catalyst.evidence_notes
+        )
+    evidence.extend(ticker_report.source_summaries)
+    evidence.extend(f"report evidence: {note}" for note in ticker_report.evidence_notes)
+    return _unique(tuple(evidence))
 
 
 def _get_ticker(value: str) -> str:

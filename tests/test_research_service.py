@@ -130,6 +130,21 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert report.committee_consensus.confidence == "high"
     assert report.committee_consensus.rationale
     assert report.committee_consensus.todays_suggested_actions
+    assert "portfolio: current holding context" in ticker_report.source_summaries
+    assert "watchlist: thesis, factors, and open questions" in (
+        ticker_report.source_summaries
+    )
+    assert "aggregate intelligence: investment_intelligence context" in (
+        ticker_report.source_summaries
+    )
+    review = report.position_committee_reviews[0]
+    assert any(item.startswith("portfolio:") for item in review.evidence)
+    assert any(item.startswith("watchlist:") for item in review.evidence)
+    assert any(
+        item.startswith("investment_intelligence:") for item in review.evidence
+    )
+    assert any("aggregate intelligence:" in item for item in review.evidence)
+    assert "yahoo" not in " ".join(review.evidence).lower()
     assert portfolio.calls == ["main"]
     assert watchlist.calls == ["NVDA"]
     assert intelligence.calls == [("NVDA", date(2026, 7, 1))]
@@ -287,11 +302,16 @@ def test_committee_opinions_keep_persona_specific_lenses(monkeypatch) -> None:
 
     assert opinions["Dongdong"].stance == "neutral"
     assert "upside" in opinions["Dongdong"].reasoning_summary
+    assert "Missing growth evidence" in opinions["Dongdong"].reasoning_summary
     assert "catalyst" in opinions["Dongdong"].suggested_action.lower()
     assert "fundamentals" in opinions["Xixi"].reasoning_summary
+    assert "valuation" in opinions["Xixi"].reasoning_summary
+    assert "Missing fundamental evidence" in opinions["Xixi"].reasoning_summary
     assert "valuation" in opinions["Xixi"].suggested_action
     assert opinions["Youyou"].stance == "cautious"
     assert "capital preservation" in opinions["Youyou"].reasoning_summary
+    assert "position sizing" in opinions["Youyou"].reasoning_summary
+    assert "Missing risk evidence" in opinions["Youyou"].reasoning_summary
     assert "advisory only" in opinions["Youyou"].suggested_action
 
 

@@ -138,42 +138,51 @@ def _committee_reasoning(
     confidence_summary = _committee_confidence(ticker_reports)
     catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
     risk_summary = _summarize_context_values(context.key_risks)
+    evidence_summary = _summarize_context_values(context.ticker_summaries)
+    missing_growth = _missing_growth_evidence(context)
+    missing_fundamentals = _missing_fundamental_evidence(context)
+    missing_risk = _missing_risk_evidence(context)
 
     role = context.persona.role
     if role is CommitteeRole.CHIEF_GROWTH_OFFICER:
         if _context_is_zh(context):
             return (
-                f"{tickers}: 上行空间取决于可验证的催化剂和持续增长证据。"
-                f"委员会行动观点为 {action_summary}，信心为 {confidence_summary}；"
+                f"{tickers}: 上行空间只看可验证增长、催化剂和机会窗口。"
+                f"当前行动观点为 {action_summary}，信心为 {confidence_summary}；"
                 f"催化剂证据：{catalyst_summary}。"
+                f"缺口：{missing_growth}。"
             )
         return (
-            f"{tickers}: upside depends on identifiable catalysts and durable "
-            f"growth evidence. Committee action view is {action_summary} with "
-            f"{confidence_summary} confidence; catalyst evidence: {catalyst_summary}."
+            f"{tickers}: upside depends on verifiable growth, catalysts, and "
+            f"opportunity windows. Current action view is {action_summary} with "
+            f"{confidence_summary} confidence; catalyst evidence: "
+            f"{catalyst_summary}. Missing growth evidence: {missing_growth}."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
         if _context_is_zh(context):
             return (
-                f"{tickers}: 在报告支持 {action_summary}、信心为 "
-                f"{confidence_summary} 的同时，资本保护优先。主要下行证据："
-                f"{risk_summary}。"
+                f"{tickers}: 资本保护优先，重点看下行、仓位大小和风险预算。"
+                f"报告支持 {action_summary}，信心为 {confidence_summary}；"
+                f"主要下行证据：{risk_summary}。缺口：{missing_risk}。"
             )
         return (
-            f"{tickers}: capital preservation comes first while the report "
-            f"supports {action_summary} with {confidence_summary} confidence. "
-            f"Primary downside evidence: {risk_summary}."
+            f"{tickers}: capital preservation comes first, with attention to "
+            f"downside, position sizing, and risk budget. The report supports "
+            f"{action_summary} with {confidence_summary} confidence. Primary "
+            f"downside evidence: {risk_summary}. Missing risk evidence: "
+            f"{missing_risk}."
         )
     if _context_is_zh(context):
         return (
-            f"{tickers}: 在增加风险暴露前，基本面和执行证据需要验证委员会的 "
-            f"{action_summary} 行动观点。证据基础："
-            f"{_summarize_context_values(context.ticker_summaries)}。"
+            f"{tickers}: 基本面、估值和执行质量需要先验证 "
+            f"{action_summary} 行动观点。证据基础：{evidence_summary}。"
+            f"缺口：{missing_fundamentals}。"
         )
     return (
-        f"{tickers}: fundamentals and execution evidence should validate the "
-        f"committee's {action_summary} action view before risk is added. "
-        f"Evidence base: {_summarize_context_values(context.ticker_summaries)}."
+        f"{tickers}: fundamentals, valuation, and execution quality should "
+        f"validate the {action_summary} action view before risk is added. "
+        f"Evidence base: {evidence_summary}. Missing fundamental evidence: "
+        f"{missing_fundamentals}."
     )
 
 
@@ -297,6 +306,42 @@ def _summarize_context_values(values: tuple[str, ...], limit: int = 2) -> str:
     if not values:
         return "limited connected context"
     return "; ".join(values[:limit])
+
+
+def _missing_growth_evidence(context: CommitteePromptContext) -> str:
+    if any(
+        "add thesis" not in catalyst.lower()
+        for catalyst in context.upcoming_catalysts
+    ):
+        return "none obvious from the connected catalyst set"
+    if _context_is_zh(context):
+        return "缺少可验证增长催化剂、上行幅度和时间表"
+    return "verifiable growth catalysts, upside magnitude, and timing"
+
+
+def _missing_fundamental_evidence(context: CommitteePromptContext) -> str:
+    if context.ticker_summaries and not context.evidence_notes:
+        return "none obvious from the connected ticker summaries"
+    if _context_is_zh(context):
+        return "缺少估值、盈利质量、管理层执行和财务趋势输入"
+    return (
+        "valuation, earnings quality, management execution, and financial "
+        "trend inputs"
+    )
+
+
+def _missing_risk_evidence(context: CommitteePromptContext) -> str:
+    if (
+        context.key_risks
+        and "No portfolio service is connected" not in context.portfolio_review
+    ):
+        return "none obvious from connected risks and portfolio context"
+    if _context_is_zh(context):
+        return "缺少下行情景、仓位大小、集中度和组合风险预算输入"
+    return (
+        "downside scenarios, position size, concentration, and portfolio risk "
+        "budget inputs"
+    )
 
 
 def _todays_suggested_actions(

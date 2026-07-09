@@ -154,10 +154,10 @@ def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> 
 
     assert ">1. Action Required</h2>" in body
     assert ">2. Position Cards</h2>" in body
-    assert ">3. Stable Holdings</h2>" in body
-    assert ">4. New Opportunities</h2>" in body
-    assert ">5. Market Overview</h2>" in body
-    assert ">6. Raw Evidence</h2>" in body
+    assert ">3. Stable Holdings</h2>" not in body
+    assert ">3. New Opportunities</h2>" in body
+    assert ">4. Market Overview</h2>" in body
+    assert ">5. Raw Evidence</h2>" in body
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
     assert "<strong>Youyou:</strong>" in body

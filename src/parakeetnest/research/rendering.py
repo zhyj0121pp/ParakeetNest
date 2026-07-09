@@ -70,11 +70,21 @@ class _InvestmentResearchReportFormattingHelpers:
 
     def _ticker_evidence(self, ticker_report: ResearchTickerReport) -> tuple[str, ...]:
         evidence: list[str] = []
-        evidence.extend(ticker_report.evidence)
-        evidence.extend(ticker_report.bull_case)
-        evidence.extend(ticker_report.bear_case)
-        evidence.extend(risk.summary for risk in ticker_report.risks)
-        evidence.extend(catalyst.summary for catalyst in ticker_report.catalysts)
+        for finding in ticker_report.findings:
+            evidence.append(f"{finding.source}: {finding.summary}")
+            evidence.extend(
+                f"{finding.source}: {note}" for note in finding.evidence_notes
+            )
+        evidence.extend(f"bull_case: {value}" for value in ticker_report.bull_case)
+        evidence.extend(f"bear_case: {value}" for value in ticker_report.bear_case)
+        for risk in ticker_report.risks:
+            evidence.append(f"risk: {risk.summary}")
+            evidence.extend(f"risk evidence: {note}" for note in risk.evidence_notes)
+        for catalyst in ticker_report.catalysts:
+            evidence.append(f"catalyst: {catalyst.summary}")
+            evidence.extend(
+                f"catalyst evidence: {note}" for note in catalyst.evidence_notes
+            )
         evidence.extend(ticker_report.source_summaries)
         return tuple(dict.fromkeys(value for value in evidence if value))
 
@@ -122,7 +132,6 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             self._render_html_human_review_notice(),
             self._render_html_action_required(report),
             self._render_html_position_cards(report),
-            self._render_html_stable_holdings(report),
             self._render_html_new_opportunities(report),
             self._render_html_market_overview(report),
             self._render_html_raw_evidence(report),
@@ -256,24 +265,20 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         l10n = self._localization
         recommendation = self._recommendation_label(decision.recommendation)
         badges = [
-            self._html_badge(recommendation, kind="recommendation"),
             self._html_badge(
                 self._label_value_badge(l10n.confidence, decision.confidence.value),
                 kind="confidence",
             ),
-            self._html_badge(
-                self._label_value_badge(l10n.urgency, decision.urgency.value),
-                kind="urgency",
-            ),
         ]
         if decision.human_review_required:
             badges.append(self._html_badge(l10n.human_review_required, kind="review"))
-        return self._html_card(
-            title=f"{decision.symbol} - {recommendation}",
+        return self._html_collapsed_position_card(
+            ticker=decision.symbol,
+            recommendation=recommendation,
+            badges=badges,
             border_color=self._recommendation_border_color(recommendation),
             body="\n".join(
                 [
-                    self._html_badge_row(badges),
                     self._html_field(l10n.recommendation, recommendation),
                     self._html_field(
                         l10n.confidence,
@@ -292,15 +297,16 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                         ),
                     ),
                     self._render_html_actionable_sizing(decision),
-                    self._html_field(l10n.dongdong, decision.dongdong_opinion),
-                    self._html_field(l10n.xixi, decision.xixi_opinion),
-                    self._html_field(l10n.youyou, decision.youyou_opinion),
+                    self._render_html_committee_discussion(
+                        (
+                            (l10n.dongdong, decision.dongdong_opinion),
+                            (l10n.xixi, decision.xixi_opinion),
+                            (l10n.youyou, decision.youyou_opinion),
+                        )
+                    ),
                     self._html_details(
                         l10n.factual_evidence,
                         [
-                            self._html_field(l10n.dongdong, decision.dongdong_opinion),
-                            self._html_field(l10n.xixi, decision.xixi_opinion),
-                            self._html_field(l10n.youyou, decision.youyou_opinion),
                             self._html_list(
                                 self._privacy_safe_values(decision.factual_evidence)
                             ),
@@ -352,7 +358,6 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             recommendation_value
         )
         badges = [
-            self._html_badge(recommendation, kind="recommendation"),
             self._html_badge(
                 self._label_value_badge(
                     l10n.confidence,
@@ -362,12 +367,13 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             ),
             self._html_badge(l10n.human_review_required, kind="review"),
         ]
-        return self._html_card(
-            title=f"{ticker_report.ticker} - {recommendation}",
+        return self._html_collapsed_position_card(
+            ticker=ticker_report.ticker,
+            recommendation=recommendation,
+            badges=badges,
             border_color=self._recommendation_border_color(recommendation),
             body="\n".join(
                 [
-                    self._html_badge_row(badges),
                     self._html_field(l10n.recommendation, recommendation),
                     self._html_field(
                         l10n.confidence,
@@ -381,15 +387,16 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                             f"{l10n.no_automatic_action_review_recommended}"
                         ),
                     ),
-                    self._html_field(l10n.dongdong, dongdong_opinion),
-                    self._html_field(l10n.xixi, xixi_opinion),
-                    self._html_field(l10n.youyou, youyou_opinion),
+                    self._render_html_committee_discussion(
+                        (
+                            (l10n.dongdong, dongdong_opinion),
+                            (l10n.xixi, xixi_opinion),
+                            (l10n.youyou, youyou_opinion),
+                        )
+                    ),
                     self._html_details(
                         l10n.factual_evidence,
                         [
-                            self._html_field(l10n.dongdong, dongdong_opinion),
-                            self._html_field(l10n.xixi, xixi_opinion),
-                            self._html_field(l10n.youyou, youyou_opinion),
                             self._html_list(
                                 self._privacy_safe_values(
                                     (
@@ -403,6 +410,30 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                     ),
                 ]
             ),
+        )
+
+    def _render_html_committee_discussion(
+        self,
+        opinions: Iterable[tuple[str, str | None]],
+    ) -> str:
+        title = (
+            "委员会讨论"
+            if self._localization.language is ReportLanguage.ZH
+            else "Committee discussion"
+        )
+        return "\n".join(
+            [
+                (
+                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
+                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
+                ),
+                (
+                    '<p style="margin: 0 0 6px;"><strong>'
+                    f"{_html(title)}</strong></p>"
+                ),
+                *[self._html_field(label, value) for label, value in opinions],
+                "</div>",
+            ]
         )
 
     def _render_html_stable_holdings(self, report: InvestmentResearchReport) -> str:
@@ -495,7 +526,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 f'<p style="margin: 0 0 18px;">{_html(report.watchlist_review)}</p>'
             )
         return "\n".join(
-            [self._html_section_heading(f"4. {l10n.new_opportunities}"), *cards]
+            [self._html_section_heading(f"3. {l10n.new_opportunities}"), *cards]
         )
 
     def _render_html_market_overview(self, report: InvestmentResearchReport) -> str:
@@ -524,7 +555,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             )
         return "\n".join(
             [
-                self._html_section_heading(f"5. {l10n.market_overview}"),
+                self._html_section_heading(f"4. {l10n.market_overview}"),
                 self._html_list(self._privacy_safe_values(items)),
             ]
         )
@@ -538,7 +569,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         evidence = self._privacy_safe_values(raw_lines) or (l10n.no_raw_evidence,)
         return "\n".join(
             [
-                self._html_section_heading(f"6. {l10n.raw_evidence}"),
+                self._html_section_heading(f"5. {l10n.raw_evidence}"),
                 self._html_details(l10n.show_raw_evidence, [self._html_list(evidence)]),
             ]
         )
@@ -674,6 +705,37 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 ),
                 body,
                 "</div>",
+            ]
+        )
+
+    def _html_collapsed_position_card(
+        self,
+        *,
+        ticker: str,
+        recommendation: str,
+        badges: Iterable[str],
+        border_color: str,
+        body: str,
+    ) -> str:
+        badge_markup = " ".join(
+            (self._html_badge(recommendation, kind="recommendation"), *badges)
+        )
+        return "\n".join(
+            [
+                (
+                    '<details style="background: #ffffff; border: 1px solid #e5e7eb; '
+                    f"border-left: 5px solid {border_color}; border-radius: 10px; "
+                    'padding: 14px; margin: 12px 0;">'
+                ),
+                (
+                    '<summary style="cursor: pointer; color: #111827; '
+                    'font-weight: 800;">'
+                    '<span style="font-size: 18px; margin-right: 8px;">'
+                    f"{_html(ticker)}</span>"
+                    f"{badge_markup}</summary>"
+                ),
+                body,
+                "</details>",
             ]
         )
 

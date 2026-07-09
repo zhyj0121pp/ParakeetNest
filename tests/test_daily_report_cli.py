@@ -971,10 +971,10 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
     assert "<!doctype html>" in body
     assert "1. Action Required" in body
     assert "2. Position Cards" in body
-    assert "3. Stable Holdings" in body
-    assert "4. New Opportunities" in body
-    assert "5. Market Overview" in body
-    assert "6. Raw Evidence" in body
+    assert "3. Stable Holdings" not in body
+    assert "3. New Opportunities" in body
+    assert "4. Market Overview" in body
+    assert "5. Raw Evidence" in body
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
     assert "<strong>Youyou:</strong>" in body

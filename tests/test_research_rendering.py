@@ -84,10 +84,10 @@ def test_interactive_html_position_cards_use_per_position_committee_reviews(
     position_cards = _section(
         body,
         f"{HTML_H2_STYLE}2. Position Cards</h2>",
-        f"{HTML_H2_STYLE}3. Stable Holdings</h2>",
+        f"{HTML_H2_STYLE}3. New Opportunities</h2>",
     )
-    aapl_card = _section(position_cards, "AAPL -", "MSFT -")
-    msft_card = _section(position_cards, "MSFT -", None)
+    aapl_card = _section(position_cards, ">AAPL</span>", ">MSFT</span>")
+    msft_card = _section(position_cards, ">MSFT</span>", None)
 
     assert "<strong>Dongdong:</strong>" in aapl_card
     assert "<strong>Xixi:</strong>" in aapl_card
@@ -103,7 +103,7 @@ def test_interactive_html_position_cards_use_per_position_committee_reviews(
     assert "across 2 ticker(s)" not in msft_card
     assert "across 2 ticker(s)" in body
     assert body.index("across 2 ticker(s)") > body.index(
-        f"{HTML_H2_STYLE}5. Market Overview</h2>"
+        f"{HTML_H2_STYLE}4. Market Overview</h2>"
     )
     get_settings.cache_clear()
 
@@ -158,11 +158,28 @@ def test_interactive_html_uses_inline_card_layout_and_badges() -> None:
     assert "border-radius: 10px" in body
     assert ">减仓复核</span>" in body
     assert ">信心：高</span>" in body
-    assert ">紧急程度：高</span>" in body
     assert ">需要人工复核</span>" in body
     assert "<script" not in body.lower()
     assert "<style" not in body.lower()
     assert "<link" not in body.lower()
+
+
+def test_interactive_html_position_cards_are_collapsed_by_default() -> None:
+    body = render_investment_research_report_interactive_html(
+        _sample_report(),
+        language="zh",
+    )
+    card = _first_position_card(body)
+    opening_tag = card.split(">", 1)[0]
+    summary = _position_card_summary(card)
+
+    assert card.startswith("<details")
+    assert " open" not in opening_tag
+    assert "NVDA" in summary
+    assert "减仓复核" in summary
+    assert "信心：高" in summary
+    assert "需要人工复核" in summary
+    assert "Committee recommends reviewing the position." not in summary
 
 
 def test_interactive_html_stock_cards_keep_critical_fields_visible() -> None:
@@ -170,13 +187,18 @@ def test_interactive_html_stock_cards_keep_critical_fields_visible() -> None:
         _sample_report(),
         language="zh",
     )
-    card = _first_html_card(body)
+    card = _first_position_card(body)
+    summary = _position_card_summary(card)
 
-    assert card.startswith('<div style="background: #ffffff;')
-    assert "<h3" in card
-    assert "NVDA - 减仓复核" in _section(card, "<h3", "</h3>")
+    assert card.startswith('<details style="background: #ffffff;')
+    assert "NVDA" in summary
+    assert "减仓复核" in summary
+    assert "信心：高" in summary
+    assert "需要人工复核" in summary
+    assert "紧急程度" not in summary
+    assert "<strong>理由:</strong>" not in summary
     assert "<strong>建议:</strong> 减仓复核" in card
-    assert card.index("<strong>建议:</strong> 减仓复核") < card.index("<details")
+    assert card.index("<strong>建议:</strong> 减仓复核") < card.index("事实依据")
 
 
 def test_interactive_html_uses_chinese_section_titles() -> None:
@@ -187,10 +209,10 @@ def test_interactive_html_uses_chinese_section_titles() -> None:
 
     assert ">1. 需要处理</h2>" in body
     assert ">2. 持仓决策卡片</h2>" in body
-    assert ">3. 稳定持仓</h2>" in body
-    assert ">4. 新机会</h2>" in body
-    assert ">5. 市场概览</h2>" in body
-    assert ">6. 原始证据</h2>" in body
+    assert ">3. 稳定持仓</h2>" not in body
+    assert ">3. 新机会</h2>" in body
+    assert ">4. 市场概览</h2>" in body
+    assert ">5. 原始证据</h2>" in body
 
 
 def test_interactive_html_uses_chinese_field_labels() -> None:
@@ -216,7 +238,6 @@ def test_interactive_html_localizes_recommendation_confidence_and_urgency() -> N
     )
 
     assert "减仓复核" in body
-    assert "继续持有" in body
     assert "继续观察" in body
     assert "信心：高" in body
     assert "信心：中" in body
@@ -232,7 +253,7 @@ def test_interactive_html_contains_progressive_details_sections() -> None:
     assert "<details" in body
     assert "<summary" in body
     assert "事实依据" in body
-    assert "展开稳定持仓" in body
+    assert "展开稳定持仓" not in body
     assert "展开原始证据" in body
 
 
@@ -241,24 +262,14 @@ def test_interactive_html_critical_fields_are_visible_outside_details() -> None:
         _sample_report(),
         language="zh",
     )
-    visible_body = _without_inner_html_details(_first_html_card(body))
+    visible_body = _position_card_summary(_first_position_card(body))
 
-    assert "NVDA - 减仓复核" in visible_body
-    assert "<strong>建议:</strong> 减仓复核" in visible_body
-    assert "<strong>信心:</strong> 高" in visible_body
-    assert "<strong>紧急程度:</strong> 高" in visible_body
-    assert (
-        "<strong>理由:</strong> Committee recommends reviewing the position."
-        in visible_body
-    )
-    assert "<strong>最终共识:</strong>" in visible_body
-    assert "<strong>东东:</strong> Opportunity remains attractive." in visible_body
-    assert "<strong>西西:</strong> Fundamentals remain strong." in visible_body
-    assert "<strong>悠悠:</strong> Sizing risk requires monitoring." in visible_body
-    assert "<strong>行动与仓位复核</strong>" in visible_body
-    assert "<strong>参考股数:</strong> 具体股数需人工确认" in visible_body
-    assert "<strong>目标仓位:</strong> 具体比例需人工确认" in visible_body
-    assert "<strong>执行方式:</strong> 建议分批复核，不自动交易" in visible_body
+    assert "NVDA" in visible_body
+    assert "减仓复核" in visible_body
+    assert "信心：高" in visible_body
+    assert "需要人工复核" in visible_body
+    assert "<strong>建议:</strong> 减仓复核" not in visible_body
+    assert "<strong>东东:</strong> Opportunity remains attractive." not in visible_body
     assert "Committee reviewed supplied context." not in visible_body
 
 
@@ -267,16 +278,17 @@ def test_interactive_html_position_evidence_is_inside_details() -> None:
         _sample_report(),
         language="zh",
     )
-    card = _first_html_card(body)
+    card = _first_position_card(body)
     details = _section(card, "事实依据", "</details>") + "</details>"
 
     assert "<strong>东东:</strong>" in card
     assert "<strong>西西:</strong>" in card
     assert "<strong>悠悠:</strong>" in card
+    assert "<strong>东东:</strong>" not in details
+    assert "<strong>西西:</strong>" not in details
+    assert "<strong>悠悠:</strong>" not in details
+    assert "委员会讨论" in card
     assert "Committee reviewed supplied context." in details
-    assert "Committee reviewed supplied context." not in _without_inner_html_details(
-        card
-    )
 
 
 def test_interactive_html_decision_card_still_has_collapsible_evidence_details() -> None:
@@ -284,7 +296,7 @@ def test_interactive_html_decision_card_still_has_collapsible_evidence_details()
         _sample_report(),
         language="zh",
     )
-    card = _first_html_card(body)
+    card = _first_position_card(body)
 
     assert '<details style="margin-top: 12px;">' in card
     assert "事实依据" in _section(card, "<details", "</details>")
@@ -300,7 +312,7 @@ def test_interactive_html_trim_card_includes_actionable_sizing_section() -> None
         _sample_report(),
         language="zh",
     )
-    visible_body = _without_inner_html_details(_first_html_card(body))
+    visible_body = _first_position_card(body)
 
     assert "当前状态:</strong> 仓位偏高" in visible_body
     assert "建议动作:</strong> 减仓复核" in visible_body
@@ -320,28 +332,22 @@ def test_interactive_html_sell_card_includes_share_guidance_fallback() -> None:
         replace(report, position_decisions=(sell_decision,)),
         language="zh",
     )
-    visible_body = _without_inner_html_details(_first_html_card(body))
+    visible_body = _first_position_card(body)
 
     assert "卖出复核" in visible_body
     assert "当前状态:</strong> 风险偏高" in visible_body
     assert "参考股数:</strong> 具体股数需人工确认" in visible_body
 
 
-def test_interactive_html_stable_holdings_are_inside_details() -> None:
+def test_interactive_html_stable_holdings_section_is_absent() -> None:
     body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
-    stable_section = _section(
-        body,
-        ">3. 稳定持仓</h2>",
-        ">4. 新机会</h2>",
-    )
 
-    assert "<details" in stable_section
-    assert "<summary" in stable_section
-    assert "MSFT: 继续持有" in stable_section
-    assert "MSFT: 继续持有" not in _without_html_details(stable_section)
+    assert ">3. 稳定持仓</h2>" not in body
+    assert "展开稳定持仓" not in body
+    assert "MSFT: 继续持有" not in body
 
 
 def test_interactive_html_raw_evidence_is_bottom_details() -> None:
@@ -349,9 +355,9 @@ def test_interactive_html_raw_evidence_is_bottom_details() -> None:
         _sample_report(),
         language="zh",
     )
-    raw_section = _section(body, ">6. 原始证据</h2>", None)
+    raw_section = _section(body, ">5. 原始证据</h2>", None)
 
-    assert body.rfind(">6. 原始证据</h2>") > body.rfind(">5. 市场概览</h2>")
+    assert body.rfind(">5. 原始证据</h2>") > body.rfind(">4. 市场概览</h2>")
     assert "<details" in raw_section
     assert "<summary" in raw_section
     assert (
@@ -400,7 +406,7 @@ def test_chinese_interactive_html_raw_evidence_hides_sensitive_portfolio_terms()
         sensitive_report,
         language="zh",
     )
-    raw_section = _section(body, ">6. 原始证据</h2>", None)
+    raw_section = _section(body, ">5. 原始证据</h2>", None)
 
     assert "Services growth." in raw_section
     for sensitive_term in ("市值", "股", "现金余额"):
@@ -615,12 +621,20 @@ def _section(body: str, start: str, end: str | None) -> str:
     return body[start_index:end_index]
 
 
-def _first_html_card(body: str) -> str:
+def _first_position_card(body: str) -> str:
     return _section(
         body,
-        '<div style="background: #ffffff;',
-        f"{HTML_H2_STYLE}3. 稳定持仓</h2>",
+        '<details style="background: #ffffff;',
+        f"{HTML_H2_STYLE}3. 新机会</h2>",
     )
+
+
+def _first_html_card(body: str) -> str:
+    return _first_position_card(body)
+
+
+def _position_card_summary(card: str) -> str:
+    return _section(card, "<summary", "</summary>") + "</summary>"
 
 
 def _without_inner_html_details(card: str) -> str:

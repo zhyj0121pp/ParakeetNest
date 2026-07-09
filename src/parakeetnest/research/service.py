@@ -31,6 +31,7 @@ from parakeetnest.research.models import (
     InvestmentResearchReport,
     ReportMode,
     ResearchCatalyst,
+    ResearchFactInterpretation,
     ResearchFinding,
     ResearchPositionDecision,
     ResearchRisk,
@@ -263,6 +264,7 @@ class InvestmentResearchService:
             news_facts=inputs.news_facts,
             company_facts=inputs.company_facts,
             macro_facts=inputs.macro_facts,
+            fact_interpretation=_fact_interpretation(inputs),
         )
 
     def _build_position_committee_review(
@@ -756,6 +758,185 @@ def _macro_facts(context: MeetingContext | None) -> tuple[str, ...]:
             for item in context.economic_regime.indicators
         )
     return tuple(facts)
+
+
+def _fact_interpretation(inputs: _TickerInputs) -> ResearchFactInterpretation:
+    valuation_values = _fact_values(inputs.valuation_facts + inputs.public_market_facts)
+    profile_values = _fact_values(inputs.profile_facts)
+    trailing_pe = _optional_fact_float(valuation_values, "trailing_pe", "pe_ratio")
+    forward_pe = _optional_fact_float(valuation_values, "forward_pe")
+    ev_to_sales = _optional_fact_float(valuation_values, "ev_to_sales")
+    beta = _optional_fact_float(profile_values, "beta")
+    sector = profile_values.get("sector")
+    industry = profile_values.get("industry")
+    valuation_label = _valuation_label(
+        trailing_pe=trailing_pe,
+        forward_pe=forward_pe,
+        ev_to_sales=ev_to_sales,
+    )
+    valuation_summary = _valuation_summary(
+        valuation_label,
+        trailing_pe=trailing_pe,
+        forward_pe=forward_pe,
+        ev_to_sales=ev_to_sales,
+    )
+    profile_summary = _profile_summary(sector=sector, industry=industry, beta=beta)
+    risk_summary = _interpreted_risk_summary(
+        inputs,
+        valuation_label=valuation_label,
+        beta=beta,
+    )
+    catalyst_summary = _catalyst_summary(inputs)
+    evidence_notes = tuple(
+        value
+        for value in (
+            f"profile: {profile_summary}",
+            f"valuation: {valuation_summary}",
+            f"risk: {risk_summary}",
+            f"catalysts: {catalyst_summary}",
+        )
+        if value.strip()
+    )
+    return ResearchFactInterpretation(
+        valuation_label=valuation_label,
+        valuation_summary=valuation_summary,
+        risk_summary=risk_summary,
+        catalyst_summary=catalyst_summary,
+        profile_summary=profile_summary,
+        evidence_notes=evidence_notes,
+    )
+
+
+def _fact_values(facts: tuple[str, ...]) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for fact in facts:
+        for part in fact.split(","):
+            if "=" not in part:
+                continue
+            key, raw_value = part.split("=", 1)
+            normalized_key = key.strip()
+            if " " in normalized_key:
+                normalized_key = normalized_key.rsplit(" ", 1)[-1]
+            normalized_value = raw_value.strip()
+            if normalized_key and normalized_value:
+                values[normalized_key] = normalized_value
+    return values
+
+
+def _optional_fact_float(
+    values: dict[str, str],
+    *field_names: str,
+) -> float | None:
+    for field_name in field_names:
+        raw_value = values.get(field_name)
+        if raw_value is None:
+            continue
+        try:
+            return float(raw_value)
+        except ValueError:
+            continue
+    return None
+
+
+def _valuation_label(
+    *,
+    trailing_pe: float | None,
+    forward_pe: float | None,
+    ev_to_sales: float | None,
+) -> str:
+    if trailing_pe is None and forward_pe is None and ev_to_sales is None:
+        return "unavailable"
+    if (trailing_pe is not None and trailing_pe >= 150) or (
+        ev_to_sales is not None and ev_to_sales >= 50
+    ):
+        return "extreme"
+    if ev_to_sales is not None and ev_to_sales >= 10:
+        return "revenue_multiple_risk"
+    if (trailing_pe is not None and trailing_pe >= 40) or (
+        forward_pe is not None and forward_pe >= 40
+    ) or (ev_to_sales is not None and ev_to_sales >= 6):
+        return "expensive"
+    if (trailing_pe is not None and trailing_pe <= 15) or (
+        forward_pe is not None and forward_pe <= 15
+    ) or (ev_to_sales is not None and ev_to_sales <= 2):
+        return "cheap"
+    return "fair"
+
+
+def _valuation_summary(
+    valuation_label: str,
+    *,
+    trailing_pe: float | None,
+    forward_pe: float | None,
+    ev_to_sales: float | None,
+) -> str:
+    metrics: list[str] = []
+    if trailing_pe is not None:
+        metrics.append(f"trailing PE {trailing_pe:.2f}")
+    if forward_pe is not None:
+        metrics.append(f"forward PE {forward_pe:.2f}")
+    if ev_to_sales is not None:
+        metrics.append(f"EV/Sales {ev_to_sales:.2f}")
+    if not metrics:
+        return "Valuation unavailable; PE and EV/Sales metrics are missing."
+    return f"Valuation label={valuation_label}; " + ", ".join(metrics) + "."
+
+
+def _profile_summary(
+    *,
+    sector: str | None,
+    industry: str | None,
+    beta: float | None,
+) -> str:
+    values: list[str] = []
+    if sector is not None:
+        values.append(f"sector={sector}")
+    if industry is not None:
+        values.append(f"industry={industry}")
+    if beta is not None:
+        values.append(f"beta={beta:.2f}")
+    return ", ".join(values) if values else "Company profile facts are unavailable."
+
+
+def _interpreted_risk_summary(
+    inputs: _TickerInputs,
+    *,
+    valuation_label: str,
+    beta: float | None,
+) -> str:
+    risk_flags: list[str] = []
+    position_context = inputs.position_context
+    if position_context is not None:
+        if position_context.position_size_bucket in {"large", "very_large"}:
+            risk_flags.append(
+                f"{position_context.position_size_bucket} position size"
+            )
+        if position_context.portfolio_rank_bucket in {"largest", "top_3"}:
+            risk_flags.append(f"{position_context.portfolio_rank_bucket} portfolio rank")
+        if position_context.trim_candidate:
+            risk_flags.append("portfolio trim candidate")
+    if beta is not None and beta >= 1.5:
+        risk_flags.append(f"high beta {beta:.2f}")
+    elif beta is not None and beta <= 0.7:
+        risk_flags.append(f"low beta {beta:.2f}")
+    if valuation_label in {"expensive", "extreme", "revenue_multiple_risk"}:
+        risk_flags.append(f"valuation {valuation_label}")
+    if inputs.portfolio_summary is not None and inputs.portfolio_summary.concentration_level in {
+        "high",
+        "very_high",
+    }:
+        risk_flags.append(
+            f"portfolio concentration {inputs.portfolio_summary.concentration_level}"
+        )
+    return "; ".join(risk_flags) if risk_flags else "No elevated interpreted risk flags."
+
+
+def _catalyst_summary(inputs: _TickerInputs) -> str:
+    if inputs.news_facts:
+        return f"{len(inputs.news_facts)} Yahoo news item(s) available for review."
+    if inputs.company_facts:
+        return f"{len(inputs.company_facts)} SEC filing item(s) available for review."
+    return "Catalyst evidence is limited; no ticker-specific news or filings available."
 
 
 def _volume_bucket(volume: float) -> str:

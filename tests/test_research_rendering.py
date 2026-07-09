@@ -27,6 +27,7 @@ from parakeetnest.research import (
     ResearchCommitteeConsensus,
     ResearchCommitteeOpinion,
     ResearchCommitteePortfolioView,
+    ResearchFactInterpretation,
     ResearchFinding,
     ResearchRisk,
     ResearchTickerReport,
@@ -271,12 +272,15 @@ def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_con
     )
 
     assert "Public facts" in card
+    assert "Fact interpretation" in card
     assert "Portfolio context, privacy-safe" in card
     assert "Yahoo/market_data: NVDA price=204.12" in card
     assert "Yahoo/news: NVDA, title=Nvidia supplier demand expands" in card
     assert "Yahoo / news" in card
+    assert "<strong>Yahoo / news:</strong> No available information" not in card
     assert "SEC EDGAR: NVDA 10-Q" in card
     assert "FRED/macro: Fed Funds 3.5" in card
+    assert "valuation_label=revenue_multiple_risk" in card
     assert "position size bucket: large" in card
     assert "rank bucket: largest" in card
     assert "return bucket: gain" in card
@@ -532,6 +536,13 @@ def _sample_report(
         news_facts=("Yahoo/news: NVDA, title=Nvidia supplier demand expands",),
         company_facts=("SEC EDGAR: NVDA 10-Q",),
         macro_facts=("FRED/macro: Fed Funds 3.5",),
+        fact_interpretation=ResearchFactInterpretation(
+            valuation_label="revenue_multiple_risk",
+            valuation_summary="Valuation label=revenue_multiple_risk; EV/Sales 19.33.",
+            risk_summary="large position size; valuation revenue_multiple_risk",
+            catalyst_summary="1 Yahoo news item(s) available for review.",
+            profile_summary="sector=Technology, industry=Semiconductors, beta=2.21",
+        ),
     )
     aapl = ResearchTickerReport(
         ticker="AAPL",

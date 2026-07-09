@@ -36,6 +36,10 @@ def _render_ticker_report(ticker_report: ResearchTickerReport) -> list[str]:
         *_render_section("public_market_facts", ticker_report.public_market_facts),
         *_render_section("profile_facts", ticker_report.profile_facts),
         *_render_section("valuation_facts", ticker_report.valuation_facts),
+        *_render_section(
+            "fact_interpretation",
+            ticker_report.fact_interpretation.evidence_notes,
+        ),
         *_render_section("news_facts", ticker_report.news_facts),
         *_render_section("company_facts", ticker_report.company_facts),
         *_render_section("macro_facts", ticker_report.macro_facts),

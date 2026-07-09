@@ -492,6 +492,9 @@ def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
     )
     assert any("beta=1.18" in fact for fact in by_ticker["AAPL"].profile_facts)
     assert any("ev_to_sales=8.05" in fact for fact in by_ticker["AAPL"].valuation_facts)
+    assert by_ticker["AAPL"].fact_interpretation.valuation_label == "expensive"
+    assert "EV/Sales 8.05" in by_ticker["AAPL"].fact_interpretation.valuation_summary
+    assert "beta=1.18" in by_ticker["AAPL"].fact_interpretation.profile_summary
     assert any(
         fact.startswith("Yahoo/valuation: AAPL")
         for fact in by_ticker["AAPL"].valuation_facts
@@ -504,6 +507,7 @@ def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
         "trailing_pe=38.90" in fact
         for fact in by_ticker["MSFT"].valuation_facts
     )
+    assert by_ticker["MSFT"].fact_interpretation.valuation_label == "fair"
     assert not any(
         "ev_to_sales" in fact for fact in by_ticker["MSFT"].valuation_facts
     )
@@ -554,6 +558,14 @@ def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
         fact.startswith(("FRED/macro", "FRED/economic_regime"))
         for fact in macro_facts
     )
+
+    position_reviews = {
+        review.ticker: review for review in report.position_committee_reviews
+    }
+    assert "Valuation label=expensive" in position_reviews["AAPL"].xixi_opinion
+    assert "beta=1.18" in position_reviews["AAPL"].xixi_opinion
+    actions = {review.recommendation for review in report.position_committee_reviews}
+    assert len(actions) > 1
 
     for ticker_report in report.ticker_reports:
         assert ticker_report.position_context is not None

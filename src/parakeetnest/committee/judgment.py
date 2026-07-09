@@ -141,9 +141,12 @@ def _committee_reasoning(
     evidence_summary = _summarize_context_values(
         context.company_facts
         + context.public_market_facts
+        + context.profile_facts
+        + context.valuation_facts
         + context.news_facts
         + context.ticker_summaries
     )
+    interpretation_summary = _ticker_interpretation_summary(ticker_reports)
     macro_summary = _summarize_context_values(context.macro_facts)
     position_summary = _position_context_summary(context)
     portfolio_summary = _portfolio_summary_text(context)
@@ -158,6 +161,7 @@ def _committee_reasoning(
                 f"{tickers}: 上行空间只看可验证增长、催化剂和机会窗口。"
                 f"当前行动观点为 {action_summary}，信心为 {confidence_summary}；"
                 f"催化剂证据：{catalyst_summary}。"
+                f"事实解释：{interpretation_summary}。"
                 f"组合约束：{position_summary}。"
                 f"缺口：{missing_growth}。"
             )
@@ -165,7 +169,8 @@ def _committee_reasoning(
             f"{tickers}: upside depends on verifiable growth, catalysts, and "
             f"opportunity windows. Current action view is {action_summary} with "
             f"{confidence_summary} confidence; catalyst evidence: "
-            f"{catalyst_summary}. Portfolio add constraint: {position_summary}. "
+            f"{catalyst_summary}. Fact interpretation: {interpretation_summary}. "
+            f"Portfolio add constraint: {position_summary}. "
             f"Missing growth evidence: {missing_growth}."
         )
     if role is CommitteeRole.CHIEF_RISK_OFFICER:
@@ -174,6 +179,7 @@ def _committee_reasoning(
                 f"{tickers}: 资本保护优先，重点看下行、仓位大小和风险预算。"
                 f"报告支持 {action_summary}，信心为 {confidence_summary}；"
                 f"主要下行证据：{risk_summary}。宏观：{macro_summary}。"
+                f"事实解释：{interpretation_summary}。"
                 f"组合风险：{portfolio_summary}; {position_summary}。"
                 f"缺口：{missing_risk}。"
             )
@@ -182,6 +188,7 @@ def _committee_reasoning(
             f"downside, position sizing, and risk budget. The report supports "
             f"{action_summary} with {confidence_summary} confidence. Primary "
             f"downside evidence: {risk_summary}. Macro facts: {macro_summary}. "
+            f"Fact interpretation: {interpretation_summary}. "
             f"Portfolio risk context: {portfolio_summary}; {position_summary}. "
             f"Missing risk evidence: {missing_risk}."
         )
@@ -189,6 +196,7 @@ def _committee_reasoning(
         return (
             f"{tickers}: 基本面、估值和执行质量需要先验证 "
             f"{action_summary} 行动观点。证据基础：{evidence_summary}。"
+            f"事实解释：{interpretation_summary}。"
             f"当前持仓角色：{position_summary}。"
             f"缺口：{missing_fundamentals}。"
         )
@@ -196,7 +204,8 @@ def _committee_reasoning(
         f"{tickers}: fundamentals, valuation, and execution quality should "
         f"validate the {action_summary} action view before risk is added. "
         f"Evidence base: {evidence_summary}. Current exposure: "
-        f"{position_summary}. Missing fundamental evidence: {missing_fundamentals}."
+        f"{position_summary}. Fact interpretation: {interpretation_summary}. "
+        f"Missing fundamental evidence: {missing_fundamentals}."
     )
 
 
@@ -446,9 +455,24 @@ def _committee_action(ticker_report: ResearchTickerReport) -> str:
         ticker_report.position_context is not None
         and ticker_report.position_context.trim_candidate
     ):
+        if ticker_report.fact_interpretation.valuation_label in {
+            "expensive",
+            "extreme",
+            "revenue_multiple_risk",
+        }:
+            return "reduce"
+        if ticker_report.position_context.position_size_bucket == "very_large":
+            return "reduce"
+        return "hold"
+    if (
+        has_holding
+        and ticker_report.fact_interpretation.valuation_label
+        in {"extreme", "revenue_multiple_risk"}
+        and _ticker_has_elevated_risk(ticker_report)
+    ):
         return "reduce"
     if has_holding and _ticker_has_elevated_risk(ticker_report):
-        return "reduce"
+        return "hold"
     if has_holding:
         return "hold"
     return "watch"
@@ -503,6 +527,12 @@ def _has_elevated_risk(ticker_reports: tuple[ResearchTickerReport, ...]) -> bool
 
 def _ticker_has_elevated_risk(ticker_report: ResearchTickerReport) -> bool:
     risk_text = " ".join(risk.summary.lower() for risk in ticker_report.risks)
+    interpretation = ticker_report.fact_interpretation
+    if interpretation.valuation_label in {"extreme", "revenue_multiple_risk"}:
+        return True
+    interpreted_risk = interpretation.risk_summary.lower()
+    if "high beta" in interpreted_risk or "very_large position" in interpreted_risk:
+        return True
     if (
         ticker_report.portfolio_summary is not None
         and ticker_report.portfolio_summary.concentration_level in {"high", "very_high"}
@@ -512,6 +542,21 @@ def _ticker_has_elevated_risk(ticker_report: ResearchTickerReport) -> bool:
         marker in risk_text
         for marker in ("high", "extreme", "severe", "concentration", "export controls")
     )
+
+
+def _ticker_interpretation_summary(
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> str:
+    summaries = []
+    for ticker_report in ticker_reports:
+        interpretation = ticker_report.fact_interpretation
+        summaries.append(
+            f"{ticker_report.ticker}: {interpretation.profile_summary}; "
+            f"{interpretation.valuation_summary}; "
+            f"{interpretation.risk_summary}; "
+            f"{interpretation.catalyst_summary}"
+        )
+    return "; ".join(summaries) if summaries else "limited interpreted facts"
 
 
 def _position_context_summary(context: CommitteePromptContext) -> str:

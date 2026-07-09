@@ -11,6 +11,7 @@ from parakeetnest.research import (
     ReportMode,
     ResearchCatalyst,
     ResearchCommitteeConsensus,
+    ResearchFactInterpretation,
     ResearchRisk,
     ResearchTickerReport,
 )
@@ -32,6 +33,23 @@ def test_ticker_report_normalizes_for_email_ready_rendering() -> None:
     assert ticker_report.bull_case == ("AI demand.",)
     assert not hasattr(ticker_report, "recommendation")
     assert not hasattr(ticker_report, "confidence")
+
+
+def test_fact_interpretation_normalizes_supported_valuation_labels() -> None:
+    interpretation = ResearchFactInterpretation(
+        valuation_label=" Revenue_Multiple_Risk ",
+        valuation_summary="EV/Sales is elevated.",
+        risk_summary="High beta and valuation risk.",
+        catalyst_summary="News is available.",
+        profile_summary="Technology software company.",
+        evidence_notes=(" valuation: EV/Sales 12 ", ""),
+    )
+
+    assert interpretation.valuation_label == "revenue_multiple_risk"
+    assert interpretation.evidence_notes == ("valuation: EV/Sales 12",)
+
+    with pytest.raises(ValueError, match="valuation label"):
+        ResearchFactInterpretation(valuation_label="mystery")
 
 
 def test_committee_consensus_requires_committee_judgment_fields() -> None:

@@ -96,6 +96,63 @@ class ResearchCatalyst:
 
 
 @dataclass(frozen=True)
+class ResearchFactInterpretation:
+    """Ticker-specific interpretation of source-labeled public and portfolio facts."""
+
+    valuation_label: str = "unavailable"
+    valuation_summary: str = "Valuation facts are unavailable."
+    risk_summary: str = "Risk interpretation is limited."
+    catalyst_summary: str = "Catalyst evidence is limited."
+    profile_summary: str = "Company profile facts are unavailable."
+    evidence_notes: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        valuation_label = _required_text(
+            self.valuation_label,
+            "valuation_label",
+        ).lower()
+        allowed_labels = {
+            "unavailable",
+            "cheap",
+            "fair",
+            "expensive",
+            "extreme",
+            "revenue_multiple_risk",
+        }
+        if valuation_label not in allowed_labels:
+            raise ValueError(
+                "valuation label must be unavailable, cheap, fair, expensive, "
+                "extreme, or revenue_multiple_risk"
+            )
+        object.__setattr__(self, "valuation_label", valuation_label)
+        object.__setattr__(
+            self,
+            "valuation_summary",
+            _required_text(self.valuation_summary, "valuation_summary"),
+        )
+        object.__setattr__(
+            self,
+            "risk_summary",
+            _required_text(self.risk_summary, "risk_summary"),
+        )
+        object.__setattr__(
+            self,
+            "catalyst_summary",
+            _required_text(self.catalyst_summary, "catalyst_summary"),
+        )
+        object.__setattr__(
+            self,
+            "profile_summary",
+            _required_text(self.profile_summary, "profile_summary"),
+        )
+        object.__setattr__(
+            self,
+            "evidence_notes",
+            _normalize_text_tuple(self.evidence_notes),
+        )
+
+
+@dataclass(frozen=True)
 class ResearchCommitteeOpinion:
     """Daily-report opinion generated from a permanent committee persona."""
 
@@ -235,6 +292,9 @@ class ResearchTickerReport:
     news_facts: tuple[str, ...] = field(default_factory=tuple)
     company_facts: tuple[str, ...] = field(default_factory=tuple)
     macro_facts: tuple[str, ...] = field(default_factory=tuple)
+    fact_interpretation: ResearchFactInterpretation = field(
+        default_factory=ResearchFactInterpretation
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "ticker", _normalize_ticker(self.ticker))
@@ -283,6 +343,11 @@ class ResearchTickerReport:
             self,
             "macro_facts",
             _normalize_text_tuple(self.macro_facts),
+        )
+        object.__setattr__(
+            self,
+            "fact_interpretation",
+            self.fact_interpretation,
         )
 
     @property

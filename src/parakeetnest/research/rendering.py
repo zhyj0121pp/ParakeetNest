@@ -53,6 +53,10 @@ class _InvestmentResearchReportFormattingHelpers:
                 for fact in ticker_report.valuation_facts
             )
             lines.extend(
+                f"  - Interpreted fact: {note}"
+                for note in ticker_report.fact_interpretation.evidence_notes
+            )
+            lines.extend(
                 f"  - Public news fact: {fact}" for fact in ticker_report.news_facts
             )
             lines.extend(
@@ -113,6 +117,7 @@ class _InvestmentResearchReportFormattingHelpers:
         evidence.extend(ticker_report.public_market_facts)
         evidence.extend(ticker_report.profile_facts)
         evidence.extend(ticker_report.valuation_facts)
+        evidence.extend(ticker_report.fact_interpretation.evidence_notes)
         evidence.extend(ticker_report.news_facts)
         evidence.extend(ticker_report.company_facts)
         evidence.extend(ticker_report.macro_facts)
@@ -436,6 +441,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                             (l10n.youyou, youyou_opinion),
                         )
                     ),
+                    self._render_html_interpretation(ticker_report),
                     self._render_html_public_facts(ticker_report),
                     self._render_html_portfolio_context(ticker_report),
                     self._html_details(
@@ -478,18 +484,51 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                     '<p style="margin: 0 0 6px;"><strong>'
                     f"{_html(title)}</strong></p>"
                 ),
-                self._html_field(yahoo_title, None),
+                self._html_section_label(yahoo_title),
                 self._html_list(ticker_report.public_market_facts),
-                self._html_field(profile_title, None),
+                self._html_section_label(profile_title),
                 self._html_list(ticker_report.profile_facts),
-                self._html_field(valuation_title, None),
+                self._html_section_label(valuation_title),
                 self._html_list(ticker_report.valuation_facts),
-                self._html_field(news_title, None),
+                self._html_section_label(news_title),
                 self._html_list(ticker_report.news_facts[:5]),
-                self._html_field(sec_title, None),
+                self._html_section_label(sec_title),
                 self._html_list(ticker_report.company_facts),
-                self._html_field(fred_title, None),
+                self._html_section_label(fred_title),
                 self._html_list(ticker_report.macro_facts),
+                "</div>",
+            ]
+        )
+
+    def _render_html_interpretation(
+        self,
+        ticker_report: ResearchTickerReport,
+    ) -> str:
+        title = (
+            "事实解释"
+            if self._localization.language is ReportLanguage.ZH
+            else "Fact interpretation"
+        )
+        interpretation = ticker_report.fact_interpretation
+        return "\n".join(
+            [
+                (
+                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
+                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
+                ),
+                (
+                    '<p style="margin: 0 0 6px;"><strong>'
+                    f"{_html(title)}</strong></p>"
+                ),
+                self._html_list(
+                    (
+                        f"valuation_label={interpretation.valuation_label}",
+                        interpretation.profile_summary,
+                        interpretation.valuation_summary,
+                        interpretation.risk_summary,
+                        interpretation.catalyst_summary,
+                    )
+                ),
                 "</div>",
             ]
         )
@@ -851,6 +890,9 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             '<p style="margin: 8px 0;"><strong>'
             f"{_html(label)}:</strong> {_html(self._fallback(value))}</p>"
         )
+
+    def _html_section_label(self, label: str) -> str:
+        return f'<p style="margin: 8px 0;"><strong>{_html(label)}:</strong></p>'
 
     def _html_list(self, values: Iterable[str]) -> str:
         normalized = tuple(value.strip() for value in values if value.strip())

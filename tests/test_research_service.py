@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,6 +28,7 @@ from parakeetnest.context.models import (
     NewsItem,
 )
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
+from parakeetnest.llm import MockLLMProvider
 from parakeetnest.portfolio import (
     PortfolioCashBalance,
     PortfolioHolding,
@@ -816,6 +818,92 @@ def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
+def test_llm_persona_discussions_are_produced_from_prompts() -> None:
+    llm = MockLLMProvider(responses=_llm_committee_responses("NVDA"))
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    report = service.generate_report(("NVDA",), generated_at=AS_OF)
+
+    assert report.committee_opinions[0].reasoning_summary.startswith(
+        "Dongdong LLM action=watch"
+    )
+    assert report.committee_opinions[1].reasoning_summary.startswith(
+        "Xixi LLM action=hold"
+    )
+    assert report.committee_opinions[2].reasoning_summary.startswith(
+        "Yoyo LLM action=reduce"
+    )
+    assert report.committee_consensus.rationale == (
+        "Chairman LLM synthesizes final advisory recommendation."
+    )
+    assert len(llm.requests) == 8
+    assert llm.requests[0].metadata["task"] == "daily_report_persona_opinion"
+    assert "You are Dongdong" in llm.requests[0].prompt
+    assert "Return only a JSON object matching CommitteeOpinion" in llm.requests[0].prompt
+    assert llm.requests[3].metadata["task"] == "daily_report_chairman_synthesis"
+
+
+def test_llm_prompts_include_yahoo_profile_and_valuation_facts() -> None:
+    llm = MockLLMProvider(responses=_llm_committee_responses("AAPL"))
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    service.generate_report(("AAPL",), generated_at=AS_OF)
+
+    persona_prompt = llm.requests[0].prompt
+    assert "Yahoo / profile facts:" in persona_prompt
+    assert "Yahoo/profile: AAPL" in persona_prompt
+    assert "sector=Technology" in persona_prompt
+    assert "industry=Consumer Electronics" in persona_prompt
+    assert "Yahoo / valuation facts:" in persona_prompt
+    assert "Yahoo/valuation: AAPL" in persona_prompt
+    assert "forward_pe=28.70" in persona_prompt
+    assert "ev_to_sales=8.05" in persona_prompt
+
+
+def test_llm_prompts_separate_pre_committee_analysis_from_factual_evidence() -> None:
+    llm = MockLLMProvider(responses=_llm_committee_responses("AAPL"))
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    service.generate_report(("AAPL",), generated_at=AS_OF)
+
+    persona_prompt = llm.requests[0].prompt
+    facts_index = persona_prompt.index("PUBLIC FACTS")
+    analysis_index = persona_prompt.index("PRE-COMMITTEE ANALYSIS")
+    assert facts_index < analysis_index
+    assert "Deterministic ResearchFactInterpretation, not raw factual evidence" in (
+        persona_prompt
+    )
+    assert "Yahoo/valuation: AAPL" in persona_prompt[facts_index:analysis_index]
+    assert "valuation_label=expensive" in persona_prompt[analysis_index:]
+    assert "EV/Sales 8.05" in persona_prompt[analysis_index:]
+    assert "valuation_label=expensive" not in persona_prompt[facts_index:analysis_index]
+
+
+def test_invalid_llm_output_falls_back_to_deterministic_judgment() -> None:
+    llm = MockLLMProvider(responses=("{not valid json",))
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    report = service.generate_report(("AAPL",), generated_at=AS_OF)
+
+    assert report.committee_opinions[0].display_name == "Dongdong"
+    assert "LLM action" not in report.committee_opinions[0].reasoning_summary
+    assert report.committee_opinions[0].evidence_considered
+    assert "Chairman LLM synthesizes" not in report.committee_consensus.rationale
+    assert report.committee_consensus.final_action
+
+
 def test_research_package_has_no_broker_or_trading_execution_logic() -> None:
     research_dir = Path(__file__).parents[1] / "src" / "parakeetnest" / "research"
     source = "\n".join(path.read_text() for path in research_dir.glob("*.py")).lower()
@@ -842,3 +930,70 @@ def _report_text(value: object) -> str:
     if hasattr(value, "__dict__"):
         return _report_text(vars(value))
     return str(value)
+
+
+def _llm_committee_responses(symbol: str) -> tuple[str, ...]:
+    return (
+        _committee_opinion_json("Dongdong", "Chief Growth Officer", symbol, "watch"),
+        _committee_opinion_json("Xixi", "Chief Investment Analyst", symbol, "hold"),
+        _committee_opinion_json("Yoyo", "Chief Risk Officer", symbol, "reduce"),
+        _chairman_json(symbol),
+        _committee_opinion_json("Dongdong", "Chief Growth Officer", symbol, "watch"),
+        _committee_opinion_json("Xixi", "Chief Investment Analyst", symbol, "hold"),
+        _committee_opinion_json("Yoyo", "Chief Risk Officer", symbol, "reduce"),
+        _chairman_json(symbol),
+    )
+
+
+def _committee_opinion_json(
+    member_name: str,
+    role: str,
+    symbol: str,
+    action: str,
+) -> str:
+    return json.dumps(
+        {
+            "member_name": member_name,
+            "role": role,
+            "symbol": symbol,
+            "viewpoint": (
+                f"{member_name} LLM action={action}; confidence=medium; "
+                "horizon=3_months; evidence=supplied Yahoo facts; "
+                "risks=valuation risk; catalysts=research catalyst."
+            ),
+            "confidence": "medium",
+            "evidence": [
+                {
+                    "summary": "supplied Yahoo facts",
+                    "source": "Yahoo/valuation",
+                    "observed_at": None,
+                }
+            ],
+            "risks": ["valuation risk"],
+            "catalysts": ["research catalyst"],
+        },
+        sort_keys=True,
+    )
+
+
+def _chairman_json(symbol: str) -> str:
+    return json.dumps(
+        {
+            "symbol": symbol,
+            "action": "watch",
+            "confidence": "medium",
+            "horizon": "3_months",
+            "rationale": "Chairman LLM synthesizes final advisory recommendation.",
+            "evidence": [
+                {
+                    "summary": "supplied source-labeled facts",
+                    "source": "committee_prompt",
+                    "observed_at": None,
+                }
+            ],
+            "risks": ["valuation risk"],
+            "catalysts": ["research catalyst"],
+            "data_confidence": "medium",
+        },
+        sort_keys=True,
+    )

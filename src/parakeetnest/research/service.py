@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from typing import Any, Protocol
 
 from parakeetnest.committee.judgment import CommitteeJudgmentService
+from parakeetnest.committee.llm_judgment import LLMCommitteeJudgmentService
 from parakeetnest.committee.personas import PermanentCommitteeService
 from parakeetnest.committee.prompting import (
     ADVISORY_ONLY_DISCLAIMER,
@@ -22,6 +23,7 @@ from parakeetnest.context.models import (
     PortfolioSnapshot,
 )
 from parakeetnest.context.provider import ContextProviderResult
+from parakeetnest.llm.provider import LLMProvider
 from parakeetnest.portfolio.privacy import (
     PortfolioPositionContext,
     PortfolioPrivacyContextBuilder,
@@ -106,6 +108,9 @@ class InvestmentResearchService:
         committee_service: _PermanentCommitteeService | None = None,
         prompt_builder: CommitteePromptBuilder | None = None,
         judgment_service: CommitteeJudgmentService | None = None,
+        llm_provider: LLMProvider | None = None,
+        llm_model: str | None = None,
+        llm_temperature: float = 0.0,
     ) -> None:
         self._portfolio_service = portfolio_service
         self._portfolio_context_provider = portfolio_context_provider
@@ -115,6 +120,16 @@ class InvestmentResearchService:
         self._committee_service = committee_service or PermanentCommitteeService()
         self._prompt_builder = prompt_builder or PersonaDrivenCommitteePromptBuilder()
         self._judgment_service = judgment_service or CommitteeJudgmentService()
+        self._llm_judgment_service = (
+            LLMCommitteeJudgmentService(
+                llm_provider=llm_provider,
+                fallback_service=self._judgment_service,
+                model=llm_model,
+                temperature=llm_temperature,
+            )
+            if llm_provider is not None
+            else None
+        )
 
     def generate_report(
         self,
@@ -212,6 +227,15 @@ class InvestmentResearchService:
             evidence_notes=evidence_notes,
         )
         committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
+        committee_opinions = self._build_committee_opinions(
+            committee_prompts,
+            ticker_reports,
+        )
+        committee_consensus = self._build_committee_consensus(
+            ticker_reports,
+            language=prompt_contexts[0].report_language if prompt_contexts else None,
+            committee_opinions=committee_opinions,
+        )
         position_committee_reviews = tuple(
             self._build_position_committee_review(
                 ticker_report,
@@ -226,15 +250,9 @@ class InvestmentResearchService:
             market_summary=market_summary,
             portfolio_review=portfolio_review,
             watchlist_review=watchlist_review,
-            committee_opinions=self._judgment_service.build_opinions(
-                committee_prompts,
-                ticker_reports,
-            ),
+            committee_opinions=committee_opinions,
             portfolio_context=portfolio_context,
-            committee_consensus=self._judgment_service.build_consensus(
-                ticker_reports,
-                language=prompt_contexts[0].report_language if prompt_contexts else None,
-            ),
+            committee_consensus=committee_consensus,
             position_committee_reviews=position_committee_reviews,
             source_summaries=source_summaries,
             evidence_notes=evidence_notes,
@@ -293,6 +311,14 @@ class InvestmentResearchService:
             evidence_notes=evidence_notes,
         )
         committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
+        if self._llm_judgment_service is not None:
+            llm_review = self._llm_judgment_service.build_position_review(
+                ticker_report,
+                committee_prompts,
+                language=prompt_contexts[0].report_language if prompt_contexts else None,
+            )
+            if llm_review is not None:
+                return llm_review
         opinions = self._judgment_service.build_opinions(
             committee_prompts,
             ticker_reports,
@@ -311,6 +337,32 @@ class InvestmentResearchService:
             confidence=consensus.confidence,
             rationale=consensus.rationale,
             evidence=_ticker_evidence(ticker_report),
+        )
+
+    def _build_committee_opinions(
+        self,
+        committee_prompts: tuple[Any, ...],
+        ticker_reports: tuple[ResearchTickerReport, ...],
+    ) -> tuple[Any, ...]:
+        service = self._llm_judgment_service or self._judgment_service
+        return service.build_opinions(committee_prompts, ticker_reports)
+
+    def _build_committee_consensus(
+        self,
+        ticker_reports: tuple[ResearchTickerReport, ...],
+        *,
+        language: object | None,
+        committee_opinions: tuple[Any, ...],
+    ) -> Any:
+        if self._llm_judgment_service is not None:
+            return self._llm_judgment_service.build_consensus(
+                ticker_reports,
+                language=language,
+                committee_opinions=committee_opinions,
+            )
+        return self._judgment_service.build_consensus(
+            ticker_reports,
+            language=language,
         )
 
     def _get_portfolio_snapshot(self, account_id: str | None) -> Any | None:
@@ -1127,9 +1179,27 @@ def _build_committee_prompt_contexts(
                 for ticker_report in ticker_reports
                 for fact in ticker_report.macro_facts
             ),
+            pre_committee_analysis=_unique(
+                item
+                for ticker_report in ticker_reports
+                for item in _pre_committee_analysis_items(ticker_report)
+            ),
             advisory_only_disclaimer=ADVISORY_ONLY_DISCLAIMER,
         )
         for member in committee_service.daily_investment_committee()
+    )
+
+
+def _pre_committee_analysis_items(
+    ticker_report: ResearchTickerReport,
+) -> tuple[str, ...]:
+    interpretation = ticker_report.fact_interpretation
+    return (
+        f"{ticker_report.ticker}: valuation_label={interpretation.valuation_label}",
+        f"{ticker_report.ticker}: profile_summary={interpretation.profile_summary}",
+        f"{ticker_report.ticker}: valuation_summary={interpretation.valuation_summary}",
+        f"{ticker_report.ticker}: risk_summary={interpretation.risk_summary}",
+        f"{ticker_report.ticker}: catalyst_summary={interpretation.catalyst_summary}",
     )
 
 

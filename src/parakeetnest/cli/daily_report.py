@@ -194,6 +194,8 @@ def _build_app_config(
 
 def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
     """Build the report composer from existing application services."""
+    config = getattr(app, "config", None)
+    llm_config = getattr(config, "llm", None)
     return DailyInvestmentReportComposer(
         research_service=InvestmentResearchService(
             portfolio_service=getattr(app, "portfolio_service", None),
@@ -205,6 +207,9 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
                 "investment_intelligence_context_service",
                 None,
             ),
+            llm_provider=getattr(app, "llm_provider", None),
+            llm_model=getattr(llm_config, "model", None),
+            llm_temperature=getattr(llm_config, "temperature", 0.0),
         )
     )
 

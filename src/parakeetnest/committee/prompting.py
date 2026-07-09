@@ -65,6 +65,7 @@ class CommitteePromptContext:
     news_facts: tuple[str, ...] = field(default_factory=tuple)
     company_facts: tuple[str, ...] = field(default_factory=tuple)
     macro_facts: tuple[str, ...] = field(default_factory=tuple)
+    pre_committee_analysis: tuple[str, ...] = field(default_factory=tuple)
     advisory_only_disclaimer: str = ADVISORY_ONLY_DISCLAIMER
     report_language: object | str = field(default_factory=_configured_report_language)
 
@@ -134,6 +135,11 @@ class CommitteePromptContext:
             self,
             "macro_facts",
             _normalize_text_tuple(self.macro_facts),
+        )
+        object.__setattr__(
+            self,
+            "pre_committee_analysis",
+            _normalize_text_tuple(self.pre_committee_analysis),
         )
         object.__setattr__(
             self,
@@ -297,6 +303,10 @@ class PersonaDrivenCommitteePromptBuilder:
                 *_render_items(context.company_facts),
                 "- FRED macro facts:",
                 *_render_items(context.macro_facts),
+                "",
+                "PRE-COMMITTEE ANALYSIS",
+                "- Deterministic ResearchFactInterpretation, not raw factual evidence:",
+                *_render_items(context.pre_committee_analysis),
                 "",
                 "PRIVATE PORTFOLIO CONTEXT, BUCKETED",
                 *_render_portfolio_summary(context.portfolio_summary),

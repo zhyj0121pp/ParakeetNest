@@ -12,6 +12,9 @@ temperature = 0.0
 [market_data]
 provider = "yahoo"
 
+[news]
+provider = "yahoo"
+
 [portfolio]
 provider = "robinhood"
 account_id = "default"

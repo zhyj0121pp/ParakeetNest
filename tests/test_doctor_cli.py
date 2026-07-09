@@ -75,6 +75,9 @@ def test_doctor_loads_real_toml_config(tmp_path: Path) -> None:
         [market_data]
         provider = "yahoo"
 
+        [news]
+        provider = "yahoo"
+
         [portfolio]
         provider = "robinhood"
         robinhood_username_env_var = "ROBINHOOD_USERNAME"
@@ -101,6 +104,7 @@ def test_doctor_loads_real_toml_config(tmp_path: Path) -> None:
 
     assert config.llm.provider == "openai"
     assert config.market_data.provider == "yahoo"
+    assert config.news.provider == "yahoo"
     assert config.portfolio.provider == "robinhood"
     assert config.sec_filings.provider == "edgar"
     assert config.macro.provider == "fred"

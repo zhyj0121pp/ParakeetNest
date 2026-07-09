@@ -50,6 +50,9 @@ provider = "openai"
 [market_data]
 provider = "yahoo"
 
+[news]
+provider = "yahoo"
+
 [portfolio]
 provider = "robinhood"
 

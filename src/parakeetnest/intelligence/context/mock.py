@@ -85,7 +85,7 @@ class MockInvestmentIntelligenceService:
                     )
                 ],
                 summary="Expansionary backdrop with contained inflation pressure.",
-                source="mock_investment_intelligence_service",
+                source="mock_market_context_service",
             ),
             sector_rotation=SectorRotationSnapshot(
                 as_of_date=observed_on,
@@ -107,7 +107,7 @@ class MockInvestmentIntelligenceService:
                     )
                 ],
                 summary="Cyclical leadership is constructive but concentrated.",
-                source="mock_investment_intelligence_service",
+                source="mock_market_context_service",
             ),
             risk=RiskAssessment(
                 overall_level=RiskLevel.MODERATE,
@@ -123,8 +123,8 @@ class MockInvestmentIntelligenceService:
                     )
                 ],
                 as_of_date=observed_on,
-                summary="Risk is moderate and manageable.",
-                source="mock_investment_intelligence_service",
+                summary="Risk level: moderate; risk score: 0.42.",
+                source="mock_market_context_service",
             ),
             breadth=MarketBreadthSnapshot(
                 universe=normalized_universe,

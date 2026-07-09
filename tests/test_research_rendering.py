@@ -450,14 +450,14 @@ def _sample_report(
         risks=(
             ResearchRisk(
                 "Export controls.",
-                evidence_notes=("Watchlist bear case.",),
+                evidence_notes=("Watchlist user thesis and notes.",),
             ),
         ),
         catalysts=(
             ResearchCatalyst(
                 "Datacenter demand.",
                 horizon="next report cycle",
-                evidence_notes=("Watchlist bull case.",),
+                evidence_notes=("Watchlist user thesis and notes.",),
             ),
         ),
         findings=(
@@ -467,7 +467,7 @@ def _sample_report(
                 evidence_notes=("Position context.",),
             ),
         ),
-        source_summaries=("portfolio: current holding context",),
+        source_summaries=("portfolio: current holding facts",),
         evidence_notes=("Existing portfolio holding.",),
     )
     aapl = ResearchTickerReport(
@@ -476,7 +476,13 @@ def _sample_report(
         bull_case=("Services growth.",),
         bear_case=("China demand risk.",),
         risks=(ResearchRisk("China demand risk."),),
-        catalysts=(ResearchCatalyst("Services growth.", horizon="next quarter"),),
+        catalysts=(
+            ResearchCatalyst(
+                "Services growth.",
+                horizon="next quarter",
+                evidence_notes=("Watchlist user thesis and notes.",),
+            ),
+        ),
     )
     return InvestmentResearchReport(
         ticker_reports=(nvda, aapl),
@@ -584,7 +590,7 @@ def _sample_report(
                 confidence=ConfidenceLevel.MEDIUM,
             ),
         ),
-        source_summaries=("portfolio: current holding context",),
+        source_summaries=("portfolio: current holding facts",),
         evidence_notes=("Research assembled from provider-neutral services.",),
     )
 

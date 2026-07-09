@@ -346,18 +346,15 @@ def _build_findings(inputs: _TickerInputs) -> tuple[ResearchFinding, ...]:
     if inputs.intelligence_context is not None:
         findings.append(
             ResearchFinding(
-                summary=_intelligence_summary(inputs.intelligence_context),
-                source="investment_intelligence",
-                evidence_notes=_intelligence_evidence(inputs.intelligence_context),
+                summary=_market_context_summary(inputs.intelligence_context),
+                source="market_context",
+                evidence_notes=_market_context_evidence(inputs.intelligence_context),
             )
         )
     if not findings:
         findings.append(
             ResearchFinding(
-                summary=(
-                    f"{inputs.ticker} has no connected portfolio, watchlist, "
-                    "or intelligence context yet."
-                ),
+                summary="No connected factual context available.",
                 source="research_service",
                 evidence_notes=(),
             )
@@ -369,34 +366,31 @@ def _build_risks(inputs: _TickerInputs) -> tuple[ResearchRisk, ...]:
     risks: list[ResearchRisk] = []
     if inputs.watchlist_insight is not None:
         risks.extend(
-            ResearchRisk(summary=factor, evidence_notes=("Watchlist bear case.",))
+            ResearchRisk(
+                summary=factor,
+                evidence_notes=("Watchlist user thesis and notes.",),
+            )
             for factor in inputs.watchlist_insight.bearish_factors
         )
     if inputs.holding is not None:
         risks.append(
             ResearchRisk(
-                summary=(
-                    "Position sizing and portfolio concentration should be "
-                    "reviewed before adding exposure."
-                ),
-                evidence_notes=(
-                    "Current holding value: "
-                    f"{_format_money(inputs.holding.market_value)}.",
-                ),
+                summary="; ".join(_holding_facts(inputs.holding)),
+                evidence_notes=("Existing portfolio holding.",),
             )
         )
-    risk_summary = _risk_summary(inputs.intelligence_context)
-    if risk_summary is not None:
+    risk_facts = _market_context_risk_facts(inputs.intelligence_context)
+    if risk_facts:
         risks.append(
             ResearchRisk(
-                summary=risk_summary,
-                evidence_notes=("Aggregate intelligence context.",),
+                summary="; ".join(risk_facts),
+                evidence_notes=("market_context: factual market context",),
             )
         )
     if not risks:
         risks.append(
             ResearchRisk(
-                summary="Insufficient connected research context is the primary risk.",
+                summary="No connected factual context available.",
                 evidence_notes=(),
             )
         )
@@ -410,29 +404,15 @@ def _build_catalysts(inputs: _TickerInputs) -> tuple[ResearchCatalyst, ...]:
             ResearchCatalyst(
                 summary=factor,
                 horizon="watchlist horizon",
-                evidence_notes=("Watchlist bull case.",),
+                evidence_notes=("Watchlist user thesis and notes.",),
             )
             for factor in inputs.watchlist_insight.bullish_factors
-        )
-    if inputs.holding is not None:
-        catalysts.append(
-            ResearchCatalyst(
-                summary=(
-                    "Portfolio review can decide whether to add, hold, or "
-                    "reduce exposure."
-                ),
-                horizon="next report cycle",
-                evidence_notes=("Existing portfolio holding.",),
-            )
         )
     if not catalysts:
         catalysts.append(
             ResearchCatalyst(
-                summary=(
-                    "Add thesis, signals, and portfolio context to strengthen "
-                    "evidence."
-                ),
-                horizon="next research update",
+                summary="No connected factual context available.",
+                horizon=None,
                 evidence_notes=(),
             )
         )
@@ -444,13 +424,12 @@ def _build_bull_case(inputs: _TickerInputs) -> tuple[str, ...]:
     if inputs.watchlist_insight is not None:
         bull_case.extend(inputs.watchlist_insight.bullish_factors)
     unrealized_return = _holding_unrealized_return(inputs.holding)
-    if unrealized_return is not None and unrealized_return >= 0:
+    if unrealized_return is not None:
         bull_case.append(
-            "Portfolio position is up "
-            f"{_format_percent(unrealized_return)}."
+            f"Portfolio unrealized return: {_format_percent(unrealized_return)}."
         )
     if not bull_case:
-        bull_case.append("No connected bull-case evidence yet.")
+        bull_case.append("No connected factual context available.")
     return _unique(bull_case)
 
 
@@ -462,13 +441,12 @@ def _build_bear_case(
     if inputs.watchlist_insight is not None:
         bear_case.extend(inputs.watchlist_insight.bearish_factors)
     unrealized_return = _holding_unrealized_return(inputs.holding)
-    if unrealized_return is not None and unrealized_return < 0:
+    if unrealized_return is not None:
         bear_case.append(
-            "Portfolio position is down "
-            f"{_format_percent(unrealized_return)}."
+            f"Portfolio unrealized return: {_format_percent(unrealized_return)}."
         )
     if not bear_case:
-        bear_case.extend(risk.summary for risk in risks[:1])
+        bear_case.append("No connected factual context available.")
     return _unique(bear_case)
 
 
@@ -503,47 +481,84 @@ def _holding_summary(holding: Any) -> str:
     )
 
 
-def _intelligence_summary(context: Any) -> str:
-    risk_summary = _risk_summary(context)
-    if risk_summary is not None:
-        return f"Market intelligence context available: {risk_summary}"
-    return "Market intelligence context available for the ticker."
+def _holding_facts(holding: Any) -> tuple[str, ...]:
+    facts = [
+        f"Portfolio market value: {_format_money(getattr(holding, 'market_value', None))}"
+    ]
+    weight = getattr(holding, "weight", None)
+    if weight is not None:
+        facts.append(f"Portfolio weight: {_format_percent(weight)}")
+    unrealized_return = _holding_unrealized_return(holding)
+    if unrealized_return is not None:
+        facts.append(f"Unrealized return: {_format_percent(unrealized_return)}")
+    return tuple(facts)
 
 
-def _intelligence_evidence(context: Any) -> tuple[str, ...]:
+def _market_context_summary(context: Any) -> str:
+    facts = _market_context_risk_facts(context)
+    if facts:
+        return "Market context facts: " + "; ".join(facts)
+    return "Market context facts available."
+
+
+def _market_context_evidence(context: Any) -> tuple[str, ...]:
     evidence: list[str] = []
+    generated_at = getattr(context, "generated_at", None)
+    if generated_at is not None:
+        evidence.append(f"Generated at: {generated_at}.")
     risk = getattr(context, "risk", None)
     if risk is not None:
-        if getattr(risk, "summary", None):
-            evidence.append(risk.summary)
+        if getattr(risk, "source", None):
+            evidence.append(f"Source: {risk.source}.")
         if getattr(risk, "overall_level", None):
             evidence.append(f"Risk level: {risk.overall_level.value}.")
-    return _unique(evidence) or ("Investment intelligence context generated.",)
+        if getattr(risk, "overall_score", None) is not None:
+            evidence.append(f"Risk score: {risk.overall_score:.2f}.")
+        for signal in getattr(risk, "signals", ())[:3]:
+            evidence.append(
+                "Risk signal: "
+                f"{signal.label}; category={signal.category.value}; "
+                f"level={signal.level.value}; score={signal.score:.2f}."
+            )
+            metadata = getattr(signal, "metadata", {})
+            for key in ("volatility", "drawdown"):
+                value = metadata.get(key)
+                if value is not None:
+                    evidence.append(f"{key.title()}: {value}.")
+    return _unique(evidence) or ("market_context: factual market context",)
 
 
-def _risk_summary(context: Any | None) -> str | None:
+def _market_context_risk_facts(context: Any | None) -> tuple[str, ...]:
     if context is None:
-        return None
+        return ()
     risk = getattr(context, "risk", None)
     if risk is None:
-        return None
-    if getattr(risk, "summary", None):
-        return risk.summary
+        return ()
+    facts: list[str] = []
+    if getattr(risk, "source", None):
+        facts.append(f"source={risk.source}")
     level = getattr(risk, "overall_level", None)
     score = getattr(risk, "overall_score", None)
-    if level is not None and score is not None:
-        return f"Aggregate risk is {level.value} ({score:.2f})."
-    return None
+    if level is not None:
+        facts.append(f"risk level={level.value}")
+    if score is not None:
+        facts.append(f"risk score={score:.2f}")
+    for signal in getattr(risk, "signals", ())[:3]:
+        facts.append(
+            f"{signal.label}: category={signal.category.value}, "
+            f"level={signal.level.value}, score={signal.score:.2f}"
+        )
+    return tuple(facts)
 
 
 def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
     summaries: list[str] = []
     if inputs.holding is not None:
-        summaries.append("portfolio: current holding context")
+        summaries.append("portfolio: current holding facts")
     if inputs.watchlist_insight is not None:
-        summaries.append("watchlist: thesis, factors, and open questions")
+        summaries.append("watchlist: user thesis and notes")
     if inputs.intelligence_context is not None:
-        summaries.append("aggregate intelligence: investment_intelligence context")
+        summaries.append("market_context: factual market context")
     if not summaries:
         summaries.append("research_service: requested ticker only")
     return tuple(summaries)
@@ -614,11 +629,13 @@ def _build_committee_prompt_contexts(
         f"{ticker_report.ticker}: {risk.summary}"
         for ticker_report in ticker_reports
         for risk in ticker_report.risks
+        if _is_connected_factual_context(risk.summary)
     )
     upcoming_catalysts = _unique(
         f"{ticker_report.ticker}: {catalyst.summary}"
         for ticker_report in ticker_reports
         for catalyst in ticker_report.catalysts
+        if _is_connected_factual_context(catalyst.summary)
     )
     return tuple(
         CommitteePromptContext(
@@ -652,19 +669,23 @@ def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
     for finding in ticker_report.findings:
         evidence.append(f"{finding.source}: {finding.summary}")
         evidence.extend(f"{finding.source}: {note}" for note in finding.evidence_notes)
-    evidence.extend(f"bull_case: {value}" for value in ticker_report.bull_case)
-    evidence.extend(f"bear_case: {value}" for value in ticker_report.bear_case)
     for risk in ticker_report.risks:
-        evidence.append(f"risk: {risk.summary}")
-        evidence.extend(f"risk evidence: {note}" for note in risk.evidence_notes)
+        if risk.evidence_notes:
+            evidence.append(f"risk: {risk.summary}")
+            evidence.extend(f"risk evidence: {note}" for note in risk.evidence_notes)
     for catalyst in ticker_report.catalysts:
-        evidence.append(f"catalyst: {catalyst.summary}")
-        evidence.extend(
-            f"catalyst evidence: {note}" for note in catalyst.evidence_notes
-        )
+        if catalyst.evidence_notes:
+            evidence.append(f"catalyst: {catalyst.summary}")
+            evidence.extend(
+                f"catalyst evidence: {note}" for note in catalyst.evidence_notes
+            )
     evidence.extend(ticker_report.source_summaries)
     evidence.extend(f"report evidence: {note}" for note in ticker_report.evidence_notes)
     return _unique(tuple(evidence))
+
+
+def _is_connected_factual_context(value: str) -> bool:
+    return value.strip() != "No connected factual context available."
 
 
 def _get_ticker(value: str) -> str:
@@ -779,7 +800,7 @@ def _dependency_notes(
     if not has_watchlist:
         notes.append("No watchlist service connected.")
     if not has_intelligence:
-        notes.append("No intelligence service connected.")
+        notes.append("No market context service connected.")
     return tuple(notes)
 
 

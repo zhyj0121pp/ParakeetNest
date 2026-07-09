@@ -101,7 +101,7 @@ def _committee_stance(
     elevated_risk = _has_elevated_risk(ticker_reports)
     limited_context = _committee_confidence(ticker_reports) == "low"
     has_substantive_catalysts = any(
-        not catalyst.summary.lower().startswith("add thesis")
+        _is_substantive_catalyst(catalyst.summary)
         for ticker_report in ticker_reports
         for catalyst in ticker_report.catalysts
     )
@@ -309,14 +309,20 @@ def _summarize_context_values(values: tuple[str, ...], limit: int = 2) -> str:
 
 
 def _missing_growth_evidence(context: CommitteePromptContext) -> str:
-    if any(
-        "add thesis" not in catalyst.lower()
-        for catalyst in context.upcoming_catalysts
-    ):
+    if any(_is_substantive_catalyst(catalyst) for catalyst in context.upcoming_catalysts):
         return "none obvious from the connected catalyst set"
     if _context_is_zh(context):
         return "缺少可验证增长催化剂、上行幅度和时间表"
     return "verifiable growth catalysts, upside magnitude, and timing"
+
+
+def _is_substantive_catalyst(value: str) -> bool:
+    normalized = value.lower().strip()
+    return not (
+        normalized.startswith("add thesis")
+        or normalized.endswith("no connected factual context available.")
+        or normalized == "no connected factual context available"
+    )
 
 
 def _missing_fundamental_evidence(context: CommitteePromptContext) -> str:

@@ -14,6 +14,7 @@ from parakeetnest.committee import (
 from parakeetnest.config import get_settings
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
+from parakeetnest.research import service as research_service
 from parakeetnest.research import (
     InvestmentResearchService,
     ReportMode,
@@ -130,21 +131,30 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert report.committee_consensus.confidence == "high"
     assert report.committee_consensus.rationale
     assert report.committee_consensus.todays_suggested_actions
-    assert "portfolio: current holding context" in ticker_report.source_summaries
-    assert "watchlist: thesis, factors, and open questions" in (
+    assert "portfolio: current holding facts" in ticker_report.source_summaries
+    assert "watchlist: user thesis and notes" in (
         ticker_report.source_summaries
     )
-    assert "aggregate intelligence: investment_intelligence context" in (
+    assert "market_context: factual market context" in (
         ticker_report.source_summaries
     )
     review = report.position_committee_reviews[0]
     assert any(item.startswith("portfolio:") for item in review.evidence)
     assert any(item.startswith("watchlist:") for item in review.evidence)
-    assert any(
-        item.startswith("investment_intelligence:") for item in review.evidence
+    assert any(item.startswith("market_context:") for item in review.evidence)
+    assert not any(item.startswith("investment_intelligence:") for item in review.evidence)
+    assert not any("aggregate intelligence:" in item for item in review.evidence)
+    assert not any(item.startswith(("bull_case:", "bear_case:")) for item in review.evidence)
+    assert not any(
+        label in item
+        for item in review.evidence
+        for label in ("Dongdong", "Xixi", "Youyou", "Committee:")
     )
-    assert any("aggregate intelligence:" in item for item in review.evidence)
+    assert "Risk is moderate and manageable" not in " ".join(review.evidence)
     assert "yahoo" not in " ".join(review.evidence).lower()
+    report_text = _report_text(report)
+    assert "investment_intelligence" not in report_text
+    assert "market_context" in report_text
     assert portfolio.calls == ["main"]
     assert watchlist.calls == ["NVDA"]
     assert intelligence.calls == [("NVDA", date(2026, 7, 1))]
@@ -192,8 +202,46 @@ def test_generate_report_uses_explicit_research_gap_when_no_context_connected() 
     assert report.mode is ReportMode.EVENING
     assert report.title == "Evening Investment Review"
     assert ticker_report.findings[0].source == "research_service"
+    assert ticker_report.findings[0].summary == "No connected factual context available."
+    assert ticker_report.risks[0].summary == "No connected factual context available."
+    assert ticker_report.catalysts[0].summary == "No connected factual context available."
+    assert ticker_report.bull_case == ("No connected factual context available.",)
+    assert ticker_report.bear_case == ("No connected factual context available.",)
     assert ticker_report.evidence_notes == ()
     assert "No portfolio service connected." in report.evidence_notes
+    assert "No market context service connected." in report.evidence_notes
+
+
+def test_market_context_helpers_replace_intelligence_and_risk_summaries() -> None:
+    context = FakeIntelligenceContext()
+
+    assert not hasattr(research_service, "_intelligence_summary")
+    assert not hasattr(research_service, "_risk_summary")
+    assert research_service._market_context_summary(context) == (
+        "Market context facts: risk level=moderate; risk score=0.42"
+    )
+    assert research_service._market_context_risk_facts(context) == (
+        "risk level=moderate",
+        "risk score=0.42",
+    )
+
+
+def test_market_context_does_not_emit_generic_judgment_phrases() -> None:
+    service = InvestmentResearchService(intelligence_service=FakeIntelligenceService())
+
+    report = service.generate_report(("NVDA",), generated_at=AS_OF)
+
+    report_text = _report_text(report)
+    forbidden = (
+        "Market intelligence context available",
+        "Aggregate risk is",
+        "Risk is moderate and manageable",
+        "aggregate intelligence",
+        "investment_intelligence",
+    )
+    for phrase in forbidden:
+        assert phrase not in report_text
+    assert "market_context: factual market context" in report_text
 
 
 def test_committee_opinions_are_derived_from_persona_prompt_context() -> None:
@@ -343,3 +391,15 @@ def test_research_package_has_no_broker_or_trading_execution_logic() -> None:
     )
     for term in forbidden_terms:
         assert term not in source
+
+
+def _report_text(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return " ".join(_report_text(item) for item in value.values())
+    if isinstance(value, (tuple, list)):
+        return " ".join(_report_text(item) for item in value)
+    if hasattr(value, "__dict__"):
+        return _report_text(vars(value))
+    return str(value)

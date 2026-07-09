@@ -33,8 +33,6 @@ class _InvestmentResearchReportFormattingHelpers:
         lines.extend(f"- Report source: {source}" for source in report.source_summaries)
         for ticker_report in report.ticker_reports:
             lines.append(f"- {ticker_report.ticker}: {ticker_report.summary}")
-            lines.extend(f"  - Bull case: {value}" for value in ticker_report.bull_case)
-            lines.extend(f"  - Bear case: {value}" for value in ticker_report.bear_case)
             for finding in ticker_report.findings:
                 lines.append(
                     f"  - Finding: {finding.summary} (source: {finding.source})"
@@ -42,6 +40,20 @@ class _InvestmentResearchReportFormattingHelpers:
                 lines.extend(
                     f"    - Evidence note: {note}" for note in finding.evidence_notes
                 )
+            for risk in ticker_report.risks:
+                if risk.evidence_notes:
+                    lines.append(f"  - Risk: {risk.summary}")
+                    lines.extend(
+                        f"    - Evidence note: {note}"
+                        for note in risk.evidence_notes
+                    )
+            for catalyst in ticker_report.catalysts:
+                if catalyst.evidence_notes:
+                    lines.append(f"  - Catalyst: {catalyst.summary}")
+                    lines.extend(
+                        f"    - Evidence note: {note}"
+                        for note in catalyst.evidence_notes
+                    )
             lines.extend(
                 f"  - Source: {source}" for source in ticker_report.source_summaries
             )
@@ -75,16 +87,16 @@ class _InvestmentResearchReportFormattingHelpers:
             evidence.extend(
                 f"{finding.source}: {note}" for note in finding.evidence_notes
             )
-        evidence.extend(f"bull_case: {value}" for value in ticker_report.bull_case)
-        evidence.extend(f"bear_case: {value}" for value in ticker_report.bear_case)
         for risk in ticker_report.risks:
-            evidence.append(f"risk: {risk.summary}")
-            evidence.extend(f"risk evidence: {note}" for note in risk.evidence_notes)
+            if risk.evidence_notes:
+                evidence.append(f"risk: {risk.summary}")
+                evidence.extend(f"risk evidence: {note}" for note in risk.evidence_notes)
         for catalyst in ticker_report.catalysts:
-            evidence.append(f"catalyst: {catalyst.summary}")
-            evidence.extend(
-                f"catalyst evidence: {note}" for note in catalyst.evidence_notes
-            )
+            if catalyst.evidence_notes:
+                evidence.append(f"catalyst: {catalyst.summary}")
+                evidence.extend(
+                    f"catalyst evidence: {note}" for note in catalyst.evidence_notes
+                )
         evidence.extend(ticker_report.source_summaries)
         return tuple(dict.fromkeys(value for value in evidence if value))
 

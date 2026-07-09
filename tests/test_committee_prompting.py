@@ -93,10 +93,12 @@ def test_committee_prompt_separates_public_facts_and_bucketed_portfolio_context(
 
     assert "PUBLIC FACTS" in prompt.prompt_text
     assert "Yahoo / market data facts:" in prompt.prompt_text
+    assert "Yahoo / news facts:" in prompt.prompt_text
     assert "SEC EDGAR facts:" in prompt.prompt_text
     assert "FRED macro facts:" in prompt.prompt_text
     assert "PRIVATE PORTFOLIO CONTEXT, BUCKETED" in prompt.prompt_text
     assert "Yahoo/market_data: NVDA price=204.12" in prompt.prompt_text
+    assert "Yahoo/news: NVDA, title=Nvidia supplier demand expands" in prompt.prompt_text
     assert "SEC EDGAR: NVDA 10-Q" in prompt.prompt_text
     assert "FRED/macro: Fed Funds 3.5" in prompt.prompt_text
     assert "- Position size bucket: large" in prompt.prompt_text
@@ -327,6 +329,7 @@ def _context_for(
             trim_candidate=True,
         ),
         public_market_facts=("Yahoo/market_data: NVDA price=204.12",),
+        news_facts=("Yahoo/news: NVDA, title=Nvidia supplier demand expands",),
         company_facts=("SEC EDGAR: NVDA 10-Q",),
         macro_facts=("FRED/macro: Fed Funds 3.5",),
         report_language=report_language,

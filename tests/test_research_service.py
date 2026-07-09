@@ -23,6 +23,8 @@ from parakeetnest.context.models import (
     MarketDataPoint,
     MarketSnapshot,
     MeetingContext,
+    NewsContext,
+    NewsItem,
 )
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
 from parakeetnest.portfolio import (
@@ -121,6 +123,32 @@ class FakePublicContextService:
                     ),
                 ),
             ),
+            news=NewsContext(
+                source="news",
+                items=(
+                    NewsItem(
+                        symbol="NVDA",
+                        title="Nvidia supplier demand expands",
+                        source="Yahoo Finance",
+                        url="https://finance.yahoo.com/news/nvda-demand",
+                        published_at=AS_OF,
+                    ),
+                    NewsItem(
+                        symbol="AAPL",
+                        title="Apple services revenue rises",
+                        source="Yahoo Finance",
+                        url="https://finance.yahoo.com/news/aapl-services",
+                        published_at=AS_OF,
+                    ),
+                    NewsItem(
+                        symbol="MSFT",
+                        title="Microsoft cloud backlog grows",
+                        source="Yahoo Finance",
+                        url="https://finance.yahoo.com/news/msft-cloud",
+                        published_at=AS_OF,
+                    ),
+                ),
+            ),
             macro=MacroSnapshot(
                 source="macro",
                 indicators=("Interest Rates: Fed Funds 3.5 as of 2026-07-01",),
@@ -201,6 +229,32 @@ class FakeDifferentiatedPublicContextService:
                         source="edgar",
                         accession_number="msft-8k",
                         summary="MSFT current report",
+                    ),
+                ),
+            ),
+            news=NewsContext(
+                source="news",
+                items=(
+                    NewsItem(
+                        symbol="NVDA",
+                        title="Nvidia supplier demand expands",
+                        source="Yahoo Finance",
+                        url="https://finance.yahoo.com/news/nvda-demand",
+                        published_at=AS_OF,
+                    ),
+                    NewsItem(
+                        symbol="AAPL",
+                        title="Apple services revenue rises",
+                        source="Yahoo Finance",
+                        url="https://finance.yahoo.com/news/aapl-services",
+                        published_at=AS_OF,
+                    ),
+                    NewsItem(
+                        symbol="MSFT",
+                        title="Microsoft cloud backlog grows",
+                        source="Yahoo Finance",
+                        url="https://finance.yahoo.com/news/msft-cloud",
+                        published_at=AS_OF,
                     ),
                 ),
             ),
@@ -438,6 +492,23 @@ def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
         "volume_bucket=moderate" in fact
         for fact in by_ticker["MSFT"].public_market_facts
     )
+    assert by_ticker["NVDA"].news_facts != by_ticker["AAPL"].news_facts
+    assert any(
+        fact.startswith("Yahoo/news: NVDA")
+        for fact in by_ticker["NVDA"].news_facts
+    )
+    assert any(
+        "title=Nvidia supplier demand expands" in fact
+        for fact in by_ticker["NVDA"].news_facts
+    )
+    assert any(
+        "publisher=Yahoo Finance" in fact
+        for fact in by_ticker["NVDA"].news_facts
+    )
+    assert any(
+        "url=https://finance.yahoo.com/news/nvda-demand" in fact
+        for fact in by_ticker["NVDA"].news_facts
+    )
 
     assert by_ticker["NVDA"].company_facts == (
         "SEC EDGAR: NVDA 10-Q, accession_number=nvda-10q, "
@@ -469,6 +540,7 @@ def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
 
     inspection = inspect_committee_fact_inputs(report)
     assert "public_market_facts:" in inspection
+    assert "news_facts:" in inspection
     assert "company_facts:" in inspection
     assert "macro_facts:" in inspection
     assert "market_context_facts:" in inspection

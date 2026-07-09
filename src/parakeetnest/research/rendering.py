@@ -45,6 +45,9 @@ class _InvestmentResearchReportFormattingHelpers:
                 for fact in ticker_report.public_market_facts
             )
             lines.extend(
+                f"  - Public news fact: {fact}" for fact in ticker_report.news_facts
+            )
+            lines.extend(
                 f"  - Company fact: {fact}" for fact in ticker_report.company_facts
             )
             lines.extend(f"  - Macro fact: {fact}" for fact in ticker_report.macro_facts)
@@ -100,6 +103,7 @@ class _InvestmentResearchReportFormattingHelpers:
                 f"{finding.source}: {note}" for note in finding.evidence_notes
             )
         evidence.extend(ticker_report.public_market_facts)
+        evidence.extend(ticker_report.news_facts)
         evidence.extend(ticker_report.company_facts)
         evidence.extend(ticker_report.macro_facts)
         evidence.extend(_portfolio_context_lines(ticker_report))
@@ -449,6 +453,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             else "Public facts"
         )
         yahoo_title = "Yahoo / market data"
+        news_title = "Yahoo / news"
         sec_title = "SEC EDGAR"
         fred_title = "FRED / macro"
         return "\n".join(
@@ -463,6 +468,8 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 ),
                 self._html_field(yahoo_title, None),
                 self._html_list(ticker_report.public_market_facts),
+                self._html_field(news_title, None),
+                self._html_list(ticker_report.news_facts[:5]),
                 self._html_field(sec_title, None),
                 self._html_list(ticker_report.company_facts),
                 self._html_field(fred_title, None),

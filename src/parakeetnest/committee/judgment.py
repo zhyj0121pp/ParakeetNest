@@ -139,7 +139,10 @@ def _committee_reasoning(
     catalyst_summary = _summarize_context_values(context.upcoming_catalysts)
     risk_summary = _summarize_context_values(context.key_risks)
     evidence_summary = _summarize_context_values(
-        context.company_facts + context.public_market_facts + context.ticker_summaries
+        context.company_facts
+        + context.public_market_facts
+        + context.news_facts
+        + context.ticker_summaries
     )
     macro_summary = _summarize_context_values(context.macro_facts)
     position_summary = _position_context_summary(context)
@@ -203,6 +206,7 @@ def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
         values = (
             context.upcoming_catalysts
             + context.public_market_facts
+            + context.news_facts
             + context.ticker_summaries
         )
     elif role is CommitteeRole.CHIEF_RISK_OFFICER:
@@ -216,6 +220,7 @@ def _committee_evidence(context: CommitteePromptContext) -> tuple[str, ...]:
         values = (
             context.company_facts
             + context.public_market_facts
+            + context.news_facts
             + context.ticker_summaries
             + (context.portfolio_review, context.watchlist_review)
             + context.evidence_notes

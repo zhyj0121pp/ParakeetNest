@@ -273,6 +273,8 @@ def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_con
     assert "Public facts" in card
     assert "Portfolio context, privacy-safe" in card
     assert "Yahoo/market_data: NVDA price=204.12" in card
+    assert "Yahoo/news: NVDA, title=Nvidia supplier demand expands" in card
+    assert "Yahoo / news" in card
     assert "SEC EDGAR: NVDA 10-Q" in card
     assert "FRED/macro: Fed Funds 3.5" in card
     assert "position size bucket: large" in card
@@ -527,6 +529,7 @@ def _sample_report(
             trim_candidate=True,
         ),
         public_market_facts=("Yahoo/market_data: NVDA price=204.12",),
+        news_facts=("Yahoo/news: NVDA, title=Nvidia supplier demand expands",),
         company_facts=("SEC EDGAR: NVDA 10-Q",),
         macro_facts=("FRED/macro: Fed Funds 3.5",),
     )

@@ -83,6 +83,7 @@ class _TickerInputs:
     portfolio_summary: PortfolioSummary | None = None
     position_context: PortfolioPositionContext | None = None
     public_market_facts: tuple[str, ...] = ()
+    news_facts: tuple[str, ...] = ()
     company_facts: tuple[str, ...] = ()
     macro_facts: tuple[str, ...] = ()
     evidence_notes: tuple[str, ...] = ()
@@ -167,6 +168,7 @@ class InvestmentResearchService:
                     portfolio_summary=privacy_summary,
                     position_context=privacy_by_ticker.get(ticker),
                     public_market_facts=_public_market_facts(public_context, ticker),
+                    news_facts=_news_facts(public_context, ticker),
                     company_facts=_company_facts(public_context, ticker),
                     macro_facts=_macro_facts(public_context),
                     evidence_notes=dependency_notes,
@@ -252,6 +254,7 @@ class InvestmentResearchService:
             portfolio_summary=inputs.portfolio_summary,
             position_context=inputs.position_context,
             public_market_facts=inputs.public_market_facts,
+            news_facts=inputs.news_facts,
             company_facts=inputs.company_facts,
             macro_facts=inputs.macro_facts,
         )
@@ -659,6 +662,32 @@ def _company_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ..
     return tuple(facts[:5])
 
 
+def _news_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
+    if context is None or context.news is None:
+        return ()
+    facts: list[str] = []
+    for item in context.news.items:
+        symbol = getattr(item, "symbol", None)
+        if symbol is not None and symbol.upper() != ticker.upper():
+            continue
+        values = [f"Yahoo/news: {ticker}"]
+        title = str(getattr(item, "title", "")).strip()
+        if not title:
+            continue
+        values.append(f"title={title}")
+        source = str(getattr(item, "source", "")).strip()
+        if source:
+            values.append(f"publisher={source}")
+        published_at = getattr(item, "published_at", None)
+        if published_at is not None:
+            values.append(f"published_at={published_at.isoformat()}")
+        url = str(getattr(item, "url", "") or "").strip()
+        if url:
+            values.append(f"url={url}")
+        facts.append(", ".join(values))
+    return tuple(facts[:5])
+
+
 def _macro_facts(context: MeetingContext | None) -> tuple[str, ...]:
     if context is None:
         return ()
@@ -726,6 +755,8 @@ def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
         summaries.append("watchlist: user thesis and notes")
     if inputs.public_market_facts:
         summaries.append("market_data: public market facts")
+    if inputs.news_facts:
+        summaries.append("news: public Yahoo news facts")
     if inputs.company_facts:
         summaries.append("sec_filings: public company filings")
     if inputs.macro_facts:
@@ -837,6 +868,11 @@ def _build_committee_prompt_contexts(
                 for ticker_report in ticker_reports
                 for fact in ticker_report.public_market_facts
             ),
+            news_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.news_facts
+            ),
             company_facts=_unique(
                 fact
                 for ticker_report in ticker_reports
@@ -869,6 +905,7 @@ def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
         evidence.append(f"{finding.source}: {finding.summary}")
         evidence.extend(f"{finding.source}: {note}" for note in finding.evidence_notes)
     evidence.extend(ticker_report.public_market_facts)
+    evidence.extend(ticker_report.news_facts)
     evidence.extend(ticker_report.company_facts)
     evidence.extend(ticker_report.macro_facts)
     evidence.extend(_portfolio_summary_evidence(ticker_report.portfolio_summary))

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 from parakeetnest.committee import (
     CommitteeOpinionStyle,
@@ -24,11 +25,16 @@ from parakeetnest.context.models import (
     MeetingContext,
 )
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
-from parakeetnest.portfolio import PortfolioHolding, PortfolioSnapshot
+from parakeetnest.portfolio import (
+    PortfolioCashBalance,
+    PortfolioHolding,
+    PortfolioSnapshot,
+)
 from parakeetnest.research import service as research_service
 from parakeetnest.research import (
     InvestmentResearchService,
     ReportMode,
+    inspect_committee_fact_inputs,
 )
 from parakeetnest.watchlist import WatchlistInsight
 
@@ -127,6 +133,94 @@ class FakePublicContextService:
         )
 
 
+class FakeDifferentiatedPublicContextService:
+    def build_context(self, request: ContextRequest) -> MeetingContext:
+        return MeetingContext(
+            request=request,
+            metadata=ContextMetadata(sources=("market_data", "sec_filings", "macro")),
+            market=MarketSnapshot(
+                source="market_data",
+                points=(
+                    MarketDataPoint(
+                        symbol="NVDA",
+                        source="market_data",
+                        price=204.12,
+                        daily_change=8.25,
+                        daily_change_percent=4.20,
+                        volume=145_000_000,
+                        market_cap=5_000_000_000_000,
+                        pe_ratio=52.4,
+                    ),
+                    SimpleNamespace(
+                        symbol="AAPL",
+                        source="market_data",
+                        price=212.43,
+                        daily_change=-1.10,
+                        daily_change_percent=-0.52,
+                        volume=48_000_000,
+                        market_cap=3_200_000_000_000,
+                        pe_ratio=31.2,
+                        sector="Technology",
+                        industry="Consumer Electronics",
+                        forward_pe=28.7,
+                        beta=1.18,
+                        observed_at=None,
+                    ),
+                    MarketDataPoint(
+                        symbol="MSFT",
+                        source="market_data",
+                        price=498.84,
+                        daily_change=2.75,
+                        daily_change_percent=0.55,
+                        volume=7_500_000,
+                        market_cap=3_700_000_000_000,
+                        pe_ratio=38.9,
+                    ),
+                ),
+            ),
+            filings=FilingSnapshot(
+                source="sec_filings",
+                items=(
+                    FilingItem(
+                        symbol="NVDA",
+                        filing_type="10-Q",
+                        source="edgar",
+                        accession_number="nvda-10q",
+                        summary="NVDA quarterly filing",
+                    ),
+                    FilingItem(
+                        symbol="AAPL",
+                        filing_type="10-K",
+                        source="edgar",
+                        accession_number="aapl-10k",
+                        summary="AAPL annual filing",
+                    ),
+                    FilingItem(
+                        symbol="MSFT",
+                        filing_type="8-K",
+                        source="edgar",
+                        accession_number="msft-8k",
+                        summary="MSFT current report",
+                    ),
+                ),
+            ),
+            macro=MacroSnapshot(
+                source="macro",
+                indicators=(
+                    "Interest Rates: Fed Funds 3.5 as of 2026-07-01",
+                    "Inflation: CPI 2.4 as of 2026-07-01",
+                ),
+                summary="Macro facts are market-wide, not ticker-specific.",
+            ),
+            economic_regime=EconomicRegimeContextSnapshot(
+                source="economic_regime",
+                regime="expansion",
+                confidence="medium",
+                indicators=("Growth: payrolls positive",),
+            ),
+        )
+
+
 def _portfolio_snapshot() -> PortfolioSnapshot:
     return PortfolioSnapshot(
         account_id="main",
@@ -139,6 +233,44 @@ def _portfolio_snapshot() -> PortfolioSnapshot:
                 average_cost=90,
                 current_price=120,
                 market_value=1200,
+            ),
+        ),
+    )
+
+
+def _three_ticker_portfolio_snapshot() -> PortfolioSnapshot:
+    return PortfolioSnapshot(
+        account_id="main",
+        as_of=AS_OF,
+        cash_balances=(PortfolioCashBalance(amount=500),),
+        total_equity=10_000,
+        holdings=(
+            PortfolioHolding(
+                symbol="NVDA",
+                name="Nvidia",
+                quantity=10,
+                average_cost=90,
+                current_price=204.12,
+                market_value=2_041.20,
+                sector="Technology",
+            ),
+            PortfolioHolding(
+                symbol="AAPL",
+                name="Apple",
+                quantity=8,
+                average_cost=180,
+                current_price=212.43,
+                market_value=1_699.44,
+                sector="Technology",
+            ),
+            PortfolioHolding(
+                symbol="MSFT",
+                name="Microsoft",
+                quantity=3,
+                average_cost=400,
+                current_price=498.84,
+                market_value=1_496.52,
+                sector="Technology",
             ),
         ),
     )
@@ -242,6 +374,118 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert intelligence.calls == [("NVDA", date(2026, 7, 1))]
     assert public_context.calls
     assert public_context.calls[0].include_portfolio is False
+
+
+def test_ticker_fact_inputs_are_differentiated_and_privacy_safe() -> None:
+    service = InvestmentResearchService(
+        portfolio_service=FakePortfolioService(_three_ticker_portfolio_snapshot()),
+        public_context_service=FakeDifferentiatedPublicContextService(),
+    )
+
+    report = service.generate_report(
+        ("NVDA", "AAPL", "MSFT"),
+        account_id="main",
+        generated_at=AS_OF,
+    )
+    by_ticker = {
+        ticker_report.ticker: ticker_report
+        for ticker_report in report.ticker_reports
+    }
+
+    assert (
+        by_ticker["NVDA"].public_market_facts
+        != by_ticker["AAPL"].public_market_facts
+    )
+    assert (
+        by_ticker["AAPL"].public_market_facts
+        != by_ticker["MSFT"].public_market_facts
+    )
+    assert any("price=204.12" in fact for fact in by_ticker["NVDA"].public_market_facts)
+    assert any(
+        "daily_change=8.25" in fact
+        for fact in by_ticker["NVDA"].public_market_facts
+    )
+    assert any(
+        "daily_change_percent=4.20" in fact
+        for fact in by_ticker["NVDA"].public_market_facts
+    )
+    assert any(
+        "volume_bucket=very_high" in fact
+        for fact in by_ticker["NVDA"].public_market_facts
+    )
+    assert any(
+        "market_cap=mega_cap" in fact
+        for fact in by_ticker["NVDA"].public_market_facts
+    )
+    assert any(
+        "pe_ratio=52.40" in fact
+        for fact in by_ticker["NVDA"].public_market_facts
+    )
+    assert any(
+        "sector=Technology" in fact
+        for fact in by_ticker["AAPL"].public_market_facts
+    )
+    assert any(
+        "industry=Consumer Electronics" in fact
+        for fact in by_ticker["AAPL"].public_market_facts
+    )
+    assert any(
+        "forward_pe=28.70" in fact
+        for fact in by_ticker["AAPL"].public_market_facts
+    )
+    assert any("beta=1.18" in fact for fact in by_ticker["AAPL"].public_market_facts)
+    assert any(
+        "volume_bucket=moderate" in fact
+        for fact in by_ticker["MSFT"].public_market_facts
+    )
+
+    assert by_ticker["NVDA"].company_facts == (
+        "SEC EDGAR: NVDA 10-Q, accession_number=nvda-10q, "
+        "summary=NVDA quarterly filing",
+    )
+    assert by_ticker["AAPL"].company_facts == (
+        "SEC EDGAR: AAPL 10-K, accession_number=aapl-10k, summary=AAPL annual filing",
+    )
+    assert by_ticker["MSFT"].company_facts == (
+        "SEC EDGAR: MSFT 8-K, accession_number=msft-8k, summary=MSFT current report",
+    )
+
+    macro_facts = by_ticker["NVDA"].macro_facts
+    assert macro_facts == by_ticker["AAPL"].macro_facts == by_ticker["MSFT"].macro_facts
+    assert all(
+        fact.startswith(("FRED/macro", "FRED/economic_regime"))
+        for fact in macro_facts
+    )
+
+    for ticker_report in report.ticker_reports:
+        assert ticker_report.position_context is not None
+        assert ticker_report.position_context.privacy_level == "bucketed"
+        assert ticker_report.position_context.position_size_bucket in {
+            "small",
+            "medium",
+            "large",
+            "very_large",
+        }
+
+    inspection = inspect_committee_fact_inputs(report)
+    assert "public_market_facts:" in inspection
+    assert "company_facts:" in inspection
+    assert "macro_facts:" in inspection
+    assert "market_context_facts:" in inspection
+    assert "position_context:" in inspection
+    assert "source_summaries:" in inspection
+    assert "ticker: NVDA" in inspection
+    assert "ticker: AAPL" in inspection
+    assert "ticker: MSFT" in inspection
+    assert "privacy_level=bucketed" in inspection
+    forbidden_private_terms = (
+        "quantity",
+        "average_cost",
+        "cost_basis",
+        "market_value",
+        "account_id",
+    )
+    assert all(term not in inspection for term in forbidden_private_terms)
 
 
 def test_generate_report_supports_watchlist_only_tickers() -> None:

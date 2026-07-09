@@ -208,6 +208,8 @@ def _daily_report_args(args: argparse.Namespace) -> list[str]:
         forwarded.extend(["--as-of-date", args.as_of_date.isoformat()])
     if args.email is not None:
         forwarded.extend(["--email", args.email])
+    if args.inspect_context:
+        forwarded.append("--inspect-context")
     return forwarded
 
 

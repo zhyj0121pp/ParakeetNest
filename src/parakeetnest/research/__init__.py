@@ -25,6 +25,7 @@ from parakeetnest.research.localization import (
     get_configured_report_language,
     get_report_localization,
 )
+from parakeetnest.research.inspection import inspect_committee_fact_inputs
 from parakeetnest.research.models import (
     InvestmentResearchReport,
     ReportMode,
@@ -73,5 +74,6 @@ __all__ = [
     "compose_daily_investment_report",
     "get_configured_report_language",
     "get_report_localization",
+    "inspect_committee_fact_inputs",
     "render_investment_research_report_interactive_html",
 ]

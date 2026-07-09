@@ -613,10 +613,28 @@ def _public_market_facts(context: MeetingContext | None, ticker: str) -> tuple[s
         values = [f"Yahoo/market_data: {point.symbol}"]
         if point.price is not None:
             values.append(f"price={point.price:.2f}")
+        if point.daily_change is not None:
+            values.append(f"daily_change={point.daily_change:.2f}")
         if point.daily_change_percent is not None:
             values.append(f"daily_change_percent={point.daily_change_percent:.2f}")
         if point.volume is not None:
             values.append(f"volume_bucket={_volume_bucket(point.volume)}")
+        sector = _optional_point_text(point, "sector")
+        if sector is not None:
+            values.append(f"sector={sector}")
+        industry = _optional_point_text(point, "industry")
+        if industry is not None:
+            values.append(f"industry={industry}")
+        if point.pe_ratio is not None:
+            values.append(f"pe_ratio={point.pe_ratio:.2f}")
+        forward_pe = _optional_point_float(point, "forward_pe")
+        if forward_pe is not None:
+            values.append(f"forward_pe={forward_pe:.2f}")
+        if point.market_cap is not None:
+            values.append(f"market_cap={_large_number_bucket(point.market_cap)}")
+        beta = _optional_point_float(point, "beta")
+        if beta is not None:
+            values.append(f"beta={beta:.2f}")
         if point.observed_at is not None:
             values.append(f"observed_at={point.observed_at.isoformat()}")
         facts.append(", ".join(values))
@@ -670,6 +688,34 @@ def _volume_bucket(volume: float) -> str:
     if volume < 50_000_000:
         return "high"
     return "very_high"
+
+
+def _large_number_bucket(value: float) -> str:
+    if value < 2_000_000_000:
+        return "small_cap"
+    if value < 10_000_000_000:
+        return "mid_cap"
+    if value < 200_000_000_000:
+        return "large_cap"
+    return "mega_cap"
+
+
+def _optional_point_text(point: Any, field_name: str) -> str | None:
+    value = getattr(point, field_name, None)
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
+def _optional_point_float(point: Any, field_name: str) -> float | None:
+    value = getattr(point, field_name, None)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:

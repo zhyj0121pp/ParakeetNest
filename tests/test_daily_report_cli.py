@@ -10,7 +10,12 @@ import pytest
 
 from parakeetnest.cli import daily_report
 from parakeetnest.config import get_settings
-from parakeetnest.research import ReportBodyFormat, ReportMode
+from parakeetnest.research import (
+    InvestmentResearchReport,
+    ReportBodyFormat,
+    ReportMode,
+    ResearchTickerReport,
+)
 
 
 class RecordingComposer:
@@ -46,6 +51,41 @@ class RecordingComposer:
         if body_format is ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT:
             return self.html_body
         return self.body
+
+    def compose_report(
+        self,
+        tickers: tuple[str, ...],
+        *,
+        account_id: str | None = None,
+        as_of_date: date | None = None,
+        mode: ReportMode | str = ReportMode.MORNING,
+    ) -> InvestmentResearchReport:
+        self.calls.append(
+            {
+                "tickers": tickers,
+                "account_id": account_id,
+                "as_of_date": as_of_date,
+                "mode": mode,
+                "body_format": "inspect_context",
+            }
+        )
+        return InvestmentResearchReport(
+            ticker_reports=(
+                ResearchTickerReport(
+                    ticker=tickers[0],
+                    summary="diagnostic report",
+                    bull_case=("No connected factual context available.",),
+                    bear_case=("No connected factual context available.",),
+                    risks=(),
+                    catalysts=(),
+                    public_market_facts=("Yahoo/market_data: NVDA price=204.12",),
+                    company_facts=("SEC EDGAR: NVDA 10-Q",),
+                    macro_facts=("FRED/macro: Fed Funds 3.5",),
+                    source_summaries=("market_data: public market facts",),
+                ),
+            ),
+            mode=mode,
+        )
 
 
 class EmptyWatchlistService:
@@ -288,6 +328,31 @@ def test_cli_prints_report_to_stdout_without_default_file(
         "<!doctype html>\n<html><body>daily report body</body></html>\n"
     )
     assert composer.calls[0]["mode"] is ReportMode.MORNING
+
+
+def test_cli_inspect_context_prints_ticker_fact_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    recording_app: RecordingApp,
+) -> None:
+    composer = RecordingComposer()
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    exit_code = daily_report.main(["--tickers", "NVDA", "--inspect-context"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "ticker: NVDA" in output
+    assert "public_market_facts:" in output
+    assert "Yahoo/market_data: NVDA price=204.12" in output
+    assert "company_facts:" in output
+    assert "SEC EDGAR: NVDA 10-Q" in output
+    assert composer.calls[0]["body_format"] == "inspect_context"
+    assert recording_app.closed is True
 
 
 def test_cli_invokes_report_delivery_when_email_is_specified(

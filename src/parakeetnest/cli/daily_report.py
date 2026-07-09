@@ -25,6 +25,7 @@ from parakeetnest.research import (
     DailyInvestmentReportComposer,
     ReportDeliveryService,
     ReportMode,
+    inspect_committee_fact_inputs,
 )
 from parakeetnest.research.service import InvestmentResearchService
 
@@ -89,6 +90,14 @@ def build_parser(
         default=None,
         help="Optional email recipient for console email delivery.",
     )
+    parser.add_argument(
+        "--inspect-context",
+        action="store_true",
+        help=(
+            "Print ticker-level committee fact inputs instead of rendering the "
+            "HTML report."
+        ),
+    )
     return parser
 
 
@@ -99,6 +108,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     app = create_app(_build_app_config(args.database, args.watchlist_seed))
     try:
         request = build_daily_report_request(args, app, parser)
+        if args.inspect_context:
+            report = _build_daily_report_composer(app).compose_report(
+                request.tickers,
+                account_id=request.account_id,
+                as_of_date=request.as_of_date,
+                mode=request.mode,
+            )
+            print(inspect_committee_fact_inputs(report), end="")
+            return 0
         orchestrator = build_daily_report_orchestrator(request, app)
         result = orchestrator.run(request)
     except ValueError as exc:

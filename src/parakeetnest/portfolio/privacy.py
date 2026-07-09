@@ -87,30 +87,33 @@ class PortfolioPrivacyContextBuilder:
             return_bucket = (
                 _return_bucket(return_pct) if position is not None else "not_holding"
             )
-            trim_candidate = (
-                position is not None
-                and (
-                    size_bucket in {"large", "very_large"}
-                    or concentration_level in {"high", "very_high"}
-                )
+            rank_bucket = (
+                _rank_bucket(ranks.get(symbol))
+                if position is not None
+                else "not_holding"
             )
             contexts.append(
                 PortfolioPositionContext(
                     ticker=symbol,
                     is_holding=position is not None,
                     position_size_bucket=size_bucket,
-                    portfolio_rank_bucket=(
-                        _rank_bucket(ranks.get(symbol))
-                        if position is not None
-                        else "not_holding"
-                    ),
+                    portfolio_rank_bucket=rank_bucket,
                     unrealized_return_bucket=return_bucket,
                     holding_role=_holding_role(position, weight),
-                    add_allowed=position is None or (
-                        size_bucket not in {"large", "very_large"}
-                        and concentration_level not in {"high", "very_high"}
+                    add_allowed=_add_allowed(
+                        summary,
+                        position is not None,
+                        size_bucket,
+                        rank_bucket,
+                        concentration_level,
                     ),
-                    trim_candidate=trim_candidate,
+                    trim_candidate=_trim_candidate(
+                        position is not None,
+                        size_bucket,
+                        rank_bucket,
+                        return_bucket,
+                        concentration_level,
+                    ),
                 )
             )
         return tuple(contexts)
@@ -270,6 +273,48 @@ def _rank_bucket(rank: int | None) -> str:
     if rank <= 5:
         return "top_5"
     return "outside_top_5"
+
+
+def _trim_candidate(
+    is_holding: bool,
+    size_bucket: str,
+    rank_bucket: str,
+    return_bucket: str,
+    concentration_level: str,
+) -> bool:
+    if not is_holding:
+        return False
+    if size_bucket in {"large", "very_large"}:
+        return True
+    if (
+        rank_bucket in {"largest", "top_3"}
+        and concentration_level in {"high", "very_high"}
+    ):
+        return True
+    return (
+        return_bucket == "large_loss"
+        and size_bucket in {"medium", "large", "very_large"}
+    )
+
+
+def _add_allowed(
+    summary: PortfolioSummary | None,
+    is_holding: bool,
+    size_bucket: str,
+    rank_bucket: str,
+    concentration_level: str,
+) -> bool:
+    if summary is not None and summary.cash_allocation_bucket == "very_low":
+        return False
+    if is_holding and size_bucket in {"large", "very_large"}:
+        return False
+    if (
+        is_holding
+        and concentration_level in {"high", "very_high"}
+        and rank_bucket in {"largest", "top_3", "top_5"}
+    ):
+        return False
+    return True
 
 
 def _holding_role(position: Any | None, weight: float) -> str:

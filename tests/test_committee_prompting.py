@@ -33,11 +33,11 @@ def test_playbook_loader_loads_system_common_and_persona_playbooks() -> None:
     loader = PlaybookLoader()
 
     assert (
-        "ParakeetNest is an AI investment advisory platform"
+        "ParakeetNest is an AI investment research platform"
         in loader.load_system_playbook()
     )
     assert "Use only supplied facts" in loader.load_common_playbook()
-    assert "growth acceleration" in loader.load_persona_playbook("dongdong")
+    assert "growth durability" in loader.load_persona_playbook("dongdong")
     assert "forward PE" in loader.load_persona_playbook("xixi")
     assert "position_size_bucket" in loader.load_persona_playbook("youyou")
 
@@ -131,11 +131,15 @@ def test_committee_prompts_include_reusable_playbook_checklists() -> None:
     }
 
     assert "growth durability" in prompts["dongdong"]
-    assert "portfolio add_allowed constraint" in prompts["dongdong"]
+    assert "Respect add_allowed" in prompts["dongdong"]
+    assert (
+        "Do not recommend adding when portfolio context says adding is not allowed"
+        in prompts["dongdong"]
+    )
 
     assert "PE" in prompts["xixi"]
     assert "forward PE" in prompts["xixi"]
-    assert "whether valuation is justified by growth" in prompts["xixi"]
+    assert "valuation relative to growth" in prompts["xixi"]
 
     assert "position_size_bucket" in prompts["youyou"]
     assert "trim_candidate" in prompts["youyou"]

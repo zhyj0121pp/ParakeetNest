@@ -212,6 +212,9 @@ def _assert_html_attachment_delivery(
 def _english_report_language(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
     monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    monkeypatch.setenv("PARAKEETNEST_EMAIL_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_LLM_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_LLM_MODEL", "mock-committee")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -252,10 +255,7 @@ def test_cli_writes_report_file(
         "<html><body>Market Summary Committee Consensus</body></html>\n"
     )
     assert recording_app.closed is True
-    assert capsys.readouterr().out == (
-        "<!doctype html>\n"
-        "<html><body>Market Summary Committee Consensus</body></html>\n"
-    )
+    assert capsys.readouterr().out == ""
 
 
 def test_cli_delegates_workflow_to_daily_report_orchestrator(
@@ -299,7 +299,7 @@ def test_cli_delegates_workflow_to_daily_report_orchestrator(
 
     request = captured["request"]
     assert exit_code == 0
-    assert capsys.readouterr().out == "delegated body\n"
+    assert capsys.readouterr().out == ""
     assert request.mode is ReportMode.EVENING
     assert request.tickers == ("NVDA",)
     assert request.account_id == "main"
@@ -396,7 +396,7 @@ def test_cli_invokes_report_delivery_when_email_is_specified(
         get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == html_report
+    assert capsys.readouterr().out == ""
     assert len(delivery_provider.requests) == 1
     _assert_html_attachment_delivery(
         delivery_provider.requests[0],
@@ -448,7 +448,7 @@ def test_cli_sends_report_through_app_email_provider(
         get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == html_report
+    assert capsys.readouterr().out == ""
     assert len(delivery_provider.requests) == 1
     _assert_html_attachment_delivery(
         delivery_provider.requests[0],
@@ -491,7 +491,7 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
         get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == html_report
+    assert capsys.readouterr().out == ""
     assert len(delivery_provider.requests) == 1
     _assert_html_attachment_delivery(
         delivery_provider.requests[0],
@@ -534,7 +534,7 @@ def test_cli_email_flag_without_value_uses_configured_report_recipient(
         get_settings.cache_clear()
 
     assert exit_code == 0
-    assert capsys.readouterr().out == html_report
+    assert capsys.readouterr().out == ""
     assert len(delivery_provider.requests) == 1
     _assert_html_attachment_delivery(
         delivery_provider.requests[0],

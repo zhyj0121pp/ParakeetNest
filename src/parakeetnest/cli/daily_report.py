@@ -141,7 +141,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     finally:
         app.close()
 
-    print(result.body, end="" if result.body.endswith("\n") else "\n")
+    if _should_print_body(request):
+        print(result.body, end="" if result.body.endswith("\n") else "\n")
     return 0
 
 
@@ -264,6 +265,14 @@ def _resolve_email_recipient(explicit_email: str | None, app: object) -> str | N
     if configured_email is not None and configured_email.strip():
         return configured_email.strip()
     return None
+
+
+def _should_print_body(request: DailyReportRequest) -> bool:
+    return (
+        request.output_path is None
+        and not request.archive
+        and request.email_recipient is None
+    )
 
 
 def _portfolio_tickers(app: object, account_id: str | None) -> tuple[str, ...]:

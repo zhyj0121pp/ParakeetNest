@@ -60,6 +60,14 @@ def test_cli_parser_parses_schedule_print_plist_command() -> None:
     assert args.minute == 15
 
 
+def test_cli_parser_parses_auth_gmail_command() -> None:
+    """The Gmail reauthorization command should be available in the root CLI."""
+    args = cli.build_parser().parse_args(["auth", "gmail"])
+
+    assert args.command == "auth"
+    assert args.auth_command == "gmail"
+
+
 def test_cli_parser_parses_daily_report_command(tmp_path: Path) -> None:
     """The daily report command should be available in the root CLI."""
     output_path = tmp_path / "morning.md"

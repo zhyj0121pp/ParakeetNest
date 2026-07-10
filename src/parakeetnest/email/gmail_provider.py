@@ -9,11 +9,13 @@ import os
 from pathlib import Path
 from typing import Any
 
+from parakeetnest.email.gmail_auth import (
+    GMAIL_REAUTH_MESSAGE,
+    GMAIL_SEND_SCOPES,
+    is_invalid_grant_error,
+)
 from parakeetnest.email.models import EmailAttachment, EmailMessage
 from parakeetnest.exceptions import ConfigurationError
-
-
-GMAIL_SEND_SCOPES = ("https://www.googleapis.com/auth/gmail.send",)
 
 
 class GmailDeliveryError(RuntimeError):
@@ -64,6 +66,8 @@ class GmailEmailProvider:
                 .execute()
             )
         except Exception as exc:  # noqa: BLE001 - normalize provider failures.
+            if is_invalid_grant_error(exc):
+                raise GmailDeliveryError(GMAIL_REAUTH_MESSAGE) from exc
             raise GmailDeliveryError(str(exc) or exc.__class__.__name__) from exc
         self.last_message_id = _read(response, "id")
 

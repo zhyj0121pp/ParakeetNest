@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import base64
 from email import message_from_bytes
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,7 @@ from parakeetnest.email import (
     MockEmailProvider,
     create_email_provider_registry,
 )
+from parakeetnest.email.gmail_auth import reauthorize_gmail
 from parakeetnest.exceptions import ConfigurationError
 from parakeetnest.research import (
     ReportDeliveryAttachment,
@@ -192,6 +195,22 @@ def test_gmail_provider_wraps_api_errors() -> None:
         )
 
 
+def test_gmail_provider_reports_invalid_grant_with_reauth_hint() -> None:
+    provider = GmailEmailProvider(
+        client=FakeGmailClient(error=RuntimeError('{"error": "invalid_grant"}'))
+    )
+
+    with pytest.raises(
+        GmailDeliveryError,
+        match="Gmail authorization expired\\. Run: parakeet auth gmail",
+    ):
+        provider.send(
+            subject="Daily Investment Report",
+            body="Plain-text report body.",
+            recipient="investor@example.com",
+        )
+
+
 def test_gmail_provider_requires_configured_credentials_and_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -219,6 +238,63 @@ def test_gmail_provider_reports_missing_token_path(
             credentials_path_env_var="TEST_GMAIL_CREDENTIALS",
             token_path_env_var="TEST_GMAIL_TOKEN",
         )
+
+
+def test_gmail_auth_command_deletes_old_token_before_reauth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    credentials_path = tmp_path / "credentials.json"
+    token_path = tmp_path / "token.json"
+    credentials_path.write_text("{}", encoding="utf-8")
+    token_path.write_text("stale-token", encoding="utf-8")
+    observations: list[bool] = []
+
+    class FakeCredentials:
+        refresh_token = "refresh-token-123"
+
+        def to_json(self) -> str:
+            return '{"refresh_token": "refresh-token-123"}'
+
+    class FakeFlow:
+        def run_local_server(self, **kwargs: object) -> FakeCredentials:
+            observations.append(token_path.exists())
+            assert kwargs["access_type"] == "offline"
+            assert kwargs["prompt"] == "consent"
+            return FakeCredentials()
+
+    class FakeInstalledAppFlow:
+        @staticmethod
+        def from_client_secrets_file(
+            credentials_file: str,
+            *,
+            scopes: list[str],
+        ) -> FakeFlow:
+            assert credentials_file == str(credentials_path)
+            assert scopes == ["https://www.googleapis.com/auth/gmail.send"]
+            return FakeFlow()
+
+    fake_flow_module = types.ModuleType("google_auth_oauthlib.flow")
+    fake_flow_module.InstalledAppFlow = FakeInstalledAppFlow
+    fake_package = types.ModuleType("google_auth_oauthlib")
+    fake_package.flow = fake_flow_module
+    monkeypatch.setitem(sys.modules, "google_auth_oauthlib", fake_package)
+    monkeypatch.setitem(sys.modules, "google_auth_oauthlib.flow", fake_flow_module)
+
+    saved_token_path = reauthorize_gmail(
+        credentials_path_env_var="TEST_GMAIL_CREDENTIALS",
+        token_path_env_var="TEST_GMAIL_TOKEN",
+        environ={
+            "TEST_GMAIL_CREDENTIALS": str(credentials_path),
+            "TEST_GMAIL_TOKEN": str(token_path),
+        },
+    )
+
+    assert saved_token_path == token_path
+    assert observations == [False]
+    assert token_path.read_text(encoding="utf-8") == (
+        '{"refresh_token": "refresh-token-123"}'
+    )
 
 
 def test_email_report_delivery_provider_returns_gmail_message_id() -> None:

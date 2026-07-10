@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from parakeetnest.cli import doctor
@@ -119,3 +120,47 @@ def test_root_cli_exposes_doctor_command(capsys) -> None:
     output = capsys.readouterr().out
     assert exit_code == 0
     assert "ParakeetNest doctor" in output
+
+
+def test_doctor_gmail_reports_missing_token_clearly(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    credentials_path = tmp_path / "credentials.json"
+    token_path = tmp_path / "missing-token.json"
+    credentials_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(credentials_path))
+    monkeypatch.setenv("PARAKEETNEST_GMAIL_TOKEN_PATH", str(token_path))
+
+    exit_code = doctor.main(["gmail"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 1
+    assert "- gmail: gmail (configured, not ready)" in output
+    assert f"missing Gmail token file: {token_path}" in output
+    assert "run: parakeet auth gmail" in output
+
+
+def test_doctor_gmail_reports_invalid_token_clearly(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    credentials_path = tmp_path / "credentials.json"
+    token_path = tmp_path / "token.json"
+    credentials_path.write_text("{}", encoding="utf-8")
+    token_path.write_text(
+        json.dumps({"refresh_token": "refresh-token-123", "invalid": True}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", str(credentials_path))
+    monkeypatch.setenv("PARAKEETNEST_GMAIL_TOKEN_PATH", str(token_path))
+
+    exit_code = doctor.main(["gmail"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 1
+    assert "Gmail token file exists" in output
+    assert "Gmail token includes a refresh_token." in output
+    assert "Gmail token is invalid. Run: parakeet auth gmail" in output

@@ -30,9 +30,11 @@ robinhood = [
 gmail = [
     "google-api-python-client>=2",
     "google-auth>=2",
+    "google-auth-oauthlib>=1",
 ]
 
 [project.scripts]
+parakeet = "parakeetnest.cli:main"
 parakeetnest = "parakeetnest.cli:main"
 
 [tool.setuptools.packages.find]

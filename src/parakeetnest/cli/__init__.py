@@ -10,6 +10,7 @@ from pathlib import Path
 
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest, MeetingContextPromptRenderer
+from parakeetnest.cli import auth
 from parakeetnest.cli import doctor
 from parakeetnest.cli import schedule
 
@@ -73,10 +74,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validate provider configuration without external API calls.",
     )
     doctor_parser.add_argument(
+        "doctor_target",
+        nargs="?",
+        choices=("gmail",),
+        help="Optional focused doctor check.",
+    )
+    doctor_parser.add_argument(
         "--config",
         type=Path,
         default=None,
         help="Optional TOML integration config. Defaults to mock AppConfig.",
+    )
+
+    auth_parser = subparsers.add_parser(
+        "auth",
+        help="Refresh local provider authorization tokens.",
+    )
+    auth_subparsers = auth_parser.add_subparsers(
+        dest="auth_command",
+        required=True,
+    )
+    auth_subparsers.add_parser(
+        "gmail",
+        help="Regenerate the local Gmail OAuth token.",
     )
 
     daily_report_parser = subparsers.add_parser(
@@ -144,9 +164,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "doctor":
         doctor_args = []
+        if args.doctor_target is not None:
+            doctor_args.append(args.doctor_target)
         if args.config is not None:
             doctor_args.extend(["--config", str(args.config)])
         return doctor.main(doctor_args)
+
+    if args.command == "auth":
+        return auth.run(args, parser)
 
     if args.command == "daily-report":
         from parakeetnest.cli import daily_report

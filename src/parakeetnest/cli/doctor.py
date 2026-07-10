@@ -11,6 +11,7 @@ import tomllib
 from typing import Any
 
 from parakeetnest.config import AppConfig
+from parakeetnest.email.gmail_auth import inspect_gmail_token
 from parakeetnest.email import create_email_provider_registry
 from parakeetnest.llm import create_llm_provider_registry
 from parakeetnest.macro import create_macro_data_provider_registry
@@ -41,6 +42,12 @@ def build_parser(
         description="Validate provider configuration without calling external APIs.",
     )
     parser.add_argument(
+        "target",
+        nargs="?",
+        choices=("gmail",),
+        help="Optional focused doctor check.",
+    )
+    parser.add_argument(
         "--config",
         type=Path,
         default=None,
@@ -54,7 +61,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     config = load_app_config(args.config) if args.config is not None else AppConfig()
-    checks = validate_provider_configuration(config, os.environ)
+    if args.target == "gmail":
+        checks = (gmail_provider_check(config, os.environ),)
+    else:
+        checks = validate_provider_configuration(config, os.environ)
     print(format_doctor_report(config, checks))
     return 0 if all(check.ready for check in checks) else 1
 
@@ -213,13 +223,42 @@ def _email_check(config: AppConfig, environ: Mapping[str, str]) -> ProviderCheck
             for registration in create_email_provider_registry().list_registrations()
         ),
     )
-    details: list[str] = []
     if _provider_is(provider, "gmail"):
-        details.extend(
-            _path_env_present(environ, config.email.gmail_credentials_path_env_var)
-        )
-        details.extend(_path_env_present(environ, config.email.gmail_token_path_env_var))
+        return gmail_provider_check(config, environ, provider_configured=configured)
+    details: list[str] = []
     return _check("email", provider, configured, details)
+
+
+def gmail_provider_check(
+    config: AppConfig,
+    environ: Mapping[str, str],
+    *,
+    provider_configured: bool | None = None,
+) -> ProviderCheck:
+    """Validate local Gmail authorization files."""
+    configured = (
+        _is_registered(
+            "gmail",
+            (
+                registration.provider_id
+                for registration in create_email_provider_registry().list_registrations()
+            ),
+        )
+        if provider_configured is None
+        else provider_configured
+    )
+    status = inspect_gmail_token(
+        credentials_path_env_var=config.email.gmail_credentials_path_env_var,
+        token_path_env_var=config.email.gmail_token_path_env_var,
+        environ=dict(environ),
+    )
+    return ProviderCheck(
+        name="gmail",
+        provider="gmail",
+        configured=configured,
+        ready=configured and status.ready,
+        details=status.details,
+    )
 
 
 def _news_check(config: AppConfig) -> ProviderCheck:

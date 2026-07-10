@@ -94,27 +94,6 @@ class LLMCommitteeJudgmentService:
                 language=language,
             )
 
-    def build_report_consensus(
-        self,
-        ticker_reports: tuple[ResearchTickerReport, ...],
-        position_reviews: tuple[ResearchPositionDecision, ...],
-        *,
-        language: object | None = None,
-    ) -> ResearchCommitteeConsensus:
-        """Build concise report-level Chairman synthesis from ticker discussions."""
-        try:
-            return self._to_research_consensus(
-                self._run_report_chairman_prompt(
-                    position_reviews,
-                    language=language,
-                )
-            )
-        except (OutputParserError, ValueError, KeyError, TypeError):
-            return self._fallback_service.build_consensus(
-                ticker_reports,
-                language=language,
-            )
-
     def build_position_review(
         self,
         ticker_report: ResearchTickerReport,
@@ -226,31 +205,6 @@ class LLMCommitteeJudgmentService:
                 "agent_name": "Chairman",
                 "role": "final decision maker",
                 "tickers": ",".join(report.ticker for report in ticker_reports),
-            },
-        )
-        return self._parser.parse_chairman_summary(self._llm_provider.complete(request))
-
-    def _run_report_chairman_prompt(
-        self,
-        position_reviews: tuple[ResearchPositionDecision, ...],
-        *,
-        language: object | None,
-    ) -> ChairmanSummary:
-        request = LLMRequest(
-            prompt=_report_chairman_prompt_text(
-                position_reviews,
-                language=language,
-            ),
-            model=self._model,
-            temperature=self._temperature,
-            timeout_seconds=self._timeout_seconds,
-            max_completion_tokens=self._max_completion_tokens,
-            response_schema=CHAIRMAN_SUMMARY_SCHEMA,
-            metadata={
-                "task": "daily_report_final_synthesis",
-                "agent_name": "Chairman",
-                "role": "final decision maker",
-                "tickers": ",".join(review.ticker for review in position_reviews),
             },
         )
         return self._parser.parse_chairman_summary(self._llm_provider.complete(request))
@@ -370,55 +324,6 @@ def _chairman_prompt_text(
             f"- symbol must be {_symbol_for_reports(ticker_reports)}.",
         ]
     )
-
-
-def _report_chairman_prompt_text(
-    position_reviews: tuple[ResearchPositionDecision, ...],
-    *,
-    language: object | None,
-) -> str:
-    return "\n".join(
-        [
-            "You are Chairman, the final advisory decision maker.",
-            "Produce one concise report-level advisory recommendation.",
-            "",
-            "Grounding Rules",
-            "- Use only the supplied ticker committee discussion summaries.",
-            "- Do not add new facts, raw provider fields, or private account details.",
-            "- Do not recommend or describe automatic trading.",
-            "- Be concise and explicit; no long-form essay.",
-            "",
-            "Ticker Committee Summaries",
-            *_render_position_review_summaries(position_reviews),
-            "",
-            "Language",
-            f"- Match report language: {language}.",
-            "",
-            "Required JSON",
-            "- Return only a JSON object matching ChairmanSummary.",
-            "- rationale must be 2-3 short sentences.",
-            "- evidence, risks, and catalysts arrays must each contain at most 2 short items.",
-            "- symbol must be REPORT.",
-        ]
-    )
-
-
-def _render_position_review_summaries(
-    position_reviews: tuple[ResearchPositionDecision, ...],
-) -> list[str]:
-    if not position_reviews:
-        return ["- No ticker committee summaries supplied."]
-    return [
-        (
-            f"- {review.ticker}: action={review.recommendation}; "
-            f"confidence={review.confidence}; "
-            f"chairman={_truncate(review.rationale, limit=180)}; "
-            f"Dongdong={_truncate(review.dongdong_opinion, limit=160)}; "
-            f"Xixi={_truncate(review.xixi_opinion, limit=160)}; "
-            f"Yoyo={_truncate(review.yoyo_opinion, limit=160)}"
-        )
-        for review in position_reviews
-    ]
 
 
 def _render_portfolio_constraints(

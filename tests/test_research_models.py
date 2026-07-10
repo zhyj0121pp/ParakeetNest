@@ -52,7 +52,7 @@ def test_fact_interpretation_normalizes_supported_valuation_labels() -> None:
         ResearchFactInterpretation(valuation_label="mystery")
 
 
-def test_committee_consensus_requires_committee_judgment_fields() -> None:
+def test_ticker_committee_consensus_requires_judgment_fields() -> None:
     consensus = ResearchCommitteeConsensus(
         final_action="hold",
         confidence="medium",

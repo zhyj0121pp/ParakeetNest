@@ -467,16 +467,6 @@ class InvestmentResearchReport:
     committee_portfolio_views: tuple[ResearchCommitteePortfolioView, ...] = field(
         default_factory=tuple,
     )
-    committee_consensus: ResearchCommitteeConsensus = field(
-        default_factory=lambda: ResearchCommitteeConsensus(
-            final_action="watch",
-            confidence="low",
-            horizon="next research update",
-            rationale="Committee consensus is based on limited connected evidence.",
-            final_risk_posture="Advisory only; human investor makes the final decision.",
-            todays_suggested_actions=("Review evidence before making any decision.",),
-        )
-    )
     position_committee_reviews: tuple[ResearchPositionDecision, ...] = field(
         default_factory=tuple
     )
@@ -520,11 +510,6 @@ class InvestmentResearchReport:
             self,
             "committee_portfolio_views",
             tuple(self.committee_portfolio_views),
-        )
-        object.__setattr__(
-            self,
-            "committee_consensus",
-            self.committee_consensus,
         )
         object.__setattr__(
             self,

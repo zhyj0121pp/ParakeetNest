@@ -425,10 +425,9 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert "Datacenter demand." in ticker_report.bull_case
     assert "Export controls." in ticker_report.bear_case
     assert not hasattr(ticker_report, "recommendation")
-    assert report.committee_consensus.final_action == "reduce"
-    assert report.committee_consensus.confidence == "high"
-    assert report.committee_consensus.rationale
-    assert report.committee_consensus.todays_suggested_actions
+    assert report.position_committee_reviews[0].recommendation
+    assert report.position_committee_reviews[0].confidence
+    assert report.position_committee_reviews[0].rationale
     assert "portfolio: current holding facts" in ticker_report.source_summaries
     assert "watchlist: user thesis and notes" in (
         ticker_report.source_summaries
@@ -667,8 +666,8 @@ def test_generate_report_supports_watchlist_only_tickers() -> None:
 
     ticker_report = report.ticker_reports[0]
     assert not hasattr(ticker_report, "recommendation")
-    assert report.committee_consensus.final_action == "watch"
-    assert report.committee_consensus.confidence == "low"
+    assert report.position_committee_reviews[0].recommendation == "watch"
+    assert report.position_committee_reviews[0].confidence == "low"
     assert ticker_report.risks[0].summary == "China demand risk."
     assert ticker_report.catalysts[0].summary == "Services growth."
 
@@ -687,8 +686,8 @@ def test_generate_report_uses_explicit_research_gap_when_no_context_connected() 
         "TSLA is included for research, but connected context is limited."
     )
     assert not hasattr(ticker_report, "recommendation")
-    assert report.committee_consensus.final_action == "watch"
-    assert report.committee_consensus.confidence == "low"
+    assert report.position_committee_reviews[0].recommendation == "watch"
+    assert report.position_committee_reviews[0].confidence == "low"
     assert report.mode is ReportMode.EVENING
     assert report.title == "Evening Investment Review"
     assert ticker_report.findings[0].source == "research_service"
@@ -767,7 +766,6 @@ def test_generate_report_builds_per_position_committee_reviews(monkeypatch) -> N
     assert "AAPL" not in reviews["MSFT"].yoyo_opinion
     assert "across 1 ticker(s)" in reviews["AAPL"].rationale
     assert "across 1 ticker(s)" in reviews["MSFT"].rationale
-    assert "across 2 ticker(s)" in report.committee_consensus.rationale
 
 
 def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
@@ -779,8 +777,7 @@ def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
 
     assert report.tickers() == ("NVDA",)
     assert "上行空间" in report.position_committee_reviews[0].dongdong_opinion
-    assert "委员会" in report.committee_consensus.rationale
-    assert "NVDA" in report.committee_consensus.todays_suggested_actions[0]
+    assert "委员会" in report.position_committee_reviews[0].rationale
     get_settings.cache_clear()
 
 
@@ -806,10 +803,7 @@ def test_llm_persona_discussions_are_produced_from_prompts() -> None:
     assert review.rationale == (
         "Chairman LLM synthesizes final advisory recommendation."
     )
-    assert report.committee_consensus.rationale == (
-        "Chairman LLM synthesizes final advisory recommendation."
-    )
-    assert len(llm.requests) == 5
+    assert len(llm.requests) == 4
     dongdong_request = next(
         request
         for request in llm.requests
@@ -823,11 +817,17 @@ def test_llm_persona_discussions_are_produced_from_prompts() -> None:
     )
     assert "viewpoint must be 2-4 short sentences" in dongdong_request.prompt
     assert dongdong_request.max_completion_tokens == 350
-    assert llm.requests[-2].metadata["task"] == "daily_report_chairman_synthesis"
-    assert llm.requests[-1].metadata["task"] == "daily_report_final_synthesis"
-    assert "Ticker Committee Summaries" in llm.requests[-1].prompt
-    assert "Yahoo/profile" not in llm.requests[-1].prompt
-    assert "Yahoo/valuation" not in llm.requests[-1].prompt
+    chairman_request = llm.requests[-1]
+    assert chairman_request.metadata["task"] == "daily_report_chairman_synthesis"
+    assert "Persona Opinions" in chairman_request.prompt
+    assert "Dongdong" in chairman_request.prompt
+    assert "Xixi" in chairman_request.prompt
+    assert "Yoyo" in chairman_request.prompt
+    assert "Ticker Evidence" not in chairman_request.prompt
+    assert "PRE-COMMITTEE ANALYSIS" not in chairman_request.prompt
+    assert "Yahoo/profile" not in chairman_request.prompt
+    assert "forward_pe=" not in chairman_request.prompt
+    assert "ev_to_sales=" not in chairman_request.prompt
 
 
 def test_llm_prompts_include_yahoo_profile_and_valuation_facts() -> None:
@@ -839,7 +839,11 @@ def test_llm_prompts_include_yahoo_profile_and_valuation_facts() -> None:
 
     service.generate_report(("AAPL",), generated_at=AS_OF)
 
-    persona_prompt = llm.requests[0].prompt
+    persona_prompt = next(
+        request.prompt
+        for request in llm.requests
+        if request.metadata.get("agent_name") == "Xixi"
+    )
     assert "Yahoo / profile facts:" in persona_prompt
     assert "Yahoo/profile: AAPL" in persona_prompt
     assert "sector=Technology" in persona_prompt
@@ -848,6 +852,59 @@ def test_llm_prompts_include_yahoo_profile_and_valuation_facts() -> None:
     assert "Yahoo/valuation: AAPL" in persona_prompt
     assert "forward_pe=28.70" in persona_prompt
     assert "ev_to_sales=8.05" in persona_prompt
+
+
+def test_persona_prompts_route_only_relevant_fact_sections() -> None:
+    llm = MockLLMProvider(responses=_llm_committee_responses("AAPL"))
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    service.generate_report(("AAPL",), generated_at=AS_OF)
+
+    prompts = {
+        request.metadata.get("agent_name"): request.prompt
+        for request in llm.requests
+        if request.metadata.get("task") == "daily_report_persona_opinion"
+    }
+    assert "Yahoo/news: AAPL" in prompts["Dongdong"]
+    assert "SEC EDGAR: AAPL" not in prompts["Dongdong"]
+    assert "FRED/macro" not in prompts["Dongdong"]
+    assert "Yahoo/valuation: AAPL" in prompts["Xixi"]
+    assert "SEC EDGAR: AAPL" in prompts["Xixi"]
+    assert "Yahoo/news: AAPL" not in prompts["Xixi"]
+    assert "FRED/macro" not in prompts["Xixi"]
+    assert "Yahoo/valuation: AAPL" in prompts["Yoyo"]
+    assert "FRED/macro" in prompts["Yoyo"]
+
+
+def test_unscoped_news_is_not_injected_into_ticker_facts() -> None:
+    context = MeetingContext(
+        request=ContextRequest(question="Research AAPL", symbols=("AAPL",)),
+        metadata=ContextMetadata(sources=("news",)),
+        news=NewsContext(
+            source="news",
+            items=(
+                NewsItem(
+                    symbol=None,
+                    title="Unscoped market headline",
+                    source="Yahoo Finance",
+                ),
+                NewsItem(
+                    symbol="AAPL",
+                    title="Apple services revenue rises",
+                    source="Yahoo Finance",
+                ),
+            ),
+        ),
+    )
+
+    facts = research_service._news_facts(context, "AAPL")
+
+    assert len(facts) == 1
+    assert "Apple services revenue rises" in facts[0]
+    assert "Unscoped market headline" not in facts[0]
 
 
 def test_llm_prompts_separate_pre_committee_analysis_from_factual_evidence() -> None:
@@ -859,7 +916,11 @@ def test_llm_prompts_separate_pre_committee_analysis_from_factual_evidence() -> 
 
     service.generate_report(("AAPL",), generated_at=AS_OF)
 
-    persona_prompt = llm.requests[0].prompt
+    persona_prompt = next(
+        request.prompt
+        for request in llm.requests
+        if request.metadata.get("agent_name") == "Xixi"
+    )
     facts_index = persona_prompt.index("PUBLIC FACTS")
     analysis_index = persona_prompt.index("PRE-COMMITTEE ANALYSIS")
     assert facts_index < analysis_index
@@ -867,9 +928,11 @@ def test_llm_prompts_separate_pre_committee_analysis_from_factual_evidence() -> 
         persona_prompt
     )
     assert "Yahoo/valuation: AAPL" in persona_prompt[facts_index:analysis_index]
-    assert "valuation_label=expensive" in persona_prompt[analysis_index:]
-    assert "EV/Sales 8.05" in persona_prompt[analysis_index:]
-    assert "valuation_label=expensive" not in persona_prompt[facts_index:analysis_index]
+    assert "valuation_assessment=expensive" in persona_prompt[analysis_index:]
+    assert "EV/Sales 8.05" not in persona_prompt[analysis_index:]
+    assert "valuation_assessment=expensive" not in (
+        persona_prompt[facts_index:analysis_index]
+    )
 
 
 def test_invalid_llm_output_falls_back_to_deterministic_judgment() -> None:
@@ -884,8 +947,8 @@ def test_invalid_llm_output_falls_back_to_deterministic_judgment() -> None:
     review = report.position_committee_reviews[0]
     assert "LLM action" not in review.dongdong_opinion
     assert review.evidence
-    assert "Chairman LLM synthesizes" not in report.committee_consensus.rationale
-    assert report.committee_consensus.final_action
+    assert review.recommendation
+    assert review.confidence
 
 
 def test_llm_prompts_are_scoped_to_one_ticker() -> None:
@@ -897,11 +960,7 @@ def test_llm_prompts_are_scoped_to_one_ticker() -> None:
 
     service.generate_report(("AAPL", "MSFT"), generated_at=AS_OF)
 
-    scoped_requests = [
-        request
-        for request in llm.requests
-        if request.metadata["task"] != "daily_report_final_synthesis"
-    ]
+    scoped_requests = llm.requests
     llm_tickers = {request.metadata["tickers"] for request in scoped_requests}
     assert llm_tickers == {"AAPL", "MSFT"}
     assert "AAPL,MSFT" not in llm_tickers
@@ -921,14 +980,11 @@ def test_llm_prompts_are_scoped_to_one_ticker() -> None:
     assert all("MSFT" not in prompt for prompt in aapl_prompts)
     assert all("MSFT" in prompt for prompt in msft_prompts)
     assert all("AAPL" not in prompt for prompt in msft_prompts)
-    report_prompt = next(
-        request.prompt
+    assert len(llm.requests) == 8
+    assert not any(
+        request.metadata["task"] == "daily_report_final_synthesis"
         for request in llm.requests
-        if request.metadata["task"] == "daily_report_final_synthesis"
     )
-    assert "Ticker Committee Summaries" in report_prompt
-    assert "Yahoo/profile" not in report_prompt
-    assert "Yahoo/valuation" not in report_prompt
 
 
 def test_same_ticker_persona_llm_calls_run_concurrently() -> None:
@@ -992,10 +1048,7 @@ class ConcurrentRecordingLLMProvider:
             self.max_active = max(self.max_active, self.active)
         time.sleep(0.05)
         try:
-            if request.metadata.get("task") in {
-                "daily_report_chairman_synthesis",
-                "daily_report_final_synthesis",
-            }:
+            if request.metadata.get("task") == "daily_report_chairman_synthesis":
                 content = _chairman_json(str(request.metadata["tickers"]))
             else:
                 member_name = str(request.metadata["agent_name"])
@@ -1019,10 +1072,6 @@ class ConcurrentRecordingLLMProvider:
 
 def _llm_committee_responses(symbol: str) -> tuple[str, ...]:
     return (
-        _committee_opinion_json("Dongdong", "Chief Growth Officer", symbol, "watch"),
-        _committee_opinion_json("Xixi", "Chief Investment Analyst", symbol, "hold"),
-        _committee_opinion_json("Yoyo", "Chief Risk Officer", symbol, "reduce"),
-        _chairman_json(symbol),
         _committee_opinion_json("Dongdong", "Chief Growth Officer", symbol, "watch"),
         _committee_opinion_json("Xixi", "Chief Investment Analyst", symbol, "hold"),
         _committee_opinion_json("Yoyo", "Chief Risk Officer", symbol, "reduce"),

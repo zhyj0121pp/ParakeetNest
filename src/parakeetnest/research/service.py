@@ -40,7 +40,6 @@ from parakeetnest.research.models import (
     ResearchRisk,
     ResearchTickerReport,
 )
-from parakeetnest.research.localization import get_configured_report_language
 
 
 class _PortfolioService(Protocol):
@@ -95,18 +94,6 @@ class _TickerInputs:
     company_facts: tuple[str, ...] = ()
     macro_facts: tuple[str, ...] = ()
     evidence_notes: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class _PositionReviewBuildResult:
-    review: ResearchPositionDecision
-    used_llm: bool
-
-
-@dataclass(frozen=True)
-class _PositionReviewBatch:
-    reviews: tuple[ResearchPositionDecision, ...]
-    all_used_llm: bool
 
 
 class InvestmentResearchService:
@@ -238,16 +225,9 @@ class InvestmentResearchService:
             ticker_reports,
             has_watchlist=self._watchlist_service is not None,
         )
-        position_review_batch = self._build_position_committee_reviews(
+        position_committee_reviews = self._build_position_committee_reviews(
             ticker_reports,
             dependency_notes=dependency_notes,
-        )
-        position_committee_reviews = position_review_batch.reviews
-        committee_consensus = self._build_committee_consensus(
-            ticker_reports,
-            language=get_configured_report_language(),
-            position_committee_reviews=position_committee_reviews,
-            use_llm=position_review_batch.all_used_llm,
         )
         return InvestmentResearchReport(
             ticker_reports=ticker_reports,
@@ -257,7 +237,6 @@ class InvestmentResearchService:
             portfolio_review=portfolio_review,
             watchlist_review=watchlist_review,
             portfolio_context=portfolio_context,
-            committee_consensus=committee_consensus,
             position_committee_reviews=position_committee_reviews,
             source_summaries=source_summaries,
             evidence_notes=evidence_notes,
@@ -297,17 +276,6 @@ class InvestmentResearchService:
         *,
         dependency_notes: tuple[str, ...],
     ) -> ResearchPositionDecision:
-        return self._build_position_committee_review_result(
-            ticker_report,
-            dependency_notes=dependency_notes,
-        ).review
-
-    def _build_position_committee_review_result(
-        self,
-        ticker_report: ResearchTickerReport,
-        *,
-        dependency_notes: tuple[str, ...],
-    ) -> _PositionReviewBuildResult:
         ticker_reports = (ticker_report,)
         market_summary = _market_summary(ticker_reports)
         portfolio_review = _portfolio_review(
@@ -335,7 +303,7 @@ class InvestmentResearchService:
                 language=prompt_contexts[0].report_language if prompt_contexts else None,
             )
             if llm_review is not None:
-                return _PositionReviewBuildResult(review=llm_review, used_llm=True)
+                return llm_review
         opinions = self._judgment_service.build_opinions(
             committee_prompts,
             ticker_reports,
@@ -344,8 +312,7 @@ class InvestmentResearchService:
             ticker_reports,
             language=prompt_contexts[0].report_language if prompt_contexts else None,
         )
-        return _PositionReviewBuildResult(
-            review=ResearchPositionDecision(
+        return ResearchPositionDecision(
                 ticker=ticker_report.ticker,
                 dongdong_opinion=_opinion_text(opinions, "dongdong"),
                 xixi_opinion=_opinion_text(opinions, "xixi"),
@@ -355,8 +322,6 @@ class InvestmentResearchService:
                 confidence=consensus.confidence,
                 rationale=consensus.rationale,
                 evidence=_ticker_evidence(ticker_report),
-            ),
-            used_llm=False,
         )
 
     def _build_position_committee_reviews(
@@ -364,57 +329,28 @@ class InvestmentResearchService:
         ticker_reports: tuple[ResearchTickerReport, ...],
         *,
         dependency_notes: tuple[str, ...],
-    ) -> _PositionReviewBatch:
+    ) -> tuple[ResearchPositionDecision, ...]:
         if len(ticker_reports) <= 1:
             results = tuple(
-                self._build_position_committee_review_result(
+                self._build_position_committee_review(
                     ticker_report,
                     dependency_notes=dependency_notes,
                 )
                 for ticker_report in ticker_reports
             )
-            return _PositionReviewBatch(
-                reviews=tuple(result.review for result in results),
-                all_used_llm=all(result.used_llm for result in results),
-            )
+            return results
         max_workers = min(4, len(ticker_reports))
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = tuple(
                 executor.submit(
-                    self._build_position_committee_review_result,
+                    self._build_position_committee_review,
                     ticker_report,
                     dependency_notes=dependency_notes,
                 )
                 for ticker_report in ticker_reports
             )
             results = tuple(future.result() for future in futures)
-            return _PositionReviewBatch(
-                reviews=tuple(result.review for result in results),
-                all_used_llm=all(result.used_llm for result in results),
-            )
-
-    def _build_committee_consensus(
-        self,
-        ticker_reports: tuple[ResearchTickerReport, ...],
-        *,
-        language: object | None,
-        position_committee_reviews: tuple[ResearchPositionDecision, ...] = (),
-        use_llm: bool = False,
-    ) -> Any:
-        if (
-            use_llm
-            and self._llm_judgment_service is not None
-            and position_committee_reviews
-        ):
-            return self._llm_judgment_service.build_report_consensus(
-                ticker_reports,
-                position_committee_reviews,
-                language=language,
-            )
-        return self._judgment_service.build_consensus(
-            ticker_reports,
-            language=language,
-        )
+            return results
 
     def _get_portfolio_snapshot(self, account_id: str | None) -> Any | None:
         if (
@@ -858,7 +794,7 @@ def _news_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
     facts: list[str] = []
     for item in context.news.items:
         symbol = getattr(item, "symbol", None)
-        if symbol is not None and symbol.upper() != ticker.upper():
+        if symbol is None or symbol.upper() != ticker.upper():
             continue
         values = [f"Yahoo/news: {ticker}"]
         title = str(getattr(item, "title", "")).strip()
@@ -1055,9 +991,9 @@ def _interpreted_risk_summary(
         if position_context.trim_candidate:
             risk_flags.append("portfolio trim candidate")
     if beta is not None and beta >= 1.5:
-        risk_flags.append(f"high beta {beta:.2f}")
+        risk_flags.append("high beta")
     elif beta is not None and beta <= 0.7:
-        risk_flags.append(f"low beta {beta:.2f}")
+        risk_flags.append("low beta")
     if valuation_label in {"expensive", "extreme", "revenue_multiple_risk"}:
         risk_flags.append(f"valuation {valuation_label}")
     if inputs.portfolio_summary is not None and inputs.portfolio_summary.concentration_level in {
@@ -1245,8 +1181,10 @@ def _build_committee_prompt_contexts(
             watchlist_review=watchlist_review,
             ticker_summaries=ticker_summaries,
             evidence_notes=evidence_notes,
-            key_risks=key_risks,
-            upcoming_catalysts=upcoming_catalysts,
+            key_risks=(key_risks if member.id in {"xixi", "yoyo"} else ()),
+            upcoming_catalysts=(
+                upcoming_catalysts if member.id in {"dongdong", "xixi"} else ()
+            ),
             portfolio_summary=_first_existing(
                 ticker_report.portfolio_summary
                 for ticker_report in ticker_reports
@@ -1256,49 +1194,81 @@ def _build_committee_prompt_contexts(
                 for ticker_report in ticker_reports
                 if len(ticker_reports) == 1
             ),
-            public_market_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.public_market_facts
+            public_market_facts=_persona_facts(
+                member.id, "public_market_facts", ticker_reports
             ),
-            profile_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.profile_facts
+            profile_facts=_persona_facts(member.id, "profile_facts", ticker_reports),
+            valuation_facts=_persona_facts(
+                member.id, "valuation_facts", ticker_reports
             ),
-            valuation_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.valuation_facts
+            financial_facts=_persona_facts(
+                member.id, "financial_facts", ticker_reports
             ),
-            financial_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.financial_facts
-            ),
-            news_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.news_facts
-            ),
-            company_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.company_facts
-            ),
-            macro_facts=_unique(
-                fact
-                for ticker_report in ticker_reports
-                for fact in ticker_report.macro_facts
-            ),
-            pre_committee_analysis=_unique(
-                item
-                for ticker_report in ticker_reports
-                for item in _pre_committee_analysis_items(ticker_report)
-            ),
+            news_facts=_persona_facts(member.id, "news_facts", ticker_reports),
+            company_facts=_persona_facts(member.id, "company_facts", ticker_reports),
+            macro_facts=_persona_facts(member.id, "macro_facts", ticker_reports),
+            pre_committee_analysis=_persona_analysis(member.id, ticker_reports),
             advisory_only_disclaimer=ADVISORY_ONLY_DISCLAIMER,
         )
         for member in committee_service.daily_investment_committee()
+    )
+
+
+_PERSONA_FACT_SECTIONS: dict[str, frozenset[str]] = {
+    "dongdong": frozenset(
+        {
+            "public_market_facts",
+            "profile_facts",
+            "valuation_facts",
+            "financial_facts",
+            "news_facts",
+        }
+    ),
+    "xixi": frozenset(
+        {"profile_facts", "valuation_facts", "financial_facts", "company_facts"}
+    ),
+    "yoyo": frozenset(
+        {
+            "public_market_facts",
+            "profile_facts",
+            "valuation_facts",
+            "financial_facts",
+            "news_facts",
+            "company_facts",
+            "macro_facts",
+        }
+    ),
+}
+
+
+def _persona_facts(
+    persona_id: str,
+    section: str,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> tuple[str, ...]:
+    if section not in _PERSONA_FACT_SECTIONS.get(persona_id, frozenset()):
+        return ()
+    return _unique(
+        fact
+        for ticker_report in ticker_reports
+        for fact in getattr(ticker_report, section)
+    )
+
+
+def _persona_analysis(
+    persona_id: str,
+    ticker_reports: tuple[ResearchTickerReport, ...],
+) -> tuple[str, ...]:
+    allowed_indexes = {
+        "dongdong": (0, 2),
+        "xixi": (0,),
+        "yoyo": (0, 1, 2),
+    }.get(persona_id, ())
+    return _unique(
+        item
+        for ticker_report in ticker_reports
+        for index, item in enumerate(_pre_committee_analysis_items(ticker_report))
+        if index in allowed_indexes
     )
 
 
@@ -1307,11 +1277,9 @@ def _pre_committee_analysis_items(
 ) -> tuple[str, ...]:
     interpretation = ticker_report.fact_interpretation
     return (
-        f"{ticker_report.ticker}: valuation_label={interpretation.valuation_label}",
-        f"{ticker_report.ticker}: profile_summary={interpretation.profile_summary}",
-        f"{ticker_report.ticker}: valuation_summary={interpretation.valuation_summary}",
-        f"{ticker_report.ticker}: risk_summary={interpretation.risk_summary}",
-        f"{ticker_report.ticker}: catalyst_summary={interpretation.catalyst_summary}",
+        f"{ticker_report.ticker}: valuation_assessment={interpretation.valuation_label}",
+        f"{ticker_report.ticker}: risk_assessment={interpretation.risk_summary}",
+        f"{ticker_report.ticker}: catalyst_assessment={interpretation.catalyst_summary}",
     )
 
 

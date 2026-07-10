@@ -24,8 +24,6 @@ from parakeetnest.research import (
     InvestmentResearchReport,
     ReportMode,
     ResearchCatalyst,
-    ResearchCommitteeConsensus,
-    ResearchCommitteeOpinion,
     ResearchCommitteePortfolioView,
     ResearchFactInterpretation,
     ResearchFinding,
@@ -613,17 +611,6 @@ def _sample_report(
                     value=500,
                     percent=0.04,
                 ),
-            ),
-        ),
-        committee_consensus=ResearchCommitteeConsensus(
-            final_action="hold",
-            confidence="medium",
-            horizon="3-6 months",
-            rationale="Committee weighed evidence, risks, and catalysts.",
-            final_risk_posture="Balanced and advisory only.",
-            todays_suggested_actions=(
-                "NVDA: HOLD (medium confidence) over 3-6 months; human investor decides.",
-                "AAPL: WATCH (medium confidence) over 3-6 months; human investor decides.",
             ),
         ),
         committee_portfolio_views=(

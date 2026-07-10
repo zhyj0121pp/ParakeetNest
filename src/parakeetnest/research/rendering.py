@@ -311,17 +311,17 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         recommendation_value = (
             position_review.recommendation
             if position_review is not None
-            else report.committee_consensus.final_action
+            else "watch"
         )
         confidence_value = (
             position_review.confidence
             if position_review is not None
-            else report.committee_consensus.confidence
+            else "low"
         )
         rationale = (
             position_review.rationale
             if position_review is not None
-            else report.committee_consensus.rationale
+            else ticker_report.summary
         )
         dongdong_opinion = (
             position_review.dongdong_opinion

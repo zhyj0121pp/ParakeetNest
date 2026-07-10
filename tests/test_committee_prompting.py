@@ -80,10 +80,9 @@ def test_each_prompt_contains_relevant_ticker_report_context() -> None:
 
     for prompt in prompts:
         assert "- Tickers: NVDA, AAPL" in prompt.prompt_text
-        assert "NVDA: portfolio holding with AI demand catalyst." in prompt.prompt_text
-        assert "AAPL: watchlist item with services-margin thesis." in prompt.prompt_text
-        assert "NVDA: Export controls." in prompt.prompt_text
-        assert "AAPL: Services growth." in prompt.prompt_text
+        assert "Market summary:" not in prompt.prompt_text
+        assert "Portfolio review:" not in prompt.prompt_text
+        assert "Ticker summaries:" not in prompt.prompt_text
 
 
 def test_committee_prompt_separates_public_facts_and_bucketed_portfolio_context() -> None:

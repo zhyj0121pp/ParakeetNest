@@ -95,7 +95,7 @@ class LLMConfig:
     api_key_env_var: str = "OPENAI_API_KEY"
     temperature: float = 0.0
     timeout_seconds: float = 30.0
-    max_completion_tokens: int = 350
+    max_completion_tokens: int = 900
 
 
 @dataclass(frozen=True)
@@ -261,7 +261,7 @@ class Settings(BaseSettings):
     llm_api_key_env_var: str = "OPENAI_API_KEY"
     llm_temperature: float = 0.0
     llm_timeout_seconds: float = 30.0
-    llm_max_completion_tokens: int = 350
+    llm_max_completion_tokens: int = 900
 
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     robinhood_username: str | None = Field(default=None, repr=False)

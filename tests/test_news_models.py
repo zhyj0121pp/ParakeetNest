@@ -68,3 +68,19 @@ def test_news_query_rejects_non_positive_limit() -> None:
     """Queries should keep provider requests bounded to positive result counts."""
     with pytest.raises(ValueError, match="limit must be at least 1"):
         NewsQuery(limit=0)
+
+
+def test_news_query_normalizes_and_validates_publication_window() -> None:
+    query = NewsQuery(
+        published_after=datetime(2026, 7, 7),
+        published_before=datetime(2026, 7, 10),
+    )
+
+    assert query.published_after == datetime(2026, 7, 7, tzinfo=UTC)
+    assert query.published_before == datetime(2026, 7, 10, tzinfo=UTC)
+
+    with pytest.raises(ValueError, match="published_after"):
+        NewsQuery(
+            published_after=datetime(2026, 7, 11, tzinfo=UTC),
+            published_before=datetime(2026, 7, 10, tzinfo=UTC),
+        )

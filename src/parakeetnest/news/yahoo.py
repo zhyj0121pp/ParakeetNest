@@ -51,7 +51,7 @@ class YahooFinanceNewsProvider:
             articles: list[NewsArticle] = []
             for payload, fallback_symbols in payloads:
                 article = self._article_from_payload(payload, fallback_symbols)
-                if self._matches_keywords(article, query.keywords):
+                if self._matches_query(article, query):
                     articles.append(article)
                 if len(articles) >= query.limit:
                     break
@@ -75,7 +75,8 @@ class YahooFinanceNewsProvider:
 
         if query.symbols:
             for symbol in query.symbols:
-                raw_news = getattr(self._ticker(symbol), "news", [])
+                ticker = self._ticker(symbol)
+                raw_news = self._ticker_news(ticker, query.limit)
                 payloads.extend(
                     (payload, [symbol]) for payload in self._news_items(raw_news, symbol)
                 )
@@ -86,6 +87,13 @@ class YahooFinanceNewsProvider:
             return [(payload, None) for payload in self._news_items(raw_news, None)]
 
         return []
+
+    @staticmethod
+    def _ticker_news(ticker: Any, limit: int) -> Any:
+        get_news = getattr(ticker, "get_news", None)
+        if callable(get_news):
+            return get_news(count=limit, tab="news")
+        return getattr(ticker, "news", [])
 
     def _ticker(self, symbol: str) -> Any:
         return self._yfinance().Ticker(symbol)
@@ -282,6 +290,19 @@ class YahooFinanceNewsProvider:
             if value is not None
         ).casefold()
         return all(keyword.casefold() in searchable_text for keyword in keywords)
+
+    def _matches_query(self, article: NewsArticle, query: NewsQuery) -> bool:
+        if not self._matches_keywords(article, query.keywords):
+            return False
+        if (
+            query.published_after is not None
+            and article.published_at < query.published_after
+        ):
+            return False
+        return not (
+            query.published_before is not None
+            and article.published_at > query.published_before
+        )
 
     def _with_retries(
         self,

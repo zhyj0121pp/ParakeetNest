@@ -48,6 +48,11 @@ class FakeTicker:
             if news is None
             else news
         )
+        self.news_calls: list[tuple[int, str]] = []
+
+    def get_news(self, *, count: int, tab: str) -> object:
+        self.news_calls.append((count, tab))
+        return self.news
 
 
 class FakeYFinance:
@@ -85,6 +90,20 @@ def test_get_news_maps_yahoo_content_payload_to_news_article() -> None:
             provider="yahoo",
         )
     ]
+    assert provider._yf.tickers[0].news_calls == [(10, "news")]
+
+
+def test_get_news_filters_by_publication_window() -> None:
+    provider = YahooFinanceNewsProvider(FakeYFinance())
+
+    articles = provider.get_news(
+        NewsQuery(
+            symbols=["AMD"],
+            published_after=datetime(2026, 6, 30, tzinfo=UTC),
+        )
+    )
+
+    assert articles == []
 
 
 def test_get_news_maps_flat_yahoo_payload_to_news_article() -> None:

@@ -79,6 +79,19 @@ class MockNewsProvider:
                 if self._matches_keywords(article, wanted_keywords)
             ]
 
+        if query.published_after is not None:
+            articles = [
+                article
+                for article in articles
+                if article.published_at >= query.published_after
+            ]
+        if query.published_before is not None:
+            articles = [
+                article
+                for article in articles
+                if article.published_at <= query.published_before
+            ]
+
         return articles[: query.limit]
 
     def _matches_keywords(

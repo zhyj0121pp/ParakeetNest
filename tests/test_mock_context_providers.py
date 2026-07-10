@@ -44,7 +44,10 @@ def _market_context_provider() -> MarketContextProvider:
 
 
 def _news_context_provider() -> NewsContextProvider:
-    return NewsContextProvider(NewsService(MockNewsProvider()))
+    return NewsContextProvider(
+        NewsService(MockNewsProvider()),
+        clock=lambda: datetime(2026, 6, 29, 14, 0, tzinfo=UTC),
+    )
 
 
 def _macro_context_provider() -> MacroContextProvider:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,8 @@ class NewsQuery:
     symbols: list[str] | None = None
     keywords: list[str] | None = None
     limit: int = 10
+    published_after: datetime | None = None
+    published_before: datetime | None = None
 
     def __post_init__(self) -> None:
         """Normalize query fields used by providers."""
@@ -45,6 +47,17 @@ class NewsQuery:
         if self.keywords is not None:
             keywords = [keyword.strip() for keyword in self.keywords if keyword.strip()]
             object.__setattr__(self, "keywords", keywords)
+
+        for field_name in ("published_after", "published_before"):
+            value = getattr(self, field_name)
+            if value is not None and value.tzinfo is None:
+                object.__setattr__(self, field_name, value.replace(tzinfo=UTC))
+        if (
+            self.published_after is not None
+            and self.published_before is not None
+            and self.published_after > self.published_before
+        ):
+            raise ValueError("published_after must not be after published_before")
 
 
 __all__ = ["NewsArticle", "NewsQuery"]

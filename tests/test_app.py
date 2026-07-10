@@ -1,5 +1,6 @@
 """Tests for the application bootstrap container."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -330,7 +331,11 @@ def test_create_app_wires_news_context_provider_through_news_service(
     )
     try:
         context = app.context_service.build_context(
-            ContextRequest(question="Review POET.", symbols=("POET",))
+            ContextRequest(
+                question="Review POET.",
+                symbols=("POET",),
+                as_of=datetime(2026, 6, 29, 13, 0, tzinfo=UTC),
+            )
         )
     finally:
         app.close()

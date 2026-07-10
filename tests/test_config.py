@@ -36,6 +36,8 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     monkeypatch.setenv("PARAKEETNEST_LLM_PROVIDER", "openai")
     monkeypatch.setenv("PARAKEETNEST_LLM_MODEL", "gpt-test-latest")
     monkeypatch.setenv("PARAKEETNEST_LLM_TEMPERATURE", "0.2")
+    monkeypatch.setenv("PARAKEETNEST_LLM_TIMEOUT_SECONDS", "45")
+    monkeypatch.setenv("PARAKEETNEST_LLM_MAX_COMPLETION_TOKENS", "250")
 
     settings = Settings(_env_file=None)
 
@@ -46,6 +48,8 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     assert settings.llm_provider == "openai"
     assert settings.llm_model == "gpt-test-latest"
     assert settings.llm_temperature == 0.2
+    assert settings.llm_timeout_seconds == 45
+    assert settings.llm_max_completion_tokens == 250
 
 
 def test_settings_load_report_language_from_project_env_name(monkeypatch) -> None:
@@ -107,6 +111,8 @@ def test_app_config_supports_llm_mapping() -> None:
             "model": "gpt-test",
             "api_key_env_var": "PARAKEETNEST_TEST_OPENAI_API_KEY",
             "temperature": 0.1,
+            "timeout_seconds": 30,
+            "max_completion_tokens": 250,
         }
     )
 
@@ -115,6 +121,8 @@ def test_app_config_supports_llm_mapping() -> None:
     assert config.llm.model == "gpt-test"
     assert config.llm.api_key_env_var == "PARAKEETNEST_TEST_OPENAI_API_KEY"
     assert config.llm.temperature == 0.1
+    assert config.llm.timeout_seconds == 30
+    assert config.llm.max_completion_tokens == 250
 
 
 def test_app_config_preserves_legacy_llm_provider_field() -> None:
@@ -221,6 +229,8 @@ def test_settings_llm_config_uses_configured_provider_and_model(monkeypatch) -> 
     monkeypatch.setenv("PARAKEETNEST_LLM_MODEL", "gpt-test-latest")
     monkeypatch.setenv("PARAKEETNEST_LLM_API_KEY_ENV_VAR", "OPENAI_API_KEY")
     monkeypatch.setenv("PARAKEETNEST_LLM_TEMPERATURE", "0.1")
+    monkeypatch.setenv("PARAKEETNEST_LLM_TIMEOUT_SECONDS", "45")
+    monkeypatch.setenv("PARAKEETNEST_LLM_MAX_COMPLETION_TOKENS", "250")
 
     config = llm_config_from_settings(Settings(_env_file=None))
 
@@ -229,4 +239,6 @@ def test_settings_llm_config_uses_configured_provider_and_model(monkeypatch) -> 
         model="gpt-test-latest",
         api_key_env_var="OPENAI_API_KEY",
         temperature=0.1,
+        timeout_seconds=45,
+        max_completion_tokens=250,
     )

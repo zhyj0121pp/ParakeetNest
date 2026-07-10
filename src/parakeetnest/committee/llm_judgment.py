@@ -32,12 +32,16 @@ class LLMCommitteeJudgmentService:
         fallback_service: CommitteeJudgmentService | None = None,
         model: str | None = None,
         temperature: float = 0.0,
+        timeout_seconds: float = 30.0,
+        max_completion_tokens: int = 350,
         parser: OutputParser | None = None,
     ) -> None:
         self._llm_provider = llm_provider
         self._fallback_service = fallback_service or CommitteeJudgmentService()
         self._model = model or getattr(llm_provider, "default_model", "committee-llm")
         self._temperature = temperature
+        self._timeout_seconds = timeout_seconds
+        self._max_completion_tokens = max_completion_tokens
         self._parser = parser or OutputParser()
         self._last_used_fallback = False
 
@@ -81,6 +85,27 @@ class LLMCommitteeJudgmentService:
                 self._run_chairman_prompt(
                     ticker_reports,
                     committee_opinions=committee_opinions,
+                    language=language,
+                )
+            )
+        except (OutputParserError, ValueError, KeyError, TypeError):
+            return self._fallback_service.build_consensus(
+                ticker_reports,
+                language=language,
+            )
+
+    def build_report_consensus(
+        self,
+        ticker_reports: tuple[ResearchTickerReport, ...],
+        position_reviews: tuple[ResearchPositionDecision, ...],
+        *,
+        language: object | None = None,
+    ) -> ResearchCommitteeConsensus:
+        """Build concise report-level Chairman synthesis from ticker discussions."""
+        try:
+            return self._to_research_consensus(
+                self._run_report_chairman_prompt(
+                    position_reviews,
                     language=language,
                 )
             )
@@ -160,6 +185,8 @@ class LLMCommitteeJudgmentService:
             prompt=_persona_prompt_text(prompt, ticker_reports),
             model=self._model,
             temperature=self._temperature,
+            timeout_seconds=self._timeout_seconds,
+            max_completion_tokens=self._max_completion_tokens,
             response_schema=COMMITTEE_OPINION_SCHEMA,
             metadata={
                 "task": "daily_report_persona_opinion",
@@ -186,12 +213,39 @@ class LLMCommitteeJudgmentService:
             ),
             model=self._model,
             temperature=self._temperature,
+            timeout_seconds=self._timeout_seconds,
+            max_completion_tokens=self._max_completion_tokens,
             response_schema=CHAIRMAN_SUMMARY_SCHEMA,
             metadata={
                 "task": "daily_report_chairman_synthesis",
                 "agent_name": "Chairman",
                 "role": "final decision maker",
                 "tickers": ",".join(report.ticker for report in ticker_reports),
+            },
+        )
+        return self._parser.parse_chairman_summary(self._llm_provider.complete(request))
+
+    def _run_report_chairman_prompt(
+        self,
+        position_reviews: tuple[ResearchPositionDecision, ...],
+        *,
+        language: object | None,
+    ) -> ChairmanSummary:
+        request = LLMRequest(
+            prompt=_report_chairman_prompt_text(
+                position_reviews,
+                language=language,
+            ),
+            model=self._model,
+            temperature=self._temperature,
+            timeout_seconds=self._timeout_seconds,
+            max_completion_tokens=self._max_completion_tokens,
+            response_schema=CHAIRMAN_SUMMARY_SCHEMA,
+            metadata={
+                "task": "daily_report_final_synthesis",
+                "agent_name": "Chairman",
+                "role": "final decision maker",
+                "tickers": ",".join(review.ticker for review in position_reviews),
             },
         )
         return self._parser.parse_chairman_summary(self._llm_provider.complete(request))
@@ -259,10 +313,13 @@ def _persona_prompt_text(
             "- Treat PRE-COMMITTEE ANALYSIS as deterministic interpretation, separate from factual evidence.",
             "- Do not expose raw provider fields or private account details.",
             "- Do not recommend or describe automatic trading.",
+            "- Be concise and explicit; no long-form essay or broad market commentary.",
+            "- Discuss only the ticker named in this prompt.",
             "",
             "Required JSON",
             "- Return only a JSON object matching CommitteeOpinion.",
-            "- viewpoint must include action, confidence, horizon, evidence, risks, and catalysts.",
+            "- viewpoint must be 2-4 short sentences and include action, confidence, horizon, evidence, risks, and catalysts.",
+            "- evidence, risks, and catalysts arrays must each contain at most 2 short items.",
             f"- symbol must be {_symbol_for_reports(ticker_reports)}.",
         ]
     )
@@ -283,6 +340,8 @@ def _chairman_prompt_text(
             "- Use only the supplied source-labeled facts, PRE-COMMITTEE ANALYSIS, and persona opinions.",
             "- Do not expose raw provider fields or private account details.",
             "- Do not recommend or describe automatic trading.",
+            "- Be concise and explicit; no long-form essay or broad market commentary.",
+            "- Discuss only the ticker named in this prompt.",
             "",
             "Ticker Evidence",
             *_render_ticker_evidence(ticker_reports),
@@ -298,10 +357,61 @@ def _chairman_prompt_text(
             "",
             "Required JSON",
             "- Return only a JSON object matching ChairmanSummary.",
+            "- rationale must be 2-3 short sentences.",
             "- Include action, confidence, horizon, evidence, risks, and catalysts.",
+            "- evidence, risks, and catalysts arrays must each contain at most 2 short items.",
             f"- symbol must be {_symbol_for_reports(ticker_reports)}.",
         ]
     )
+
+
+def _report_chairman_prompt_text(
+    position_reviews: tuple[ResearchPositionDecision, ...],
+    *,
+    language: object | None,
+) -> str:
+    return "\n".join(
+        [
+            "You are Chairman, the final advisory decision maker.",
+            "Produce one concise report-level advisory recommendation.",
+            "",
+            "Grounding Rules",
+            "- Use only the supplied ticker committee discussion summaries.",
+            "- Do not add new facts, raw provider fields, or private account details.",
+            "- Do not recommend or describe automatic trading.",
+            "- Be concise and explicit; no long-form essay.",
+            "",
+            "Ticker Committee Summaries",
+            *_render_position_review_summaries(position_reviews),
+            "",
+            "Language",
+            f"- Match report language: {language}.",
+            "",
+            "Required JSON",
+            "- Return only a JSON object matching ChairmanSummary.",
+            "- rationale must be 2-3 short sentences.",
+            "- evidence, risks, and catalysts arrays must each contain at most 2 short items.",
+            "- symbol must be REPORT.",
+        ]
+    )
+
+
+def _render_position_review_summaries(
+    position_reviews: tuple[ResearchPositionDecision, ...],
+) -> list[str]:
+    if not position_reviews:
+        return ["- No ticker committee summaries supplied."]
+    return [
+        (
+            f"- {review.ticker}: action={review.recommendation}; "
+            f"confidence={review.confidence}; "
+            f"chairman={_truncate(review.rationale, limit=180)}; "
+            f"Dongdong={_truncate(review.dongdong_opinion, limit=160)}; "
+            f"Xixi={_truncate(review.xixi_opinion, limit=160)}; "
+            f"Yoyo={_truncate(review.youyou_opinion, limit=160)}"
+        )
+        for review in position_reviews
+    ]
 
 
 def _render_ticker_evidence(ticker_reports: tuple[ResearchTickerReport, ...]) -> list[str]:
@@ -341,10 +451,18 @@ def _render_opinions(
         (
             f"- {opinion.display_name}: action={opinion.suggested_action}; "
             f"confidence/evidence={'; '.join(opinion.evidence_considered[:2])}; "
-            f"risk={opinion.key_concern}; reasoning={opinion.reasoning_summary}"
+            f"risk={_truncate(opinion.key_concern)}; "
+            f"reasoning={_truncate(opinion.reasoning_summary)}"
         )
         for opinion in committee_opinions
     ]
+
+
+def _truncate(value: str, *, limit: int = 360) -> str:
+    stripped = " ".join(value.split())
+    if len(stripped) <= limit:
+        return stripped
+    return f"{stripped[: limit - 3].rstrip()}..."
 
 
 def _analysis_items(report: ResearchTickerReport) -> tuple[str, ...]:

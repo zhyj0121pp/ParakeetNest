@@ -821,7 +821,7 @@ def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
 
 
 def test_llm_persona_discussions_are_produced_from_prompts() -> None:
-    llm = MockLLMProvider(responses=_llm_committee_responses("NVDA"))
+    llm = ConcurrentRecordingLLMProvider()
     service = InvestmentResearchService(
         public_context_service=FakeDifferentiatedPublicContextService(),
         llm_provider=llm,
@@ -829,23 +829,41 @@ def test_llm_persona_discussions_are_produced_from_prompts() -> None:
 
     report = service.generate_report(("NVDA",), generated_at=AS_OF)
 
-    assert report.committee_opinions[0].reasoning_summary.startswith(
+    review = report.position_committee_reviews[0]
+    assert review.dongdong_opinion.startswith(
         "Dongdong LLM action=watch"
     )
-    assert report.committee_opinions[1].reasoning_summary.startswith(
+    assert review.xixi_opinion.startswith(
         "Xixi LLM action=hold"
     )
-    assert report.committee_opinions[2].reasoning_summary.startswith(
+    assert review.youyou_opinion.startswith(
         "Yoyo LLM action=reduce"
+    )
+    assert review.rationale == (
+        "Chairman LLM synthesizes final advisory recommendation."
     )
     assert report.committee_consensus.rationale == (
         "Chairman LLM synthesizes final advisory recommendation."
     )
-    assert len(llm.requests) == 8
-    assert llm.requests[0].metadata["task"] == "daily_report_persona_opinion"
-    assert "You are Dongdong" in llm.requests[0].prompt
-    assert "Return only a JSON object matching CommitteeOpinion" in llm.requests[0].prompt
-    assert llm.requests[3].metadata["task"] == "daily_report_chairman_synthesis"
+    assert len(llm.requests) == 5
+    dongdong_request = next(
+        request
+        for request in llm.requests
+        if request.metadata["agent_name"] == "Dongdong"
+    )
+    assert dongdong_request.metadata["task"] == "daily_report_persona_opinion"
+    assert "You are Dongdong" in dongdong_request.prompt
+    assert (
+        "Return only a JSON object matching CommitteeOpinion"
+        in dongdong_request.prompt
+    )
+    assert "viewpoint must be 2-4 short sentences" in dongdong_request.prompt
+    assert dongdong_request.max_completion_tokens == 350
+    assert llm.requests[-2].metadata["task"] == "daily_report_chairman_synthesis"
+    assert llm.requests[-1].metadata["task"] == "daily_report_final_synthesis"
+    assert "Ticker Committee Summaries" in llm.requests[-1].prompt
+    assert "Yahoo/profile" not in llm.requests[-1].prompt
+    assert "Yahoo/valuation" not in llm.requests[-1].prompt
 
 
 def test_llm_prompts_include_yahoo_profile_and_valuation_facts() -> None:
@@ -904,6 +922,49 @@ def test_invalid_llm_output_falls_back_to_deterministic_judgment() -> None:
     assert report.committee_opinions[0].evidence_considered
     assert "Chairman LLM synthesizes" not in report.committee_consensus.rationale
     assert report.committee_consensus.final_action
+
+
+def test_llm_prompts_are_scoped_to_one_ticker() -> None:
+    llm = ConcurrentRecordingLLMProvider()
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    service.generate_report(("AAPL", "MSFT"), generated_at=AS_OF)
+
+    scoped_requests = [
+        request
+        for request in llm.requests
+        if request.metadata["task"] != "daily_report_final_synthesis"
+    ]
+    llm_tickers = {request.metadata["tickers"] for request in scoped_requests}
+    assert llm_tickers == {"AAPL", "MSFT"}
+    assert "AAPL,MSFT" not in llm_tickers
+    aapl_prompts = [
+        request.prompt
+        for request in scoped_requests
+        if request.metadata["tickers"] == "AAPL"
+    ]
+    msft_prompts = [
+        request.prompt
+        for request in scoped_requests
+        if request.metadata["tickers"] == "MSFT"
+    ]
+    assert aapl_prompts
+    assert msft_prompts
+    assert all("AAPL" in prompt for prompt in aapl_prompts)
+    assert all("MSFT" not in prompt for prompt in aapl_prompts)
+    assert all("MSFT" in prompt for prompt in msft_prompts)
+    assert all("AAPL" not in prompt for prompt in msft_prompts)
+    report_prompt = next(
+        request.prompt
+        for request in llm.requests
+        if request.metadata["task"] == "daily_report_final_synthesis"
+    )
+    assert "Ticker Committee Summaries" in report_prompt
+    assert "Yahoo/profile" not in report_prompt
+    assert "Yahoo/valuation" not in report_prompt
 
 
 def test_same_ticker_persona_llm_calls_run_concurrently() -> None:
@@ -967,7 +1028,10 @@ class ConcurrentRecordingLLMProvider:
             self.max_active = max(self.max_active, self.active)
         time.sleep(0.05)
         try:
-            if request.metadata.get("task") == "daily_report_chairman_synthesis":
+            if request.metadata.get("task") in {
+                "daily_report_chairman_synthesis",
+                "daily_report_final_synthesis",
+            }:
                 content = _chairman_json(str(request.metadata["tickers"]))
             else:
                 member_name = str(request.metadata["agent_name"])

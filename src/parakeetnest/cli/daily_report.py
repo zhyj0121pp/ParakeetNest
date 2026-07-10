@@ -226,6 +226,12 @@ def _build_daily_report_composer(app: object) -> DailyInvestmentReportComposer:
             llm_provider=getattr(app, "llm_provider", None),
             llm_model=getattr(llm_config, "model", None),
             llm_temperature=getattr(llm_config, "temperature", 0.0),
+            llm_timeout_seconds=getattr(llm_config, "timeout_seconds", 30.0),
+            llm_max_completion_tokens=getattr(
+                llm_config,
+                "max_completion_tokens",
+                350,
+            ),
         )
     )
 

@@ -94,6 +94,8 @@ class LLMConfig:
     model: str = "mock-committee"
     api_key_env_var: str = "OPENAI_API_KEY"
     temperature: float = 0.0
+    timeout_seconds: float = 30.0
+    max_completion_tokens: int = 350
 
 
 @dataclass(frozen=True)
@@ -258,6 +260,8 @@ class Settings(BaseSettings):
     llm_model: str = "mock-committee"
     llm_api_key_env_var: str = "OPENAI_API_KEY"
     llm_temperature: float = 0.0
+    llm_timeout_seconds: float = 30.0
+    llm_max_completion_tokens: int = 350
 
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     robinhood_username: str | None = Field(default=None, repr=False)
@@ -332,6 +336,8 @@ def llm_config_from_settings(settings: Settings) -> LLMConfig:
         model=settings.llm_model,
         api_key_env_var=settings.llm_api_key_env_var,
         temperature=settings.llm_temperature,
+        timeout_seconds=settings.llm_timeout_seconds,
+        max_completion_tokens=settings.llm_max_completion_tokens,
     )
 
 

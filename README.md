@@ -146,6 +146,9 @@ Useful local settings:
 - `PARAKEETNEST_LLM_PROVIDER`: `mock` or `openai`.
 - `PARAKEETNEST_LLM_MODEL`: model name for the configured LLM provider.
 - `PARAKEETNEST_LLM_TEMPERATURE`: model temperature, usually `0.0` for reports.
+- `PARAKEETNEST_LLM_TIMEOUT_SECONDS`: per-request LLM timeout, default `30`.
+- `PARAKEETNEST_LLM_MAX_COMPLETION_TOKENS`: per-request LLM output cap,
+  default `350`.
 - `FRED_API_KEY`: required for the FRED macro provider.
 - `SEC_USER_AGENT`: required for SEC EDGAR. Quote it in `.env` if it contains
   spaces.

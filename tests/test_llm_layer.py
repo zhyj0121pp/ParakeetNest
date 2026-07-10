@@ -74,6 +74,7 @@ def test_openai_provider_constructs_chat_completion_request_with_fake_client() -
         temperature=0.2,
         response_schema={"type": "object", "required": ["action"]},
         timeout_seconds=12.5,
+        max_completion_tokens=123,
     )
 
     response = provider.complete(request)
@@ -83,6 +84,7 @@ def test_openai_provider_constructs_chat_completion_request_with_fake_client() -
     assert response.model == "gpt-override"
     assert json.loads(response.content) == {"action": "watch"}
     assert response.metadata["total_tokens"] == "15"
+    assert client.max_retries == 0
     assert client.kwargs == {
         "model": "gpt-override",
         "messages": [
@@ -91,6 +93,7 @@ def test_openai_provider_constructs_chat_completion_request_with_fake_client() -
         ],
         "temperature": 0.2,
         "timeout": 12.5,
+        "max_completion_tokens": 123,
         "response_format": {
             "type": "json_schema",
             "json_schema": {
@@ -385,8 +388,13 @@ class _FakeOpenAIClient:
     def __init__(self, response: dict) -> None:
         self.response = response
         self.kwargs: dict | None = None
+        self.max_retries: int | None = None
         self.chat = self
         self.completions = self
+
+    def with_options(self, **kwargs: object) -> "_FakeOpenAIClient":
+        self.max_retries = kwargs.get("max_retries")  # type: ignore[assignment]
+        return self
 
     def create(self, **kwargs: object) -> dict:
         self.kwargs = kwargs

@@ -41,7 +41,7 @@ class OpenAIProvider(LLMProvider):
         started_at = perf_counter()
         model = request.model or self.default_model
         try:
-            response = self.client.chat.completions.create(
+            response = self._client_for_request(request).chat.completions.create(
                 **self._build_request_kwargs(request, model=model)
             )
             choice = self._first_choice(response)
@@ -71,6 +71,8 @@ class OpenAIProvider(LLMProvider):
         }
         if request.timeout_seconds is not None:
             kwargs["timeout"] = request.timeout_seconds
+        if request.max_completion_tokens is not None:
+            kwargs["max_completion_tokens"] = request.max_completion_tokens
         if request.response_schema is not None:
             kwargs["response_format"] = {
                 "type": "json_schema",
@@ -81,6 +83,11 @@ class OpenAIProvider(LLMProvider):
                 },
             }
         return kwargs
+
+    def _client_for_request(self, request: LLMRequest) -> Any:
+        if hasattr(self.client, "with_options"):
+            return self.client.with_options(max_retries=request.max_retries)
+        return self.client
 
     @staticmethod
     def _first_choice(response: Any) -> Any:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any, Protocol
@@ -94,6 +95,18 @@ class _TickerInputs:
     evidence_notes: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class _PositionReviewBuildResult:
+    review: ResearchPositionDecision
+    used_llm: bool
+
+
+@dataclass(frozen=True)
+class _PositionReviewBatch:
+    reviews: tuple[ResearchPositionDecision, ...]
+    all_used_llm: bool
+
+
 class InvestmentResearchService:
     """Generate provider-neutral research reports from existing abstractions."""
 
@@ -111,6 +124,8 @@ class InvestmentResearchService:
         llm_provider: LLMProvider | None = None,
         llm_model: str | None = None,
         llm_temperature: float = 0.0,
+        llm_timeout_seconds: float = 30.0,
+        llm_max_completion_tokens: int = 350,
     ) -> None:
         self._portfolio_service = portfolio_service
         self._portfolio_context_provider = portfolio_context_provider
@@ -126,6 +141,8 @@ class InvestmentResearchService:
                 fallback_service=self._judgment_service,
                 model=llm_model,
                 temperature=llm_temperature,
+                timeout_seconds=llm_timeout_seconds,
+                max_completion_tokens=llm_max_completion_tokens,
             )
             if llm_provider is not None
             else None
@@ -231,17 +248,17 @@ class InvestmentResearchService:
             committee_prompts,
             ticker_reports,
         )
+        position_review_batch = self._build_position_committee_reviews(
+            ticker_reports,
+            dependency_notes=dependency_notes,
+        )
+        position_committee_reviews = position_review_batch.reviews
         committee_consensus = self._build_committee_consensus(
             ticker_reports,
             language=prompt_contexts[0].report_language if prompt_contexts else None,
             committee_opinions=committee_opinions,
-        )
-        position_committee_reviews = tuple(
-            self._build_position_committee_review(
-                ticker_report,
-                dependency_notes=dependency_notes,
-            )
-            for ticker_report in ticker_reports
+            position_committee_reviews=position_committee_reviews,
+            use_llm=position_review_batch.all_used_llm,
         )
         return InvestmentResearchReport(
             ticker_reports=ticker_reports,
@@ -291,6 +308,17 @@ class InvestmentResearchService:
         *,
         dependency_notes: tuple[str, ...],
     ) -> ResearchPositionDecision:
+        return self._build_position_committee_review_result(
+            ticker_report,
+            dependency_notes=dependency_notes,
+        ).review
+
+    def _build_position_committee_review_result(
+        self,
+        ticker_report: ResearchTickerReport,
+        *,
+        dependency_notes: tuple[str, ...],
+    ) -> _PositionReviewBuildResult:
         ticker_reports = (ticker_report,)
         market_summary = _market_summary(ticker_reports)
         portfolio_review = _portfolio_review(
@@ -318,7 +346,7 @@ class InvestmentResearchService:
                 language=prompt_contexts[0].report_language if prompt_contexts else None,
             )
             if llm_review is not None:
-                return llm_review
+                return _PositionReviewBuildResult(review=llm_review, used_llm=True)
         opinions = self._judgment_service.build_opinions(
             committee_prompts,
             ticker_reports,
@@ -327,25 +355,61 @@ class InvestmentResearchService:
             ticker_reports,
             language=prompt_contexts[0].report_language if prompt_contexts else None,
         )
-        return ResearchPositionDecision(
-            ticker=ticker_report.ticker,
-            dongdong_opinion=_opinion_text(opinions, "dongdong"),
-            xixi_opinion=_opinion_text(opinions, "xixi"),
-            youyou_opinion=_opinion_text(opinions, "youyou"),
-            consensus=consensus,
-            recommendation=consensus.final_action,
-            confidence=consensus.confidence,
-            rationale=consensus.rationale,
-            evidence=_ticker_evidence(ticker_report),
+        return _PositionReviewBuildResult(
+            review=ResearchPositionDecision(
+                ticker=ticker_report.ticker,
+                dongdong_opinion=_opinion_text(opinions, "dongdong"),
+                xixi_opinion=_opinion_text(opinions, "xixi"),
+                youyou_opinion=_opinion_text(opinions, "youyou"),
+                consensus=consensus,
+                recommendation=consensus.final_action,
+                confidence=consensus.confidence,
+                rationale=consensus.rationale,
+                evidence=_ticker_evidence(ticker_report),
+            ),
+            used_llm=False,
         )
+
+    def _build_position_committee_reviews(
+        self,
+        ticker_reports: tuple[ResearchTickerReport, ...],
+        *,
+        dependency_notes: tuple[str, ...],
+    ) -> _PositionReviewBatch:
+        if len(ticker_reports) <= 1:
+            results = tuple(
+                self._build_position_committee_review_result(
+                    ticker_report,
+                    dependency_notes=dependency_notes,
+                )
+                for ticker_report in ticker_reports
+            )
+            return _PositionReviewBatch(
+                reviews=tuple(result.review for result in results),
+                all_used_llm=all(result.used_llm for result in results),
+            )
+        max_workers = min(4, len(ticker_reports))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = tuple(
+                executor.submit(
+                    self._build_position_committee_review_result,
+                    ticker_report,
+                    dependency_notes=dependency_notes,
+                )
+                for ticker_report in ticker_reports
+            )
+            results = tuple(future.result() for future in futures)
+            return _PositionReviewBatch(
+                reviews=tuple(result.review for result in results),
+                all_used_llm=all(result.used_llm for result in results),
+            )
 
     def _build_committee_opinions(
         self,
         committee_prompts: tuple[Any, ...],
         ticker_reports: tuple[ResearchTickerReport, ...],
     ) -> tuple[Any, ...]:
-        service = self._llm_judgment_service or self._judgment_service
-        return service.build_opinions(committee_prompts, ticker_reports)
+        return self._judgment_service.build_opinions(committee_prompts, ticker_reports)
 
     def _build_committee_consensus(
         self,
@@ -353,12 +417,18 @@ class InvestmentResearchService:
         *,
         language: object | None,
         committee_opinions: tuple[Any, ...],
+        position_committee_reviews: tuple[ResearchPositionDecision, ...] = (),
+        use_llm: bool = False,
     ) -> Any:
-        if self._llm_judgment_service is not None:
-            return self._llm_judgment_service.build_consensus(
+        if (
+            use_llm
+            and self._llm_judgment_service is not None
+            and position_committee_reviews
+        ):
+            return self._llm_judgment_service.build_report_consensus(
                 ticker_reports,
+                position_committee_reviews,
                 language=language,
-                committee_opinions=committee_opinions,
             )
         return self._judgment_service.build_consensus(
             ticker_reports,

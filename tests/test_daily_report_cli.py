@@ -16,6 +16,7 @@ from parakeetnest.research import (
     ReportMode,
     ResearchTickerReport,
 )
+from parakeetnest.research.delivery import ReportDeliveryResult
 
 
 class RecordingComposer:
@@ -177,12 +178,15 @@ class RecordingApp:
 class RecordingReportDeliveryProvider:
     provider_name = "recording"
 
-    def __init__(self) -> None:
+    def __init__(self, result: ReportDeliveryResult | None = None) -> None:
         self.requests: list[object] = []
+        self.result = result or ReportDeliveryResult.delivered(
+            provider_name=self.provider_name
+        )
 
-    def deliver(self, request: object) -> object:
+    def deliver(self, request: object) -> ReportDeliveryResult:
         self.requests.append(request)
-        return object()
+        return self.result
 
 
 def _assert_html_attachment_delivery(
@@ -495,6 +499,93 @@ def test_cli_uses_configured_report_recipient_when_email_is_omitted(
         report_date="2026-07-01",
         html_report=html_report,
     )
+
+
+def test_cli_email_flag_without_value_uses_configured_report_recipient(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    delivery_provider = RecordingReportDeliveryProvider()
+    app = RecordingApp(
+        report_delivery_provider=delivery_provider,
+        report_recipient_email="configured@example.com",
+    )
+    html_report = "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    composer = RecordingComposer(
+        "Market Summary\n",
+        html_body=html_report,
+    )
+
+    monkeypatch.setattr(daily_report, "create_app", lambda config: app)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    try:
+        exit_code = daily_report.main(
+            ["--tickers", "NVDA", "--as-of-date", "2026-07-01", "--email"]
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert exit_code == 0
+    assert capsys.readouterr().out == html_report
+    assert len(delivery_provider.requests) == 1
+    _assert_html_attachment_delivery(
+        delivery_provider.requests[0],
+        recipient="configured@example.com",
+        report_date="2026-07-01",
+        html_report=html_report,
+    )
+
+
+def test_cli_returns_nonzero_when_email_delivery_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    delivery_provider = RecordingReportDeliveryProvider(
+        ReportDeliveryResult.failed(
+            provider_name="recording",
+            error_message="token expired",
+        )
+    )
+    app = RecordingApp(
+        report_delivery_provider=delivery_provider,
+        report_recipient_email="configured@example.com",
+    )
+    html_report = "<!doctype html>\n<html><body>Market Summary</body></html>\n"
+    composer = RecordingComposer(
+        "Market Summary\n",
+        html_body=html_report,
+    )
+
+    monkeypatch.setattr(daily_report, "create_app", lambda config: app)
+    monkeypatch.setattr(
+        daily_report,
+        "DailyInvestmentReportComposer",
+        lambda **kwargs: composer,
+    )
+
+    try:
+        exit_code = daily_report.main(
+            ["--tickers", "NVDA", "--as-of-date", "2026-07-01", "--email"]
+        )
+    finally:
+        get_settings.cache_clear()
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert "daily report email delivery failed: token expired" in captured.err
+    assert len(delivery_provider.requests) == 1
 
 
 def test_cli_does_not_send_email_when_email_is_omitted(

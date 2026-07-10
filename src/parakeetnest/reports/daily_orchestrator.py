@@ -11,6 +11,7 @@ from parakeetnest.research import (
     DailyInvestmentReportComposer,
     ReportDeliveryAttachment,
     ReportDeliveryResult,
+    ReportDeliveryStatus,
     ReportBodyFormat,
     ReportMode,
 )
@@ -64,6 +65,7 @@ class DailyReportResult:
     archive_path: Path | None = None
     output_path: Path | None = None
     email_sent: bool = False
+    delivery_result: ReportDeliveryResult | None = None
 
 
 class DailyReportOrchestrator:
@@ -103,24 +105,26 @@ class DailyReportOrchestrator:
             )
 
         email_sent = False
+        delivery_result = None
         if request.email_recipient:
             if self._delivery_service is None:
                 raise ValueError(
                     "delivery service is required when email_recipient is set"
                 )
-            deliver_daily_report_attachment(
+            delivery_result = deliver_daily_report_attachment(
                 delivery_service=self._delivery_service,
                 recipient_email=request.email_recipient,
                 html_report=body,
                 as_of_date=request.as_of_date,
             )
-            email_sent = True
+            email_sent = delivery_result.status is ReportDeliveryStatus.DELIVERED
 
         return DailyReportResult(
             body=body,
             archive_path=archive_path,
             output_path=output_path,
             email_sent=email_sent,
+            delivery_result=delivery_result,
         )
 
 

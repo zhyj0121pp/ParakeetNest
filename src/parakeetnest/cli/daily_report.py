@@ -14,6 +14,7 @@ from parakeetnest.config import (
     default_portfolio_account_id,
     email_config_from_settings,
     get_settings,
+    llm_config_from_settings,
     portfolio_config_from_settings,
 )
 from parakeetnest.email import EmailReportDeliveryProvider
@@ -87,8 +88,13 @@ def build_parser(
     )
     parser.add_argument(
         "--email",
+        nargs="?",
+        const="",
         default=None,
-        help="Optional email recipient for console email delivery.",
+        help=(
+            "Optional email recipient. Omit the value to use "
+            "PARAKEETNEST_REPORT_RECIPIENT."
+        ),
     )
     parser.add_argument(
         "--inspect-context",
@@ -119,6 +125,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         orchestrator = build_daily_report_orchestrator(request, app)
         result = orchestrator.run(request)
+        if request.email_recipient and not result.email_sent:
+            error_message = (
+                result.delivery_result.error_message
+                if result.delivery_result is not None
+                else "unknown email delivery failure"
+            )
+            print(f"daily report email delivery failed: {error_message}", file=sys.stderr)
+            return 1
     except ValueError as exc:
         parser.error(str(exc))
     except Exception as exc:
@@ -186,6 +200,7 @@ def _build_app_config(
     return AppConfig(
         database_path=database_path,
         watchlist_seed_path=watchlist_seed_path or settings.watchlist_seed_path,
+        llm=llm_config_from_settings(settings),
         portfolio=portfolio_config_from_settings(settings),
         email=email_config_from_settings(settings),
         report_recipient_email=settings.report_recipient,

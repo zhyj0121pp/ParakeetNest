@@ -143,6 +143,9 @@ Useful local settings:
 - `PARAKEETNEST_LOG_JSON`: `true` for structured JSON logs.
 - `PARAKEETNEST_SQLITE_PATH`: SQLite database path.
 - `OPENAI_API_KEY`: required for the OpenAI LLM provider.
+- `PARAKEETNEST_LLM_PROVIDER`: `mock` or `openai`.
+- `PARAKEETNEST_LLM_MODEL`: model name for the configured LLM provider.
+- `PARAKEETNEST_LLM_TEMPERATURE`: model temperature, usually `0.0` for reports.
 - `FRED_API_KEY`: required for the FRED macro provider.
 - `SEC_USER_AGENT`: required for SEC EDGAR. Quote it in `.env` if it contains
   spaces.

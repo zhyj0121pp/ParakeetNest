@@ -254,6 +254,11 @@ class Settings(BaseSettings):
     sender_email: str | None = None
     report_recipient: str | None = None
 
+    llm_provider: str = "mock"
+    llm_model: str = "mock-committee"
+    llm_api_key_env_var: str = "OPENAI_API_KEY"
+    llm_temperature: float = 0.0
+
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     robinhood_username: str | None = Field(default=None, repr=False)
     robinhood_password: SecretStr | None = Field(default=None, repr=False)
@@ -317,6 +322,16 @@ def email_config_from_settings(settings: Settings) -> EmailConfig:
         gmail_credentials_path_env_var=settings.gmail_credentials_path_env_var,
         gmail_token_path_env_var=settings.gmail_token_path_env_var,
         sender_email=settings.sender_email,
+    )
+
+
+def llm_config_from_settings(settings: Settings) -> LLMConfig:
+    """Build provider-neutral LLM config from local settings."""
+    return LLMConfig(
+        provider=settings.llm_provider,
+        model=settings.llm_model,
+        api_key_env_var=settings.llm_api_key_env_var,
+        temperature=settings.llm_temperature,
     )
 
 

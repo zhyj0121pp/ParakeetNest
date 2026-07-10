@@ -11,6 +11,7 @@ from parakeetnest.reports import (
 )
 from parakeetnest.config import get_settings
 from parakeetnest.research import ReportBodyFormat, ReportMode
+from parakeetnest.research.delivery import ReportDeliveryResult
 
 
 AS_OF_DATE = date(2026, 7, 1)
@@ -64,7 +65,7 @@ class RecordingDeliveryService:
         content_type: str = "text/plain",
         metadata: object | None = None,
         attachments: tuple[object, ...] | None = None,
-    ) -> None:
+    ) -> ReportDeliveryResult:
         self.calls.append(
             {
                 "recipient_email": recipient_email,
@@ -75,6 +76,7 @@ class RecordingDeliveryService:
                 "attachments": attachments or (),
             }
         )
+        return ReportDeliveryResult.delivered(provider_name="recording")
 
 
 def test_orchestrator_generates_report_only(tmp_path: Path) -> None:
@@ -209,6 +211,8 @@ def test_orchestrator_sends_email_when_recipient_exists(monkeypatch) -> None:
         get_settings.cache_clear()
 
     assert result.email_sent is True
+    assert result.delivery_result is not None
+    assert result.delivery_result.status == "delivered"
     assert len(delivery_service.calls) == 1
     call = delivery_service.calls[0]
     assert call["recipient_email"] == "investor@example.com"

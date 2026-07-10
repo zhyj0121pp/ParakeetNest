@@ -5,12 +5,14 @@ from pathlib import Path
 from parakeetnest.config import (
     AppConfig,
     EmailConfig,
+    LLMConfig,
     MacroConfig,
     MarketDataConfig,
     PortfolioConfig,
     Settings,
     email_config_from_settings,
     get_settings,
+    llm_config_from_settings,
 )
 
 
@@ -31,6 +33,9 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     monkeypatch.setenv("PARAKEETNEST_LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("PARAKEETNEST_SQLITE_PATH", "tmp/test.sqlite3")
     monkeypatch.setenv("PARAKEETNEST_WATCHLIST_SEED_PATH", "tmp/watchlist.json")
+    monkeypatch.setenv("PARAKEETNEST_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("PARAKEETNEST_LLM_MODEL", "gpt-test-latest")
+    monkeypatch.setenv("PARAKEETNEST_LLM_TEMPERATURE", "0.2")
 
     settings = Settings(_env_file=None)
 
@@ -38,6 +43,9 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     assert settings.log_level == "DEBUG"
     assert settings.sqlite_path == Path("tmp/test.sqlite3")
     assert settings.watchlist_seed_path == Path("tmp/watchlist.json")
+    assert settings.llm_provider == "openai"
+    assert settings.llm_model == "gpt-test-latest"
+    assert settings.llm_temperature == 0.2
 
 
 def test_settings_load_report_language_from_project_env_name(monkeypatch) -> None:
@@ -205,3 +213,20 @@ def test_settings_email_config_uses_gmail_when_paths_are_configured(
     assert config.provider == "gmail"
     assert config.gmail_credentials_path_env_var == "GOOGLE_APPLICATION_CREDENTIALS"
     assert config.gmail_token_path_env_var == "PARAKEETNEST_GMAIL_TOKEN_PATH"
+
+
+def test_settings_llm_config_uses_configured_provider_and_model(monkeypatch) -> None:
+    """Local LLM env vars should select the configured LLM provider."""
+    monkeypatch.setenv("PARAKEETNEST_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("PARAKEETNEST_LLM_MODEL", "gpt-test-latest")
+    monkeypatch.setenv("PARAKEETNEST_LLM_API_KEY_ENV_VAR", "OPENAI_API_KEY")
+    monkeypatch.setenv("PARAKEETNEST_LLM_TEMPERATURE", "0.1")
+
+    config = llm_config_from_settings(Settings(_env_file=None))
+
+    assert config == LLMConfig(
+        provider="openai",
+        model="gpt-test-latest",
+        api_key_env_var="OPENAI_API_KEY",
+        temperature=0.1,
+    )

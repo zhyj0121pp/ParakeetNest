@@ -165,6 +165,7 @@ def test_yahoo_finance_code_stays_isolated_to_yahoo_provider() -> None:
     yahoo_provider_paths = {
         Path("src/parakeetnest/market_data/yahoo.py"),
         Path("src/parakeetnest/news/yahoo.py"),
+        Path("src/parakeetnest/financials/yahoo.py"),
     }
 
     for source_path in source_paths:

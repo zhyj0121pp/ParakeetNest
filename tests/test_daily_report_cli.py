@@ -215,6 +215,12 @@ def _english_report_language(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PARAKEETNEST_EMAIL_PROVIDER", "mock")
     monkeypatch.setenv("PARAKEETNEST_LLM_PROVIDER", "mock")
     monkeypatch.setenv("PARAKEETNEST_LLM_MODEL", "mock-committee")
+    monkeypatch.setenv("PARAKEETNEST_MARKET_DATA_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_NEWS_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_MACRO_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_SEC_FILINGS_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_FINANCIALS_PROVIDER", "mock")
+    monkeypatch.setenv("PARAKEETNEST_PORTFOLIO_PROVIDER", "mock")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -357,6 +363,25 @@ def test_cli_inspect_context_prints_ticker_fact_inputs(
     assert "SEC EDGAR: NVDA 10-Q" in output
     assert composer.calls[0]["body_format"] == "inspect_context"
     assert recording_app.closed is True
+
+
+def test_daily_report_app_config_reads_all_source_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PARAKEETNEST_MARKET_DATA_PROVIDER", "yahoo")
+    monkeypatch.setenv("PARAKEETNEST_NEWS_PROVIDER", "yahoo")
+    monkeypatch.setenv("PARAKEETNEST_FINANCIALS_PROVIDER", "yahoo")
+    monkeypatch.setenv("PARAKEETNEST_MACRO_PROVIDER", "fred")
+    monkeypatch.setenv("PARAKEETNEST_SEC_FILINGS_PROVIDER", "edgar")
+    get_settings.cache_clear()
+
+    config = daily_report._build_app_config(None, None)
+
+    assert config.market_data.provider == "yahoo"
+    assert config.news.provider == "yahoo"
+    assert config.financials.provider == "yahoo"
+    assert config.macro.provider == "fred"
+    assert config.sec_filings.provider == "edgar"
 
 
 def test_cli_invokes_report_delivery_when_email_is_specified(

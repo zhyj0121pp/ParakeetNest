@@ -19,6 +19,7 @@ from parakeetnest.financials import (
     FinancialStatementBundle,
     FinancialStatementPeriod,
     FinancialStatementRequest,
+    FinancialStatementProviderError,
     IncomeStatement,
 )
 
@@ -264,6 +265,33 @@ def test_financial_statement_context_provider_preserves_empty_result() -> None:
     assert result.partial_context.financials is not None
     assert result.partial_context.financials.items == ()
     assert result.partial_context.financials.fetched_at == as_of
+
+
+def test_financial_statement_context_provider_preserves_partial_results_on_failure() -> None:
+    class PartiallyFailingService(RecordingFinancialStatementService):
+        def get_financial_statement_bundle(
+            self,
+            request: FinancialStatementRequest,
+        ) -> list[FinancialStatementBundle]:
+            if request.symbol == "BROKEN":
+                raise FinancialStatementProviderError("Yahoo unavailable")
+            return super().get_financial_statement_bundle(request)
+
+    service = PartiallyFailingService(
+        {
+            ("NVDA", FinancialPeriodType.ANNUAL): [
+                _bundle("NVDA", FinancialPeriodType.ANNUAL, revenue=200.0)
+            ],
+        }
+    )
+    request = ContextRequest("Review NVDA and BROKEN.", ("NVDA", "BROKEN"))
+
+    result = FinancialStatementContextProvider(service).build_context(request)
+
+    assert result.partial_context.financials is not None
+    assert [item.symbol for item in result.partial_context.financials.items] == ["NVDA"]
+    assert len(result.errors) == 3
+    assert all("BROKEN" in error for error in result.errors)
 
 
 def test_financial_statement_context_provider_handles_multiple_bundles() -> None:

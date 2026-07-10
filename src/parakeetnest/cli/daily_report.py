@@ -13,9 +13,14 @@ from parakeetnest.config import (
     AppConfig,
     default_portfolio_account_id,
     email_config_from_settings,
+    financial_statement_config_from_settings,
     get_settings,
     llm_config_from_settings,
+    macro_config_from_settings,
+    market_data_config_from_settings,
+    news_config_from_settings,
     portfolio_config_from_settings,
+    sec_filing_config_from_settings,
 )
 from parakeetnest.email import EmailReportDeliveryProvider
 from parakeetnest.reports import (
@@ -201,6 +206,11 @@ def _build_app_config(
     return AppConfig(
         database_path=database_path,
         watchlist_seed_path=watchlist_seed_path or settings.watchlist_seed_path,
+        market_data=market_data_config_from_settings(settings),
+        news=news_config_from_settings(settings),
+        macro=macro_config_from_settings(settings),
+        sec_filings=sec_filing_config_from_settings(settings),
+        financials=financial_statement_config_from_settings(settings),
         llm=llm_config_from_settings(settings),
         portfolio=portfolio_config_from_settings(settings),
         email=email_config_from_settings(settings),

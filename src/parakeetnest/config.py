@@ -243,6 +243,12 @@ class Settings(BaseSettings):
     sqlite_path: Path = Path("data/parakeetnest.sqlite3")
     watchlist_seed_path: Path | None = None
 
+    market_data_provider: str = "mock"
+    news_provider: str = "mock"
+    macro_provider: str = "mock"
+    sec_filings_provider: str = "mock"
+    financials_provider: str = "mock"
+
     portfolio_provider: str = "mock"
     portfolio_account_id: str | None = None
     robinhood_session_cache_path: str | None = None
@@ -310,6 +316,33 @@ def portfolio_config_from_settings(settings: Settings) -> PortfolioConfig:
             else settings.robinhood_session_token_env_var
         ),
     )
+
+
+def market_data_config_from_settings(settings: Settings) -> MarketDataConfig:
+    """Build market data config from local settings."""
+    return MarketDataConfig(provider=settings.market_data_provider)
+
+
+def news_config_from_settings(settings: Settings) -> NewsConfig:
+    """Build news config from local settings."""
+    return NewsConfig(provider=settings.news_provider)
+
+
+def macro_config_from_settings(settings: Settings) -> MacroConfig:
+    """Build macro config from local settings."""
+    return MacroConfig(provider=settings.macro_provider)
+
+
+def sec_filing_config_from_settings(settings: Settings) -> SecFilingConfig:
+    """Build SEC filing config from local settings."""
+    return SecFilingConfig(provider=settings.sec_filings_provider)
+
+
+def financial_statement_config_from_settings(
+    settings: Settings,
+) -> FinancialStatementConfig:
+    """Build financial statement config from local settings."""
+    return FinancialStatementConfig(provider=settings.financials_provider)
 
 
 def email_config_from_settings(settings: Settings) -> EmailConfig:

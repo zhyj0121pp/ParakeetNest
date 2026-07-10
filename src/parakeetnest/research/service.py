@@ -89,6 +89,7 @@ class _TickerInputs:
     public_market_facts: tuple[str, ...] = ()
     profile_facts: tuple[str, ...] = ()
     valuation_facts: tuple[str, ...] = ()
+    financial_facts: tuple[str, ...] = ()
     news_facts: tuple[str, ...] = ()
     company_facts: tuple[str, ...] = ()
     macro_facts: tuple[str, ...] = ()
@@ -205,6 +206,7 @@ class InvestmentResearchService:
                     public_market_facts=_public_market_facts(public_context, ticker),
                     profile_facts=_profile_facts(public_context, ticker),
                     valuation_facts=_valuation_facts(public_context, ticker),
+                    financial_facts=_financial_facts(public_context, ticker),
                     news_facts=_news_facts(public_context, ticker),
                     company_facts=_company_facts(public_context, ticker),
                     macro_facts=_macro_facts(public_context),
@@ -296,6 +298,7 @@ class InvestmentResearchService:
             public_market_facts=inputs.public_market_facts,
             profile_facts=inputs.profile_facts,
             valuation_facts=inputs.valuation_facts,
+            financial_facts=inputs.financial_facts,
             news_facts=inputs.news_facts,
             company_facts=inputs.company_facts,
             macro_facts=inputs.macro_facts,
@@ -835,6 +838,42 @@ def _company_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ..
     return tuple(facts[:5])
 
 
+def _financial_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
+    if context is None or context.financials is None:
+        return ()
+    facts: list[str] = []
+    for item in context.financials.items:
+        if item.symbol.upper() != ticker.upper():
+            continue
+        period = item.period_type
+        if item.fiscal_year is not None:
+            period += f"-{item.fiscal_year}"
+        if item.fiscal_quarter is not None:
+            period += f"-Q{item.fiscal_quarter}"
+        source = "Yahoo" if item.source.strip().lower() == "yahoo" else item.source
+        values = [f"{source}/financials: {item.symbol}", f"period={period}"]
+        for field_name in (
+            "revenue",
+            "gross_profit",
+            "operating_income",
+            "net_income",
+            "cash",
+            "total_debt",
+            "total_equity",
+            "operating_cash_flow",
+            "free_cash_flow",
+        ):
+            value = getattr(item, field_name)
+            if value is not None:
+                values.append(
+                    f"{field_name}={_compact_number(value, currency=item.currency)}"
+                )
+        if item.eps is not None:
+            values.append(f"eps={item.eps:.2f}")
+        facts.append(", ".join(values))
+    return tuple(facts[:3])
+
+
 def _news_facts(context: MeetingContext | None, ticker: str) -> tuple[str, ...]:
     if context is None or context.news is None:
         return ()
@@ -1058,6 +1097,11 @@ def _catalyst_summary(inputs: _TickerInputs) -> str:
         return f"{len(inputs.news_facts)} Yahoo news item(s) available for review."
     if inputs.company_facts:
         return f"{len(inputs.company_facts)} SEC filing item(s) available for review."
+    if inputs.financial_facts:
+        return (
+            f"{len(inputs.financial_facts)} financial statement "
+            "period(s) available for review."
+        )
     return "Catalyst evidence is limited; no ticker-specific news or filings available."
 
 
@@ -1079,6 +1123,19 @@ def _large_number_bucket(value: float) -> str:
     if value < 200_000_000_000:
         return "large_cap"
     return "mega_cap"
+
+
+def _compact_number(value: float, *, currency: str | None = None) -> str:
+    absolute = abs(float(value))
+    if absolute >= 1_000_000_000_000:
+        rendered = f"{float(value) / 1_000_000_000_000:.2f}T"
+    elif absolute >= 1_000_000_000:
+        rendered = f"{float(value) / 1_000_000_000:.2f}B"
+    elif absolute >= 1_000_000:
+        rendered = f"{float(value) / 1_000_000:.2f}M"
+    else:
+        rendered = f"{float(value):.2f}"
+    return f"{rendered} {currency}" if currency else rendered
 
 
 def _optional_point_text(point: Any, field_name: str) -> str | None:
@@ -1111,6 +1168,8 @@ def _source_summaries(inputs: _TickerInputs) -> tuple[str, ...]:
         summaries.append("profile: public Yahoo profile facts")
     if inputs.valuation_facts:
         summaries.append("valuation: public Yahoo valuation facts")
+    if inputs.financial_facts:
+        summaries.append("financials: public financial statement facts")
     if inputs.news_facts:
         summaries.append("news: public Yahoo news facts")
     if inputs.company_facts:
@@ -1234,6 +1293,11 @@ def _build_committee_prompt_contexts(
                 for ticker_report in ticker_reports
                 for fact in ticker_report.valuation_facts
             ),
+            financial_facts=_unique(
+                fact
+                for ticker_report in ticker_reports
+                for fact in ticker_report.financial_facts
+            ),
             news_facts=_unique(
                 fact
                 for ticker_report in ticker_reports
@@ -1291,6 +1355,7 @@ def _ticker_evidence(ticker_report: ResearchTickerReport) -> tuple[str, ...]:
     evidence.extend(ticker_report.public_market_facts)
     evidence.extend(ticker_report.profile_facts)
     evidence.extend(ticker_report.valuation_facts)
+    evidence.extend(ticker_report.financial_facts)
     evidence.extend(ticker_report.news_facts)
     evidence.extend(ticker_report.company_facts)
     evidence.extend(ticker_report.macro_facts)

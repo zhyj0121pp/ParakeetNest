@@ -423,6 +423,7 @@ def _render_ticker_evidence(ticker_reports: tuple[ResearchTickerReport, ...]) ->
                 *[f"- {fact}" for fact in report.public_market_facts],
                 *[f"- {fact}" for fact in report.profile_facts],
                 *[f"- {fact}" for fact in report.valuation_facts],
+                *[f"- {fact}" for fact in report.financial_facts],
                 *[f"- {fact}" for fact in report.news_facts],
                 *[f"- {fact}" for fact in report.company_facts],
                 *[f"- {fact}" for fact in report.macro_facts],
@@ -492,6 +493,7 @@ def _ticker_evidence(report: ResearchTickerReport) -> tuple[str, ...]:
         + report.public_market_facts
         + report.profile_facts
         + report.valuation_facts
+        + report.financial_facts
         + report.news_facts
         + report.company_facts
         + report.macro_facts

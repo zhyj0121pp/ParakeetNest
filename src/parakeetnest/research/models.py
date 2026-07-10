@@ -289,6 +289,7 @@ class ResearchTickerReport:
     public_market_facts: tuple[str, ...] = field(default_factory=tuple)
     profile_facts: tuple[str, ...] = field(default_factory=tuple)
     valuation_facts: tuple[str, ...] = field(default_factory=tuple)
+    financial_facts: tuple[str, ...] = field(default_factory=tuple)
     news_facts: tuple[str, ...] = field(default_factory=tuple)
     company_facts: tuple[str, ...] = field(default_factory=tuple)
     macro_facts: tuple[str, ...] = field(default_factory=tuple)
@@ -328,6 +329,11 @@ class ResearchTickerReport:
             self,
             "valuation_facts",
             _normalize_text_tuple(self.valuation_facts),
+        )
+        object.__setattr__(
+            self,
+            "financial_facts",
+            _normalize_text_tuple(self.financial_facts),
         )
         object.__setattr__(
             self,

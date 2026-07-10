@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from parakeetnest.financials.mock import MockFinancialStatementProvider
 from parakeetnest.financials.provider import FinancialStatementProvider
+from parakeetnest.financials.yahoo import YahooFinancialStatementProvider
 
 
 class FinancialStatementProviderRegistry:
@@ -79,7 +80,10 @@ class FinancialStatementProviderRegistry:
 def create_financial_statement_provider_registry() -> FinancialStatementProviderRegistry:
     """Create the default financial statement provider registry."""
     return FinancialStatementProviderRegistry(
-        providers=[MockFinancialStatementProvider()],
+        providers=[
+            MockFinancialStatementProvider(),
+            YahooFinancialStatementProvider(),
+        ],
         default_provider="mock",
     )
 

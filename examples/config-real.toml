@@ -15,6 +15,9 @@ provider = "yahoo"
 [news]
 provider = "yahoo"
 
+[financials]
+provider = "yahoo"
+
 [portfolio]
 provider = "robinhood"
 account_id = "default"

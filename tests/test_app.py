@@ -14,7 +14,10 @@ from parakeetnest.committee.memory import (
 from parakeetnest.config import AppConfig
 from parakeetnest.context import ContextRequest
 from parakeetnest.exceptions import ConfigurationError
-from parakeetnest.financials import MockFinancialStatementProvider
+from parakeetnest.financials import (
+    MockFinancialStatementProvider,
+    YahooFinancialStatementProvider,
+)
 from parakeetnest.intelligence.context import MockInvestmentIntelligenceService
 from parakeetnest.intelligence.market_breadth import (
     MarketBreadthCalculator,
@@ -422,6 +425,21 @@ def test_create_app_wires_financial_statement_context_provider(
         "quarterly",
         "ttm",
     ]
+
+
+def test_create_app_selects_yahoo_financial_statement_provider(tmp_path: Path) -> None:
+    app = create_app(
+        AppConfig(
+            database_path=tmp_path / "app.sqlite3",
+            financials={"provider": "yahoo"},
+        )
+    )
+    try:
+        provider = app.financial_statement_service._provider_source
+    finally:
+        app.close()
+
+    assert isinstance(provider, YahooFinancialStatementProvider)
 
 
 def test_create_app_wires_market_breadth_layer(tmp_path: Path) -> None:

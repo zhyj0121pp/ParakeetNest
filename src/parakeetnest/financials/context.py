@@ -19,6 +19,7 @@ from parakeetnest.financials.models import (
     FinancialStatementPeriod,
     FinancialStatementRequest,
 )
+from parakeetnest.financials.provider import FinancialStatementProviderError
 from parakeetnest.financials.service import FinancialStatementService
 
 
@@ -45,7 +46,7 @@ class FinancialStatementContextProvider:
         if not self.supports(request):
             raise UnsupportedContextRequestError(self.provider_name, request)
 
-        bundles = tuple(self._bundles_for_request(request))
+        bundles, errors = self._bundles_for_request(request)
         fetched_at = request.as_of or max(
             (bundle.retrieved_at for bundle in bundles if bundle.retrieved_at),
             default=None,
@@ -66,25 +67,30 @@ class FinancialStatementContextProvider:
             provider_name=self.provider_name,
             partial_context=partial_context,
             metadata={"source": "financial_statement_service"},
+            errors=errors,
         )
 
     def _bundles_for_request(
         self,
         request: ContextRequest,
-    ) -> list[FinancialStatementBundle]:
+    ) -> tuple[tuple[FinancialStatementBundle, ...], tuple[str, ...]]:
         bundles: list[FinancialStatementBundle] = []
+        errors: list[str] = []
         for symbol in request.symbols:
             for period_type in self._PERIOD_TYPES:
-                bundles.extend(
-                    self._financial_statement_service.get_financial_statement_bundle(
-                        FinancialStatementRequest(
-                            symbol=symbol,
-                            period_type=period_type,
-                            limit=1,
+                try:
+                    bundles.extend(
+                        self._financial_statement_service.get_financial_statement_bundle(
+                            FinancialStatementRequest(
+                                symbol=symbol,
+                                period_type=period_type,
+                                limit=1,
+                            )
                         )
                     )
-                )
-        return bundles
+                except FinancialStatementProviderError as exc:
+                    errors.append(f"{symbol} {period_type.value}: {exc}")
+        return tuple(bundles), tuple(errors)
 
     def _item_for(
         self,
@@ -139,7 +145,9 @@ class FinancialStatementContextProvider:
         income_statement = bundle.income_statement
         if income_statement is None:
             return None
-        return income_statement.eps_diluted or income_statement.eps_basic
+        if income_statement.eps_diluted is not None:
+            return income_statement.eps_diluted
+        return income_statement.eps_basic
 
     @classmethod
     def _source_for(cls, bundle: FinancialStatementBundle) -> str:

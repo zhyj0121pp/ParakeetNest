@@ -53,6 +53,9 @@ provider = "yahoo"
 [news]
 provider = "yahoo"
 
+[financials]
+provider = "yahoo"
+
 [portfolio]
 provider = "robinhood"
 
@@ -100,9 +103,11 @@ parakeetnest daily-report \
   --output reports/morning.md
 ```
 
-The daily report CLI is a local report workflow. Its `--email` option uses the
-console email provider for local output capture. It does not load
-`examples/config-real.toml` and does not send through Gmail by itself.
+The daily report CLI reads provider selections from `.env` through `Settings`.
+Set `PARAKEETNEST_MARKET_DATA_PROVIDER`, `PARAKEETNEST_NEWS_PROVIDER`,
+`PARAKEETNEST_FINANCIALS_PROVIDER`, `PARAKEETNEST_MACRO_PROVIDER`, and
+`PARAKEETNEST_SEC_FILINGS_PROVIDER` to enable the matching live source layers.
+Its `--email` option uses the configured email provider.
 
 Gmail readiness is checked with:
 

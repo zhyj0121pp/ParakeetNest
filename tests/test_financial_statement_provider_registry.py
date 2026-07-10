@@ -16,6 +16,8 @@ from parakeetnest.financials import (
     FinancialStatementRequest,
     FinancialStatementService,
     IncomeStatement,
+    YahooFinancialStatementProvider,
+    create_financial_statement_provider_registry,
 )
 
 
@@ -75,6 +77,14 @@ class RecordingFinancialStatementProvider:
     ) -> list[FinancialStatementBundle]:
         """Registry tests do not exercise bundle lookup."""
         return []
+
+
+def test_default_registry_includes_yahoo_and_keeps_mock_default() -> None:
+    registry = create_financial_statement_provider_registry()
+
+    assert [provider.name for provider in registry.list_providers()] == ["mock", "yahoo"]
+    assert registry.get_default_provider().name == "mock"
+    assert isinstance(registry.get_provider("yahoo"), YahooFinancialStatementProvider)
 
 
 def test_registry_registers_provider() -> None:

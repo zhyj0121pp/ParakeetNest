@@ -142,6 +142,11 @@ Useful local settings:
   `CRITICAL`.
 - `PARAKEETNEST_LOG_JSON`: `true` for structured JSON logs.
 - `PARAKEETNEST_SQLITE_PATH`: SQLite database path.
+- `PARAKEETNEST_MARKET_DATA_PROVIDER`: `mock` or `yahoo`.
+- `PARAKEETNEST_NEWS_PROVIDER`: `mock` or `yahoo`.
+- `PARAKEETNEST_FINANCIALS_PROVIDER`: `mock` or `yahoo`.
+- `PARAKEETNEST_MACRO_PROVIDER`: `mock` or `fred`.
+- `PARAKEETNEST_SEC_FILINGS_PROVIDER`: `mock`, `edgar`, or `sec_edgar`.
 - `OPENAI_API_KEY`: required for the OpenAI LLM provider.
 - `PARAKEETNEST_LLM_PROVIDER`: `mock` or `openai`.
 - `PARAKEETNEST_LLM_MODEL`: model name for the configured LLM provider.

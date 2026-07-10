@@ -22,6 +22,8 @@ from parakeetnest.context.models import (
     EconomicRegimeContextSnapshot,
     FilingItem,
     FilingSnapshot,
+    FinancialStatementItem,
+    FinancialStatementSnapshot,
     MacroSnapshot,
     MarketDataPoint,
     MarketSnapshot,
@@ -41,11 +43,62 @@ from parakeetnest.research import (
     InvestmentResearchService,
     ReportMode,
     inspect_committee_fact_inputs,
+    render_investment_research_report_interactive_html,
 )
 from parakeetnest.watchlist import WatchlistInsight
 
 
 AS_OF = datetime(2026, 7, 1, 15, 0, tzinfo=UTC)
+
+
+def test_yahoo_financial_facts_flow_into_research_prompt_evidence_and_html() -> None:
+    class FinancialPublicContextService:
+        def build_context(self, request: ContextRequest) -> MeetingContext:
+            return MeetingContext(
+                request=request,
+                metadata=ContextMetadata(sources=("financial_statements",)),
+                financials=FinancialStatementSnapshot(
+                    source="financial_statements",
+                    fetched_at=AS_OF,
+                    items=(
+                        FinancialStatementItem(
+                            symbol="NVDA",
+                            period_type="annual",
+                            source="yahoo",
+                            revenue=130_000_000_000,
+                            gross_profit=98_000_000_000,
+                            operating_income=75_000_000_000,
+                            net_income=70_000_000_000,
+                            eps=3.10,
+                            cash=43_000_000_000,
+                            total_debt=10_000_000_000,
+                            operating_cash_flow=64_000_000_000,
+                            free_cash_flow=58_000_000_000,
+                            fiscal_year=2026,
+                            currency="USD",
+                        ),
+                    ),
+                ),
+            )
+
+    report = InvestmentResearchService(
+        public_context_service=FinancialPublicContextService()
+    ).generate_report(("NVDA",), generated_at=AS_OF)
+
+    ticker_report = report.ticker_reports[0]
+    assert ticker_report.financial_facts
+    assert "Yahoo/financials: NVDA" in ticker_report.financial_facts[0]
+    assert "revenue=130.00B USD" in ticker_report.financial_facts[0]
+    assert "eps=3.10" in ticker_report.financial_facts[0]
+    assert "financials: public financial statement facts" in (
+        ticker_report.source_summaries
+    )
+    assert ticker_report.financial_facts[0] in report.position_committee_reviews[0].evidence
+    assert "financial_facts:" in inspect_committee_fact_inputs(report)
+
+    html = render_investment_research_report_interactive_html(report, language="en")
+    assert "Financial statements" in html
+    assert "Yahoo/financials: NVDA" in html
 
 
 class FakePortfolioService:

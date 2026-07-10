@@ -62,6 +62,7 @@ class CommitteePromptContext:
     public_market_facts: tuple[str, ...] = field(default_factory=tuple)
     profile_facts: tuple[str, ...] = field(default_factory=tuple)
     valuation_facts: tuple[str, ...] = field(default_factory=tuple)
+    financial_facts: tuple[str, ...] = field(default_factory=tuple)
     news_facts: tuple[str, ...] = field(default_factory=tuple)
     company_facts: tuple[str, ...] = field(default_factory=tuple)
     macro_facts: tuple[str, ...] = field(default_factory=tuple)
@@ -120,6 +121,11 @@ class CommitteePromptContext:
             self,
             "valuation_facts",
             _normalize_text_tuple(self.valuation_facts),
+        )
+        object.__setattr__(
+            self,
+            "financial_facts",
+            _normalize_text_tuple(self.financial_facts),
         )
         object.__setattr__(
             self,
@@ -297,6 +303,8 @@ class PersonaDrivenCommitteePromptBuilder:
                 *_render_items(context.profile_facts),
                 "- Yahoo / valuation facts:",
                 *_render_items(context.valuation_facts),
+                "- Financial statement facts:",
+                *_render_items(context.financial_facts),
                 "- Yahoo / news facts:",
                 *_render_items(context.news_facts),
                 "- SEC EDGAR facts:",

@@ -5,14 +5,20 @@ from pathlib import Path
 from parakeetnest.config import (
     AppConfig,
     EmailConfig,
+    FinancialStatementConfig,
     LLMConfig,
     MacroConfig,
     MarketDataConfig,
     PortfolioConfig,
     Settings,
     email_config_from_settings,
+    financial_statement_config_from_settings,
     get_settings,
     llm_config_from_settings,
+    macro_config_from_settings,
+    market_data_config_from_settings,
+    news_config_from_settings,
+    sec_filing_config_from_settings,
 )
 
 
@@ -38,6 +44,11 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     monkeypatch.setenv("PARAKEETNEST_LLM_TEMPERATURE", "0.2")
     monkeypatch.setenv("PARAKEETNEST_LLM_TIMEOUT_SECONDS", "45")
     monkeypatch.setenv("PARAKEETNEST_LLM_MAX_COMPLETION_TOKENS", "250")
+    monkeypatch.setenv("PARAKEETNEST_MARKET_DATA_PROVIDER", "yahoo")
+    monkeypatch.setenv("PARAKEETNEST_NEWS_PROVIDER", "yahoo")
+    monkeypatch.setenv("PARAKEETNEST_MACRO_PROVIDER", "fred")
+    monkeypatch.setenv("PARAKEETNEST_SEC_FILINGS_PROVIDER", "edgar")
+    monkeypatch.setenv("PARAKEETNEST_FINANCIALS_PROVIDER", "yahoo")
 
     settings = Settings(_env_file=None)
 
@@ -50,6 +61,30 @@ def test_settings_load_from_prefixed_environment(monkeypatch) -> None:
     assert settings.llm_temperature == 0.2
     assert settings.llm_timeout_seconds == 45
     assert settings.llm_max_completion_tokens == 250
+    assert settings.market_data_provider == "yahoo"
+    assert settings.news_provider == "yahoo"
+    assert settings.macro_provider == "fred"
+    assert settings.sec_filings_provider == "edgar"
+    assert settings.financials_provider == "yahoo"
+
+
+def test_source_configs_are_built_from_settings() -> None:
+    settings = Settings(
+        _env_file=None,
+        market_data_provider="yahoo",
+        news_provider="yahoo",
+        macro_provider="fred",
+        sec_filings_provider="edgar",
+        financials_provider="yahoo",
+    )
+
+    assert market_data_config_from_settings(settings).provider == "yahoo"
+    assert news_config_from_settings(settings).provider == "yahoo"
+    assert macro_config_from_settings(settings).provider == "fred"
+    assert sec_filing_config_from_settings(settings).provider == "edgar"
+    assert financial_statement_config_from_settings(settings) == FinancialStatementConfig(
+        provider="yahoo"
+    )
 
 
 def test_settings_load_report_language_from_project_env_name(monkeypatch) -> None:

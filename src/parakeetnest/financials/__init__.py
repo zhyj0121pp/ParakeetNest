@@ -18,6 +18,7 @@ from parakeetnest.financials.provider import (
 from parakeetnest.financials.registry import FinancialStatementProviderRegistry
 from parakeetnest.financials.registry import create_financial_statement_provider_registry
 from parakeetnest.financials.service import FinancialStatementService
+from parakeetnest.financials.yahoo import YahooFinancialStatementProvider
 
 __all__ = [
     "BalanceSheet",
@@ -33,5 +34,6 @@ __all__ = [
     "FinancialStatementService",
     "IncomeStatement",
     "MockFinancialStatementProvider",
+    "YahooFinancialStatementProvider",
     "create_financial_statement_provider_registry",
 ]

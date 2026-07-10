@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
 from parakeetnest.committee.judgment import CommitteeJudgmentService
@@ -101,12 +102,9 @@ class LLMCommitteeJudgmentService:
 
         ticker_reports = (ticker_report,)
         try:
-            opinions = tuple(
-                self._to_research_opinion(
-                    prompt,
-                    self._run_persona_prompt(prompt, ticker_reports),
-                )
-                for prompt in committee_prompts
+            opinions = self._build_persona_opinions(
+                committee_prompts,
+                ticker_reports,
             )
             consensus = self._to_research_consensus(
                 self._run_chairman_prompt(
@@ -129,6 +127,28 @@ class LLMCommitteeJudgmentService:
             rationale=consensus.rationale,
             evidence=_ticker_evidence(ticker_report),
         )
+
+    def _build_persona_opinions(
+        self,
+        committee_prompts: tuple[CommitteePersonaPrompt, ...],
+        ticker_reports: tuple[ResearchTickerReport, ...],
+    ) -> tuple[ResearchCommitteeOpinion, ...]:
+        if not committee_prompts:
+            return ()
+        max_workers = min(3, len(committee_prompts))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = tuple(
+                executor.submit(
+                    self._run_persona_prompt,
+                    prompt,
+                    ticker_reports,
+                )
+                for prompt in committee_prompts
+            )
+            return tuple(
+                self._to_research_opinion(prompt, future.result())
+                for prompt, future in zip(committee_prompts, futures, strict=True)
+            )
 
     def _run_persona_prompt(
         self,

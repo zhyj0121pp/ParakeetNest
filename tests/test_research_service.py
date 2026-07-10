@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,7 +30,7 @@ from parakeetnest.context.models import (
     NewsItem,
 )
 from parakeetnest.intelligence.risk.models import RiskAssessment, RiskLevel
-from parakeetnest.llm import MockLLMProvider
+from parakeetnest.llm import LLMRequest, LLMResponse, MockLLMProvider
 from parakeetnest.portfolio import (
     PortfolioCashBalance,
     PortfolioHolding,
@@ -904,6 +906,22 @@ def test_invalid_llm_output_falls_back_to_deterministic_judgment() -> None:
     assert report.committee_consensus.final_action
 
 
+def test_same_ticker_persona_llm_calls_run_concurrently() -> None:
+    llm = ConcurrentRecordingLLMProvider()
+    service = InvestmentResearchService(
+        public_context_service=FakeDifferentiatedPublicContextService(),
+        llm_provider=llm,
+    )
+
+    report = service.generate_report(("AAPL",), generated_at=AS_OF)
+
+    assert report.position_committee_reviews
+    assert report.position_committee_reviews[0].dongdong_opinion.startswith(
+        "Dongdong LLM action=watch"
+    )
+    assert llm.max_active >= 2
+
+
 def test_research_package_has_no_broker_or_trading_execution_logic() -> None:
     research_dir = Path(__file__).parents[1] / "src" / "parakeetnest" / "research"
     source = "\n".join(path.read_text() for path in research_dir.glob("*.py")).lower()
@@ -930,6 +948,45 @@ def _report_text(value: object) -> str:
     if hasattr(value, "__dict__"):
         return _report_text(vars(value))
     return str(value)
+
+
+class ConcurrentRecordingLLMProvider:
+    name = "concurrent"
+    default_model = "concurrent-llm"
+
+    def __init__(self) -> None:
+        self.requests: list[LLMRequest] = []
+        self.active = 0
+        self.max_active = 0
+        self._lock = threading.Lock()
+
+    def complete(self, request: LLMRequest) -> LLMResponse:
+        with self._lock:
+            self.requests.append(request)
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+        time.sleep(0.05)
+        try:
+            if request.metadata.get("task") == "daily_report_chairman_synthesis":
+                content = _chairman_json(str(request.metadata["tickers"]))
+            else:
+                member_name = str(request.metadata["agent_name"])
+                role = str(request.metadata["role"])
+                symbol = str(request.metadata["tickers"])
+                action = {
+                    "Dongdong": "watch",
+                    "Xixi": "hold",
+                    "Yoyo": "reduce",
+                }.get(member_name, "watch")
+                content = _committee_opinion_json(member_name, role, symbol, action)
+            return LLMResponse(
+                content=content,
+                model=request.model,
+                provider_name=self.name,
+            )
+        finally:
+            with self._lock:
+                self.active -= 1
 
 
 def _llm_committee_responses(symbol: str) -> tuple[str, ...]:

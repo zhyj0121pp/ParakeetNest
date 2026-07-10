@@ -55,7 +55,7 @@ def test_runner_builds_and_runs_exactly_three_reviews() -> None:
     assert all(isinstance(review, CommitteePositionReview) for review in reviews)
 
 
-def test_runner_preserves_dongdong_xixi_youyou_order() -> None:
+def test_runner_preserves_dongdong_xixi_yoyo_order() -> None:
     provider = RecordingLLMProvider()
 
     reviews = PositionCommitteeReviewRunner(llm_provider=provider).run(
@@ -65,9 +65,9 @@ def test_runner_preserves_dongdong_xixi_youyou_order() -> None:
     assert [request.metadata["persona_id"] for request in provider.requests] == [
         "dongdong",
         "xixi",
-        "youyou",
+        "yoyo",
     ]
-    assert [review.agent_name for review in reviews] == ["Dongdong", "Xixi", "Youyou"]
+    assert [review.agent_name for review in reviews] == ["Dongdong", "Xixi", "Yoyo"]
 
 
 def test_llm_provider_is_called_once_per_prompt_with_position_review_schema() -> None:

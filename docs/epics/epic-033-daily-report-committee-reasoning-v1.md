@@ -5,7 +5,7 @@
 Epic 33 turns persona prompt artifacts into deterministic committee opinions
 that improve the daily investment report the user reads.
 
-The daily report now gives Dongdong, Xixi, and Youyou clear advisory opinions
+The daily report now gives Dongdong, Xixi, and Yoyo clear advisory opinions
 with stance, reasoning, evidence, concern, and suggested action. The goal is to
 make the report more practical without adding LLM provider calls, debate memory,
 broker integration, or autonomous decisioning.
@@ -37,7 +37,7 @@ Persona emphasis:
 
 - Dongdong emphasizes upside, innovation, catalysts, and long-term growth.
 - Xixi emphasizes fundamentals, valuation, earnings quality, and execution.
-- Youyou emphasizes downside, liquidity, macro, and capital preservation.
+- Yoyo emphasizes downside, liquidity, macro, and capital preservation.
 
 The final report still includes Market Summary, Portfolio Review, Watchlist
 Review, all three committee opinions, Committee Consensus, Confidence, Key

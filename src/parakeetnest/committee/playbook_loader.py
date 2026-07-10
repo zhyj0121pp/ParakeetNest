@@ -7,15 +7,21 @@ from pathlib import Path
 
 
 SUPPORTED_PERSONA_PLAYBOOKS: frozenset[str] = frozenset(
-    {"dongdong", "xixi", "youyou"}
+    {"dongdong", "xixi", "yoyo"}
 )
 REQUIRED_PLAYBOOK_FILES: tuple[str, ...] = (
     "system.md",
     "common.md",
     "dongdong.md",
     "xixi.md",
-    "youyou.md",
+    "yoyo.md",
 )
+
+PERSONA_PLAYBOOK_FILES: dict[str, str] = {
+    "dongdong": "dongdong.md",
+    "xixi": "xixi.md",
+    "yoyo": "yoyo.md",
+}
 
 
 class MissingCommitteePlaybookError(FileNotFoundError):
@@ -65,7 +71,7 @@ class PlaybookLoader:
                 f"Unsupported committee persona playbook: {persona_id!r}. "
                 f"Supported persona ids: {supported}"
             )
-        return self._load_markdown(f"{normalized}.md")
+        return self._load_markdown(PERSONA_PLAYBOOK_FILES[normalized])
 
     def _load_markdown(self, filename: str) -> str:
         cached = self._cache.get(filename)

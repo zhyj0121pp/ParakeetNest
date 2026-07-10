@@ -20,11 +20,11 @@ def test_all_three_permanent_personas_exist() -> None:
     assert [persona.id for persona in service.all()] == [
         "dongdong",
         "xixi",
-        "youyou",
+        "yoyo",
     ]
     assert service.get("dongdong").display_name == "Dongdong"
     assert service.get("xixi").display_name == "Xixi"
-    assert service.get("youyou").display_name == "Youyou"
+    assert service.get("yoyo").display_name == "Yoyo"
 
 
 def test_daily_committee_order_is_stable() -> None:
@@ -32,7 +32,7 @@ def test_daily_committee_order_is_stable() -> None:
 
     members = service.daily_investment_committee()
 
-    assert [member.id for member in members] == ["dongdong", "xixi", "youyou"]
+    assert [member.id for member in members] == ["dongdong", "xixi", "yoyo"]
     assert [member.role_title for member in members] == [
         "Chief Growth Officer",
         "Chief Investment Analyst",

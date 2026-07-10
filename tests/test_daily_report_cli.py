@@ -1150,15 +1150,15 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
     body = output_path.read_text(encoding="utf-8")
     assert exit_code == 0
     assert "<!doctype html>" in body
-    assert "1. Action Required" in body
-    assert "2. Position Cards" in body
+    assert "1. Action Required" not in body
+    assert "1. Position Cards" in body
     assert "3. Stable Holdings" not in body
-    assert "3. New Opportunities" in body
-    assert "4. Market Overview" in body
-    assert "5. Raw Evidence" in body
+    assert "2. New Opportunities" in body
+    assert "Market Overview</h2>" not in body
+    assert "3. Raw Evidence" in body
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
-    assert "<strong>Youyou:</strong>" in body
+    assert "<strong>Yoyo:</strong>" in body
     assert "<strong>Final consensus:</strong>" in body
     assert "<strong>Confidence:</strong>" in body
     assert "Factual evidence" in body

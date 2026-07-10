@@ -15,7 +15,7 @@ from parakeetnest.models import CommitteePositionReview, PositionContext
 
 @dataclass
 class PositionCommitteeReviewRunner:
-    """Run Dongdong, Xixi, and Youyou reviews for one position context."""
+    """Run Dongdong, Xixi, and Yoyo reviews for one position context."""
 
     llm_provider: LLMProvider
     model: str = "mock-position-committee"
@@ -29,7 +29,7 @@ class PositionCommitteeReviewRunner:
         self,
         context: PositionContext,
     ) -> tuple[CommitteePositionReview, ...]:
-        """Return committee reviews in Dongdong, Xixi, Youyou order."""
+        """Return committee reviews in Dongdong, Xixi, Yoyo order."""
         reviews: list[CommitteePositionReview] = []
         for prompt in self.prompt_builder.build_prompts(context):
             response = self.llm_provider.complete(

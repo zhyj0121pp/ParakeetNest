@@ -40,6 +40,7 @@ from parakeetnest.research.models import (
     ResearchRisk,
     ResearchTickerReport,
 )
+from parakeetnest.research.localization import get_configured_report_language
 
 
 class _PortfolioService(Protocol):
@@ -237,19 +238,6 @@ class InvestmentResearchService:
             ticker_reports,
             has_watchlist=self._watchlist_service is not None,
         )
-        prompt_contexts = _build_committee_prompt_contexts(
-            self._committee_service,
-            ticker_reports,
-            market_summary=market_summary,
-            portfolio_review=portfolio_review,
-            watchlist_review=watchlist_review,
-            evidence_notes=evidence_notes,
-        )
-        committee_prompts = self._prompt_builder.build_prompts(prompt_contexts)
-        committee_opinions = self._build_committee_opinions(
-            committee_prompts,
-            ticker_reports,
-        )
         position_review_batch = self._build_position_committee_reviews(
             ticker_reports,
             dependency_notes=dependency_notes,
@@ -257,8 +245,7 @@ class InvestmentResearchService:
         position_committee_reviews = position_review_batch.reviews
         committee_consensus = self._build_committee_consensus(
             ticker_reports,
-            language=prompt_contexts[0].report_language if prompt_contexts else None,
-            committee_opinions=committee_opinions,
+            language=get_configured_report_language(),
             position_committee_reviews=position_committee_reviews,
             use_llm=position_review_batch.all_used_llm,
         )
@@ -269,7 +256,6 @@ class InvestmentResearchService:
             market_summary=market_summary,
             portfolio_review=portfolio_review,
             watchlist_review=watchlist_review,
-            committee_opinions=committee_opinions,
             portfolio_context=portfolio_context,
             committee_consensus=committee_consensus,
             position_committee_reviews=position_committee_reviews,
@@ -363,7 +349,7 @@ class InvestmentResearchService:
                 ticker=ticker_report.ticker,
                 dongdong_opinion=_opinion_text(opinions, "dongdong"),
                 xixi_opinion=_opinion_text(opinions, "xixi"),
-                youyou_opinion=_opinion_text(opinions, "youyou"),
+                yoyo_opinion=_opinion_text(opinions, "yoyo"),
                 consensus=consensus,
                 recommendation=consensus.final_action,
                 confidence=consensus.confidence,
@@ -407,19 +393,11 @@ class InvestmentResearchService:
                 all_used_llm=all(result.used_llm for result in results),
             )
 
-    def _build_committee_opinions(
-        self,
-        committee_prompts: tuple[Any, ...],
-        ticker_reports: tuple[ResearchTickerReport, ...],
-    ) -> tuple[Any, ...]:
-        return self._judgment_service.build_opinions(committee_prompts, ticker_reports)
-
     def _build_committee_consensus(
         self,
         ticker_reports: tuple[ResearchTickerReport, ...],
         *,
         language: object | None,
-        committee_opinions: tuple[Any, ...],
         position_committee_reviews: tuple[ResearchPositionDecision, ...] = (),
         use_llm: bool = False,
     ) -> Any:

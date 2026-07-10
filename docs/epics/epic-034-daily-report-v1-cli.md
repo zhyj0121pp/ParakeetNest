@@ -60,7 +60,7 @@ The human investor remains the final decision maker.
 - Custom output path works.
 - Ticker arguments are passed into the daily report composer.
 - Report includes Market Summary, Portfolio Review, Watchlist Review, Dongdong,
-  Xixi, and Youyou opinion sections, Committee Consensus, Confidence, Key Risks,
+  Xixi, and Yoyo opinion sections, Committee Consensus, Confidence, Key Risks,
   Upcoming Catalysts, and Today's Suggested Actions.
 - Missing or invalid tickers return a clear CLI error.
 - No scheduler, email delivery, broker API, LLM provider call, autonomous

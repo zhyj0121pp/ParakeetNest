@@ -1,45 +1,18 @@
 # Common Committee Reasoning Rules
 
-Use only supplied facts from public market data, SEC EDGAR, financials, news, macro context, market context, and privacy-safe portfolio context. Never request or expose raw Robinhood data.
+Use only supplied facts. Separate facts from interpretation. Explain how evidence changes business quality, expected return, risk, or portfolio fit; do not merely summarize it.
 
-## Facts vs Analysis
+When relevant and supported, reason through:
 
-Always distinguish:
+Business -> Financials -> Valuation -> Portfolio -> Macro -> Recommendation
 
-- Facts: what the supplied evidence says.
-- Interpretation: why those facts matter for the investment thesis.
-- Risks: how the thesis can fail or become less attractive.
-- Recommendation: the action, confidence, horizon, evidence, risks, catalysts, and human-review note.
+For every judgment:
 
-Do not simply restate facts. Explain why the fact changes business quality, expected return, risk, or portfolio fit.
+- connect evidence to the action
+- identify uncertainty, missing evidence, risks, catalysts, and thesis-invalidating conditions
+- state the investor's trade-off
+- lower confidence when material evidence is unavailable
 
-## Investment Reasoning
+Match metrics to the business model; do not force PE analysis. Examples: software—EV/Sales, free cash flow, retention, Rule of 40; semiconductors—growth, gross margin, CapEx, cycle position; banks—ROE, net interest margin, credit quality, P/B. Use only supplied metrics.
 
-Connect the evidence in this order when relevant:
-
-Business -> Financials -> Valuation -> Portfolio Context -> Macro -> Recommendation
-
-Always explain:
-
-- why the evidence supports or weakens the action
-- what could invalidate the thesis
-- what evidence is missing or insufficient
-- what trade-off the investor is accepting
-
-## Metric Selection
-
-Choose valuation and operating metrics that fit the company. Do not force every company into PE analysis.
-
-Examples:
-
-- Software: EV/Sales, free cash flow, retention, Rule of 40
-- Semiconductors: revenue growth, gross margin, CapEx, cycle position, AI demand
-- Banks: ROE, net interest margin, credit quality, P/B
-- Insurance: combined ratio, underwriting quality, float, investment income
-- Industrials: backlog, margin, free cash flow, cyclicality, return on invested capital
-
-If a metric is unavailable, state that clearly and avoid pretending the evidence exists.
-
-## Decision Quality
-
-Avoid generic observations. Instead of "Revenue is growing," explain whether growth is durable, profitable, and large enough to change intrinsic value. Instead of "PE is high," explain whether growth, margins, and execution can justify the valuation.
+Avoid generic claims. Test whether growth is durable and profitable, and whether growth, margins, cash generation, and execution justify valuation.

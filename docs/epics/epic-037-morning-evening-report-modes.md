@@ -63,7 +63,7 @@ The default mode is morning. The default output path remains
 - Today’s Focus
 - Dongdong’s Opportunity View
 - Xixi’s Fundamental View
-- Youyou’s Risk View
+- Yoyo’s Risk View
 - Committee Consensus
 - Confidence
 - Key Risks
@@ -80,7 +80,7 @@ The default mode is morning. The default output path remains
 - What Changed
 - Dongdong’s Opportunity Review
 - Xixi’s Fundamental Review
-- Youyou’s Risk Review
+- Yoyo’s Risk Review
 - Committee Consensus
 - Confidence
 - Key Risks

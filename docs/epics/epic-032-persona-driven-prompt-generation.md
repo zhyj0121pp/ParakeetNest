@@ -4,7 +4,7 @@
 
 Epic 32 turns the permanent investment committee personas from Epic 31 into
 provider-neutral prompt inputs for daily committee reasoning. Dongdong, Xixi,
-and Youyou now receive prompt context shaped by their stable persona
+and Yoyo now receive prompt context shaped by their stable persona
 definitions before committee opinions are assembled for the daily investment
 report.
 
@@ -24,7 +24,7 @@ builder:
 - `PersonaDrivenCommitteePromptBuilder`
 
 The research service builds one prompt context for each permanent committee
-member in daily report order: Dongdong, Xixi, Youyou. It then uses the prompt
+member in daily report order: Dongdong, Xixi, Yoyo. It then uses the prompt
 builder to create internal prompt artifacts and derives clean
 `ResearchCommitteeOpinion` records from those prompt contexts.
 
@@ -61,7 +61,7 @@ Each generated prompt includes:
 - required output expectations
 
 The prompt builder uses persona fields directly instead of branching on persona
-IDs such as `dongdong`, `xixi`, or `youyou`.
+IDs such as `dongdong`, `xixi`, or `yoyo`.
 
 ## Future LLM Readiness
 
@@ -87,7 +87,7 @@ Committee opinions continue to render as concise daily-report sections:
 
 - Dongdong's Opinion
 - Xixi's Opinion
-- Youyou's Opinion
+- Yoyo's Opinion
 
 The generated prompts remain internal generation input. They improve consistency
 and future extensibility without bloating the final report with raw prompt text.
@@ -95,7 +95,7 @@ and future extensibility without bloating the final report with raw prompt text.
 ## Validation Checklist
 
 - Prompt builder creates exactly three prompts.
-- Prompt order is Dongdong, Xixi, Youyou.
+- Prompt order is Dongdong, Xixi, Yoyo.
 - Each prompt contains persona identity and role.
 - Each prompt contains the advisory-only disclaimer.
 - Each prompt contains relevant ticker context.

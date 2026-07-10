@@ -20,7 +20,7 @@ def test_unanimous_no_action_or_hold_produces_no_action() -> None:
         (
             _review("Dongdong", PositionRecommendation.HOLD),
             _review("Xixi", PositionRecommendation.NO_ACTION),
-            _review("Youyou", PositionRecommendation.HOLD),
+            _review("Yoyo", PositionRecommendation.HOLD),
         ),
     )
 
@@ -36,7 +36,7 @@ def test_buy_more_consensus_produces_required_action() -> None:
         (
             _review("Dongdong", PositionRecommendation.BUY_MORE),
             _review("Xixi", PositionRecommendation.BUY_MORE),
-            _review("Youyou", PositionRecommendation.HOLD),
+            _review("Yoyo", PositionRecommendation.HOLD),
         ),
     )
 
@@ -53,7 +53,7 @@ def test_sell_and_trim_require_human_review() -> None:
         (
             _review("Dongdong", PositionRecommendation.SELL),
             _review("Xixi", PositionRecommendation.SELL),
-            _review("Youyou", PositionRecommendation.TRIM),
+            _review("Yoyo", PositionRecommendation.TRIM),
         ),
     )
     trim_decision = builder.build(
@@ -61,7 +61,7 @@ def test_sell_and_trim_require_human_review() -> None:
         (
             _review("Dongdong", PositionRecommendation.TRIM),
             _review("Xixi", PositionRecommendation.TRIM),
-            _review("Youyou", PositionRecommendation.SELL),
+            _review("Yoyo", PositionRecommendation.SELL),
         ),
     )
 
@@ -77,7 +77,7 @@ def test_conflicting_recommendations_reduce_confidence() -> None:
         (
             _review("Dongdong", PositionRecommendation.BUY_MORE, ConfidenceLevel.HIGH),
             _review("Xixi", PositionRecommendation.BUY_MORE, ConfidenceLevel.HIGH),
-            _review("Youyou", PositionRecommendation.BUY_MORE, ConfidenceLevel.HIGH),
+            _review("Yoyo", PositionRecommendation.BUY_MORE, ConfidenceLevel.HIGH),
         ),
     )
     conflicted = PositionConsensusBuilder().build(
@@ -85,7 +85,7 @@ def test_conflicting_recommendations_reduce_confidence() -> None:
         (
             _review("Dongdong", PositionRecommendation.BUY_MORE, ConfidenceLevel.HIGH),
             _review("Xixi", PositionRecommendation.HOLD, ConfidenceLevel.HIGH),
-            _review("Youyou", PositionRecommendation.SELL, ConfidenceLevel.HIGH),
+            _review("Yoyo", PositionRecommendation.SELL, ConfidenceLevel.HIGH),
         ),
     )
 
@@ -93,13 +93,13 @@ def test_conflicting_recommendations_reduce_confidence() -> None:
     assert conflicted.confidence is ConfidenceLevel.LOW
 
 
-def test_youyou_risk_objection_increases_urgency() -> None:
+def test_yoyo_risk_objection_increases_urgency() -> None:
     without_risk_objection = PositionConsensusBuilder().build(
         _position_context(),
         (
             _review("Dongdong", PositionRecommendation.TRIM),
             _review("Xixi", PositionRecommendation.TRIM),
-            _review("Youyou", PositionRecommendation.HOLD),
+            _review("Yoyo", PositionRecommendation.HOLD),
         ),
     )
     with_risk_objection = PositionConsensusBuilder().build(
@@ -107,7 +107,7 @@ def test_youyou_risk_objection_increases_urgency() -> None:
         (
             _review("Dongdong", PositionRecommendation.TRIM),
             _review("Xixi", PositionRecommendation.HOLD),
-            _review("Youyou", PositionRecommendation.TRIM),
+            _review("Yoyo", PositionRecommendation.TRIM),
         ),
     )
 
@@ -121,7 +121,7 @@ def test_all_hold_with_material_risk_notes_produces_watch() -> None:
         (
             _review("Dongdong", PositionRecommendation.HOLD),
             _review("Xixi", PositionRecommendation.HOLD),
-            _review("Youyou", PositionRecommendation.NO_ACTION),
+            _review("Yoyo", PositionRecommendation.NO_ACTION),
         ),
     )
 
@@ -136,13 +136,13 @@ def test_output_includes_all_three_committee_opinions() -> None:
         (
             _review("Dongdong", PositionRecommendation.BUY_MORE),
             _review("Xixi", PositionRecommendation.HOLD),
-            _review("Youyou", PositionRecommendation.TRIM),
+            _review("Yoyo", PositionRecommendation.TRIM),
         ),
     )
 
     assert "Dongdong thesis" in decision.dongdong_opinion
     assert "Xixi thesis" in decision.xixi_opinion
-    assert "Youyou thesis" in decision.youyou_opinion
+    assert "Yoyo thesis" in decision.yoyo_opinion
     assert decision.factual_evidence
     assert decision.risks
 

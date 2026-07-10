@@ -127,25 +127,33 @@ class LLMCommitteeJudgmentService:
 
         ticker_reports = (ticker_report,)
         try:
-            opinions = self._build_persona_opinions(
+            persona_outputs = self._build_persona_opinions(
                 committee_prompts,
                 ticker_reports,
             )
             consensus = self._to_research_consensus(
                 self._run_chairman_prompt(
                     ticker_reports,
-                    committee_opinions=opinions,
+                    committee_opinions=persona_outputs,
                     language=language,
                 )
             )
         except (OutputParserError, ValueError, KeyError, TypeError):
             return None
 
+        opinions = tuple(
+            self._to_research_opinion(prompt, opinion)
+            for prompt, opinion in zip(
+                committee_prompts,
+                persona_outputs,
+                strict=True,
+            )
+        )
         return ResearchPositionDecision(
             ticker=ticker_report.ticker,
             dongdong_opinion=_opinion_text(opinions, "dongdong"),
             xixi_opinion=_opinion_text(opinions, "xixi"),
-            youyou_opinion=_opinion_text(opinions, "youyou"),
+            yoyo_opinion=_opinion_text(opinions, "yoyo"),
             consensus=consensus,
             recommendation=consensus.final_action,
             confidence=consensus.confidence,
@@ -157,7 +165,7 @@ class LLMCommitteeJudgmentService:
         self,
         committee_prompts: tuple[CommitteePersonaPrompt, ...],
         ticker_reports: tuple[ResearchTickerReport, ...],
-    ) -> tuple[ResearchCommitteeOpinion, ...]:
+    ) -> tuple[CommitteeOpinion, ...]:
         if not committee_prompts:
             return ()
         max_workers = min(3, len(committee_prompts))
@@ -170,10 +178,7 @@ class LLMCommitteeJudgmentService:
                 )
                 for prompt in committee_prompts
             )
-            return tuple(
-                self._to_research_opinion(prompt, future.result())
-                for prompt, future in zip(committee_prompts, futures, strict=True)
-            )
+            return tuple(future.result() for future in futures)
 
     def _run_persona_prompt(
         self,
@@ -202,7 +207,7 @@ class LLMCommitteeJudgmentService:
         self,
         ticker_reports: tuple[ResearchTickerReport, ...],
         *,
-        committee_opinions: tuple[ResearchCommitteeOpinion, ...],
+        committee_opinions: tuple[CommitteeOpinion, ...],
         language: object | None,
     ) -> ChairmanSummary:
         request = LLMRequest(
@@ -337,17 +342,19 @@ def _chairman_prompt_text(
             "Synthesize Dongdong, Xixi, and Yoyo into one advisory recommendation.",
             "",
             "LLM Grounding Rules",
-            "- Use only the supplied source-labeled facts, PRE-COMMITTEE ANALYSIS, and persona opinions.",
+            "- Use only the supplied Dongdong, Xixi, and Yoyo opinions.",
+            "- Do not introduce new facts or perform independent company analysis.",
+            "- Resolve disagreement by evidence quality, risk asymmetry, and portfolio constraints.",
             "- Do not expose raw provider fields or private account details.",
             "- Do not recommend or describe automatic trading.",
             "- Be concise and explicit; no long-form essay or broad market commentary.",
             "- Discuss only the ticker named in this prompt.",
             "",
-            "Ticker Evidence",
-            *_render_ticker_evidence(ticker_reports),
+            "Ticker",
+            f"- {_symbol_for_reports(ticker_reports)}",
             "",
-            "PRE-COMMITTEE ANALYSIS",
-            *_render_pre_committee_analysis(ticker_reports),
+            "Portfolio Constraints",
+            *_render_portfolio_constraints(ticker_reports),
             "",
             "Persona Opinions",
             *_render_opinions(committee_opinions),
@@ -408,52 +415,42 @@ def _render_position_review_summaries(
             f"chairman={_truncate(review.rationale, limit=180)}; "
             f"Dongdong={_truncate(review.dongdong_opinion, limit=160)}; "
             f"Xixi={_truncate(review.xixi_opinion, limit=160)}; "
-            f"Yoyo={_truncate(review.youyou_opinion, limit=160)}"
+            f"Yoyo={_truncate(review.yoyo_opinion, limit=160)}"
         )
         for review in position_reviews
     ]
 
 
-def _render_ticker_evidence(ticker_reports: tuple[ResearchTickerReport, ...]) -> list[str]:
-    values: list[str] = []
-    for report in ticker_reports:
-        values.extend(
-            [
-                f"- {report.ticker} summary: {report.summary}",
-                *[f"- {fact}" for fact in report.public_market_facts],
-                *[f"- {fact}" for fact in report.profile_facts],
-                *[f"- {fact}" for fact in report.valuation_facts],
-                *[f"- {fact}" for fact in report.financial_facts],
-                *[f"- {fact}" for fact in report.news_facts],
-                *[f"- {fact}" for fact in report.company_facts],
-                *[f"- {fact}" for fact in report.macro_facts],
-                *[f"- risk: {risk.summary}" for risk in report.risks],
-                *[f"- catalyst: {catalyst.summary}" for catalyst in report.catalysts],
-            ]
-        )
-    return values or ["- None supplied."]
-
-
-def _render_pre_committee_analysis(
+def _render_portfolio_constraints(
     ticker_reports: tuple[ResearchTickerReport, ...],
 ) -> list[str]:
     values: list[str] = []
     for report in ticker_reports:
-        values.extend(f"- {report.ticker} {item}" for item in _analysis_items(report))
+        context = report.position_context
+        if context is None:
+            continue
+        values.extend(
+            (
+                f"- {report.ticker} add_allowed={context.add_allowed}",
+                f"- {report.ticker} trim_candidate={context.trim_candidate}",
+            )
+        )
     return values or ["- None supplied."]
 
 
 def _render_opinions(
-    committee_opinions: tuple[ResearchCommitteeOpinion, ...],
+    committee_opinions: tuple[CommitteeOpinion, ...],
 ) -> list[str]:
     if not committee_opinions:
         return ["- None supplied."]
     return [
         (
-            f"- {opinion.display_name}: action={opinion.suggested_action}; "
-            f"confidence/evidence={'; '.join(opinion.evidence_considered[:2])}; "
-            f"risk={_truncate(opinion.key_concern)}; "
-            f"reasoning={_truncate(opinion.reasoning_summary)}"
+            f"- {opinion.member_name} ({opinion.role}): "
+            f"viewpoint={_truncate(opinion.viewpoint)}; "
+            f"confidence={opinion.confidence.value}; "
+            f"evidence={'; '.join(f'{item.source}: {item.summary}' for item in opinion.evidence[:2])}; "
+            f"risks={'; '.join(opinion.risks[:2])}; "
+            f"catalysts={'; '.join(opinion.catalysts[:2])}"
         )
         for opinion in committee_opinions
     ]
@@ -464,17 +461,6 @@ def _truncate(value: str, *, limit: int = 360) -> str:
     if len(stripped) <= limit:
         return stripped
     return f"{stripped[: limit - 3].rstrip()}..."
-
-
-def _analysis_items(report: ResearchTickerReport) -> tuple[str, ...]:
-    interpretation = report.fact_interpretation
-    return (
-        f"valuation_label={interpretation.valuation_label}",
-        f"profile_summary={interpretation.profile_summary}",
-        f"valuation_summary={interpretation.valuation_summary}",
-        f"risk_summary={interpretation.risk_summary}",
-        f"catalyst_summary={interpretation.catalyst_summary}",
-    )
 
 
 def _opinion_text(
@@ -506,7 +492,7 @@ def _ticker_evidence(report: ResearchTickerReport) -> tuple[str, ...]:
 
 
 def _persona_display_name(prompt: CommitteePersonaPrompt) -> str:
-    if prompt.persona_id == "youyou":
+    if prompt.persona_id == "yoyo":
         return "Yoyo"
     return prompt.display_name
 

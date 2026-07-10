@@ -53,7 +53,7 @@ report path. The daily CLI still generates `reports/daily-report.md`.
 ## Report Impact
 
 The daily report now renders market summary, portfolio review, watchlist review,
-factual ticker context, Dongdong's opinion, Xixi's opinion, Youyou's opinion,
+factual ticker context, Dongdong's opinion, Xixi's opinion, Yoyo's opinion,
 committee consensus, confidence, key risks, upcoming catalysts, today's
 suggested actions, and evidence notes.
 

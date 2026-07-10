@@ -65,7 +65,7 @@ class FakeReviewRunner:
         return (
             _review("Dongdong", PositionRecommendation.BUY_MORE),
             _review("Xixi", PositionRecommendation.HOLD),
-            _review("Youyou", PositionRecommendation.TRIM),
+            _review("Yoyo", PositionRecommendation.TRIM),
         )
 
 
@@ -263,7 +263,7 @@ def _decision(symbol: str = "NVDA") -> PositionDecision:
         final_rationale="Committee recommends watching the position.",
         dongdong_opinion="Opportunity remains attractive.",
         xixi_opinion="Fundamentals remain strong.",
-        youyou_opinion="Sizing risk requires monitoring.",
+        yoyo_opinion="Sizing risk requires monitoring.",
         factual_evidence=("Committee reviewed supplied context.",),
         risks=("Monitor valuation risk.",),
         confidence=ConfidenceLevel.MEDIUM,

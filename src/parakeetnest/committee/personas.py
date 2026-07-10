@@ -199,9 +199,9 @@ XIXI_PERSONA = CommitteePersona(
     ),
 )
 
-YOUYOU_PERSONA = CommitteePersona(
-    id="youyou",
-    display_name="Youyou",
+YOYO_PERSONA = CommitteePersona(
+    id="yoyo",
+    display_name="Yoyo",
     role=CommitteeRole.CHIEF_RISK_OFFICER,
     role_title="Chief Risk Officer",
     responsibility=(
@@ -229,7 +229,7 @@ YOUYOU_PERSONA = CommitteePersona(
 PERMANENT_COMMITTEE_PERSONAS: tuple[CommitteePersona, ...] = (
     DONGDONG_PERSONA,
     XIXI_PERSONA,
-    YOUYOU_PERSONA,
+    YOYO_PERSONA,
 )
 
 DAILY_INVESTMENT_COMMITTEE: tuple[CommitteeMemberProfile, ...] = tuple(
@@ -287,7 +287,7 @@ class PermanentCommitteeService:
             ) from error
 
     def daily_investment_committee(self) -> tuple[CommitteeMemberProfile, ...]:
-        """Return Dongdong, Xixi, and Youyou in daily report order."""
+        """Return Dongdong, Xixi, and Yoyo in daily report order."""
         return tuple(
             CommitteeMemberProfile(
                 persona=persona,
@@ -326,6 +326,6 @@ __all__ = [
     "PermanentCommitteeService",
     "UnknownCommitteePersonaError",
     "XIXI_PERSONA",
-    "YOUYOU_PERSONA",
+    "YOYO_PERSONA",
     "create_permanent_committee_service",
 ]

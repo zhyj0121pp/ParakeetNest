@@ -89,15 +89,6 @@ class _InvestmentResearchReportFormattingHelpers:
             )
         return lines
 
-    def _committee_opinion_lookup(
-        self,
-        report: InvestmentResearchReport,
-    ) -> dict[str, str]:
-        opinions: dict[str, str] = {}
-        for opinion in report.committee_opinions:
-            opinions[opinion.persona_id] = opinion.reasoning_summary
-        return opinions
-
     def _position_committee_review_lookup(
         self,
         report: InvestmentResearchReport,
@@ -177,10 +168,8 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             ),
             self._render_html_header(report),
             self._render_html_human_review_notice(),
-            self._render_html_action_required(report),
             self._render_html_position_cards(report),
             self._render_html_new_opportunities(report),
-            self._render_html_market_overview(report),
             self._render_html_raw_evidence(report),
             "</body>",
             "</html>",
@@ -223,55 +212,6 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             f"{_html(l10n.human_review_notice)}</p>"
         )
 
-    def _render_html_action_required(self, report: InvestmentResearchReport) -> str:
-        l10n = self._localization
-        items: list[str] = []
-        for decision in self._html_action_decisions(report):
-            review = (
-                f" {l10n.human_review_required}."
-                if decision.human_review_required
-                else ""
-            )
-            if l10n.language is ReportLanguage.ZH and decision.human_review_required:
-                review = f" {l10n.human_review_required}。"
-            items.append(
-                "<li>"
-                f"<strong>{_html(decision.symbol)}:</strong> "
-                f"{_html(self._recommendation_label(decision.recommendation))} "
-                f"({_html(l10n.confidence)}: "
-                f"{_html(self._localized_level(decision.confidence.value))}, "
-                f"{_html(l10n.urgency)}: "
-                f"{_html(self._localized_level(decision.urgency.value))})."
-                f"{review}</li>"
-            )
-            if l10n.language is ReportLanguage.ZH:
-                items[-1] = (
-                    "<li>"
-                    f"<strong>{_html(decision.symbol)}:</strong> "
-                    f"{_html(self._recommendation_label(decision.recommendation))} "
-                    f"({_html(l10n.confidence)}："
-                    f"{_html(self._localized_level(decision.confidence.value))}，"
-                    f"{_html(l10n.urgency)}："
-                    f"{_html(self._localized_level(decision.urgency.value))})。"
-                    f"{review}</li>"
-                )
-        if not items:
-            items.append(f"<li>{_html(l10n.no_action_required_positions)}</li>")
-        if report.portfolio_decision_summary is not None:
-            for item in report.portfolio_decision_summary.action_items:
-                items.append(
-                    f"<li><strong>{_html(l10n.portfolio_action_item)}:</strong> "
-                    f"{_html(item)}</li>"
-                )
-        return "\n".join(
-            [
-                self._html_section_heading(f"1. {l10n.action_required}"),
-                '<ul style="margin: 0 0 18px 20px; padding: 0;">',
-                *items,
-                "</ul>",
-            ]
-        )
-
     def _render_html_position_cards(self, report: InvestmentResearchReport) -> str:
         cards: list[str] = []
         decisions = self._html_action_decisions(report)
@@ -281,13 +221,11 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 for decision in decisions
             )
         else:
-            opinions = self._committee_opinion_lookup(report)
             position_reviews = self._position_committee_review_lookup(report)
             cards.extend(
                 self._render_html_ticker_card(
                     ticker_report,
                     report,
-                    opinions,
                     position_reviews.get(ticker_report.ticker),
                 )
                 for ticker_report in report.ticker_reports
@@ -302,7 +240,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         return "\n".join(
             [
                 self._html_section_heading(
-                    f"2. {self._localization.position_cards}"
+                    f"1. {self._localization.position_cards}"
                 ),
                 *cards,
             ]
@@ -348,7 +286,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                         (
                             (l10n.dongdong, decision.dongdong_opinion),
                             (l10n.xixi, decision.xixi_opinion),
-                            (l10n.youyou, decision.youyou_opinion),
+                            (l10n.yoyo, decision.yoyo_opinion),
                         )
                     ),
                     self._html_details(
@@ -367,7 +305,6 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         self,
         ticker_report: ResearchTickerReport,
         report: InvestmentResearchReport,
-        opinions: dict[str, str],
         position_review: ResearchPositionDecision | None,
     ) -> str:
         l10n = self._localization
@@ -389,17 +326,17 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         dongdong_opinion = (
             position_review.dongdong_opinion
             if position_review is not None
-            else opinions.get("dongdong")
+            else None
         )
         xixi_opinion = (
             position_review.xixi_opinion
             if position_review is not None
-            else opinions.get("xixi")
+            else None
         )
-        youyou_opinion = (
-            position_review.youyou_opinion
+        yoyo_opinion = (
+            position_review.yoyo_opinion
             if position_review is not None
-            else opinions.get("youyou")
+            else None
         )
         recommendation = self._localized_recommendation_text(
             recommendation_value
@@ -438,7 +375,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                         (
                             (l10n.dongdong, dongdong_opinion),
                             (l10n.xixi, xixi_opinion),
-                            (l10n.youyou, youyou_opinion),
+                            (l10n.yoyo, yoyo_opinion),
                         )
                     ),
                     self._render_html_interpretation(ticker_report),
@@ -675,38 +612,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 f'<p style="margin: 0 0 18px;">{_html(report.watchlist_review)}</p>'
             )
         return "\n".join(
-            [self._html_section_heading(f"3. {l10n.new_opportunities}"), *cards]
-        )
-
-    def _render_html_market_overview(self, report: InvestmentResearchReport) -> str:
-        l10n = self._localization
-        items = [
-            report.market_summary,
-            f"{l10n.portfolio_context}: {report.portfolio_review}",
-            f"{l10n.final_consensus}: {report.committee_consensus.rationale}",
-        ]
-        if report.portfolio_decision_summary is not None:
-            items.append(
-                f"{l10n.portfolio_view}: "
-                f"{report.portfolio_decision_summary.overall_portfolio_view}"
-            )
-            items.extend(
-                f"{l10n.concentration_risk}: {risk}"
-                for risk in report.portfolio_decision_summary.concentration_risks
-            )
-            items.extend(
-                f"{l10n.sector_exposure}: {note}"
-                for note in report.portfolio_decision_summary.sector_exposure_notes
-            )
-            items.extend(
-                f"{l10n.cash_allocation}: {note}"
-                for note in report.portfolio_decision_summary.cash_allocation_notes
-            )
-        return "\n".join(
-            [
-                self._html_section_heading(f"4. {l10n.market_overview}"),
-                self._html_list(self._privacy_safe_values(items)),
-            ]
+            [self._html_section_heading(f"2. {l10n.new_opportunities}"), *cards]
         )
 
     def _render_html_raw_evidence(self, report: InvestmentResearchReport) -> str:
@@ -718,7 +624,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         evidence = self._privacy_safe_values(raw_lines) or (l10n.no_raw_evidence,)
         return "\n".join(
             [
-                self._html_section_heading(f"5. {l10n.raw_evidence}"),
+                self._html_section_heading(f"3. {l10n.raw_evidence}"),
                 self._html_details(l10n.show_raw_evidence, [self._html_list(evidence)]),
             ]
         )

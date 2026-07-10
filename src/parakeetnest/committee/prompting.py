@@ -9,7 +9,7 @@ from parakeetnest.committee.playbook_loader import PlaybookLoader
 from parakeetnest.committee.personas import (
     DONGDONG_PERSONA,
     XIXI_PERSONA,
-    YOUYOU_PERSONA,
+    YOYO_PERSONA,
     CommitteePersona,
 )
 from parakeetnest.models import PositionContext, PositionRecommendation
@@ -366,11 +366,11 @@ class PersonaDrivenPositionReviewPromptBuilder:
         self,
         context: PositionContext,
     ) -> tuple[PositionReviewPrompt, ...]:
-        """Build Dongdong, Xixi, and Youyou prompts for one position."""
+        """Build Dongdong, Xixi, and Yoyo prompts for one position."""
         return (
             self.build_dongdong_prompt(context),
             self.build_xixi_prompt(context),
-            self.build_youyou_prompt(context),
+            self.build_yoyo_prompt(context),
         )
 
     def build_dongdong_prompt(self, context: PositionContext) -> PositionReviewPrompt:
@@ -389,11 +389,11 @@ class PersonaDrivenPositionReviewPromptBuilder:
             "Focus on fundamentals, valuation, business quality, durability, and execution.",
         )
 
-    def build_youyou_prompt(self, context: PositionContext) -> PositionReviewPrompt:
-        """Build Youyou's risk-focused position review prompt."""
+    def build_yoyo_prompt(self, context: PositionContext) -> PositionReviewPrompt:
+        """Build Yoyo's risk-focused position review prompt."""
         return self.build_prompt(
             context,
-            YOUYOU_PERSONA,
+            YOYO_PERSONA,
             "Focus on risk, downside, concentration, uncertainty, and missing evidence.",
         )
 

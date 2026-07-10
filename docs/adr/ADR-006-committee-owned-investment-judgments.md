@@ -13,7 +13,7 @@ or final investment rationale.
 
 ParakeetNest is built around the principle that the committee remembers before
 it reasons. The old daily research path let `InvestmentResearchService` create
-recommendation-like outputs before Dongdong, Xixi, and Youyou reviewed the
+recommendation-like outputs before Dongdong, Xixi, and Yoyo reviewed the
 evidence. That inverted ownership: committee members were explaining a
 pre-existing recommendation instead of producing independent committee judgment.
 

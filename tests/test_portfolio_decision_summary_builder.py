@@ -182,7 +182,7 @@ def _decision(
         final_rationale="Committee recommends reviewing the position.",
         dongdong_opinion="Opportunity remains attractive.",
         xixi_opinion="Fundamentals remain strong.",
-        youyou_opinion="Sizing risk requires monitoring.",
+        yoyo_opinion="Sizing risk requires monitoring.",
         factual_evidence=("Committee reviewed supplied context.",),
         risks=risks,
         confidence=confidence,

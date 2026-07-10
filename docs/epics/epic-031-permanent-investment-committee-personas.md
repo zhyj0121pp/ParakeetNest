@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Epic 31 makes Dongdong, Xixi, and Youyou stable domain concepts for the daily
+Epic 31 makes Dongdong, Xixi, and Yoyo stable domain concepts for the daily
 investment report. The report should not depend on loose hardcoded text for
 committee identity; it should derive committee sections from durable persona
 definitions.
@@ -11,7 +11,7 @@ The daily investment committee is:
 
 - Dongdong, Chief Growth Officer
 - Xixi, Chief Investment Analyst
-- Youyou, Chief Risk Officer
+- Yoyo, Chief Risk Officer
 
 ## Architecture
 
@@ -55,7 +55,7 @@ Each persona defines:
 - `writing_style`
 - `decision_biases_to_avoid`
 
-The permanent daily order is `dongdong`, `xixi`, `youyou`.
+The permanent daily order is `dongdong`, `xixi`, `yoyo`.
 
 ## Why Personas Are Stable Domain Concepts
 
@@ -87,7 +87,7 @@ The daily investment report includes:
 - Watchlist Review
 - Dongdong's Opinion
 - Xixi's Opinion
-- Youyou's Opinion
+- Yoyo's Opinion
 - Committee Consensus
 - Confidence
 - Key Risks
@@ -100,7 +100,7 @@ titles from the persona registry.
 ## Validation Checklist
 
 - All three permanent personas exist.
-- Daily committee order is stable: `dongdong`, `xixi`, `youyou`.
+- Daily committee order is stable: `dongdong`, `xixi`, `yoyo`.
 - Persona IDs are unique.
 - Each persona has a role, responsibility, risk posture, evidence requirements,
   writing style, and decision biases to avoid.

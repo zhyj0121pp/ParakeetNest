@@ -9,12 +9,6 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
-from parakeetnest.committee import (
-    CommitteeOpinionStyle,
-    CommitteePersona,
-    CommitteeRole,
-    PermanentCommitteeService,
-)
 from parakeetnest.config import get_settings
 from parakeetnest.context.models import (
     ContextMetadata,
@@ -464,7 +458,7 @@ def test_generate_report_combines_portfolio_watchlist_and_intelligence() -> None
     assert not any(
         label in item
         for item in review.evidence
-        for label in ("Dongdong", "Xixi", "Youyou", "Committee:")
+        for label in ("Dongdong", "Xixi", "Yoyo", "Committee:")
     )
     assert "Risk is moderate and manageable" not in " ".join(review.evidence)
     assert "yahoo/market_data" in " ".join(review.evidence).lower()
@@ -740,60 +734,6 @@ def test_market_context_does_not_emit_generic_judgment_phrases() -> None:
     assert "market_context: factual market context" in report_text
 
 
-def test_committee_opinions_are_derived_from_persona_prompt_context() -> None:
-    custom_dongdong = CommitteePersona(
-        id="dongdong",
-        display_name="Dongdong",
-        role=CommitteeRole.CHIEF_GROWTH_OFFICER,
-        role_title="Chief Growth Officer",
-        responsibility="Use a custom growth responsibility.",
-        default_viewpoint="Apply a custom upside lens.",
-        risk_posture="Optimistic but bounded.",
-        evidence_requirements=("Custom growth evidence.",),
-        writing_style=CommitteeOpinionStyle.OPTIMISTIC_EVIDENCE_BASED,
-        decision_biases_to_avoid=("Custom growth bias.",),
-    )
-    service = InvestmentResearchService(
-        committee_service=PermanentCommitteeService(
-            personas=(
-                custom_dongdong,
-                PermanentCommitteeService().get("xixi"),
-                PermanentCommitteeService().get("youyou"),
-            )
-        )
-    )
-
-    report = service.generate_report(("NVDA",), generated_at=AS_OF)
-
-    opinion = report.committee_opinions[0]
-    assert opinion.persona_id == "dongdong"
-    assert opinion.responsibility == "Use a custom growth responsibility."
-    assert "Apply a custom upside lens." in opinion.viewpoint
-    assert "upside case depends on evidence-backed catalysts" not in opinion.viewpoint
-
-
-def test_all_committee_opinions_include_daily_report_reasoning_fields() -> None:
-    service = InvestmentResearchService()
-
-    report = service.generate_report(("NVDA",), generated_at=AS_OF)
-
-    assert tuple(opinion.display_name for opinion in report.committee_opinions) == (
-        "Dongdong",
-        "Xixi",
-        "Youyou",
-    )
-    for opinion in report.committee_opinions:
-        assert opinion.stance in {"bullish", "neutral", "cautious"}
-        assert opinion.reasoning_summary
-        assert opinion.evidence_considered
-        assert opinion.key_concern
-        assert opinion.suggested_action
-    assert report.committee_consensus.final_action
-    assert report.committee_consensus.confidence
-    assert report.committee_consensus.rationale
-    assert report.committee_consensus.todays_suggested_actions
-
-
 def test_generate_report_builds_per_position_committee_reviews(monkeypatch) -> None:
     monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
     monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
@@ -817,46 +757,17 @@ def test_generate_report_builds_per_position_committee_reviews(monkeypatch) -> N
     assert "MSFT" not in reviews["AAPL"].dongdong_opinion
     assert "AAPL" in reviews["AAPL"].xixi_opinion
     assert "MSFT" not in reviews["AAPL"].xixi_opinion
-    assert "AAPL" in reviews["AAPL"].youyou_opinion
-    assert "MSFT" not in reviews["AAPL"].youyou_opinion
+    assert "AAPL" in reviews["AAPL"].yoyo_opinion
+    assert "MSFT" not in reviews["AAPL"].yoyo_opinion
     assert "MSFT" in reviews["MSFT"].dongdong_opinion
     assert "AAPL" not in reviews["MSFT"].dongdong_opinion
     assert "MSFT" in reviews["MSFT"].xixi_opinion
     assert "AAPL" not in reviews["MSFT"].xixi_opinion
-    assert "MSFT" in reviews["MSFT"].youyou_opinion
-    assert "AAPL" not in reviews["MSFT"].youyou_opinion
+    assert "MSFT" in reviews["MSFT"].yoyo_opinion
+    assert "AAPL" not in reviews["MSFT"].yoyo_opinion
     assert "across 1 ticker(s)" in reviews["AAPL"].rationale
     assert "across 1 ticker(s)" in reviews["MSFT"].rationale
     assert "across 2 ticker(s)" in report.committee_consensus.rationale
-
-
-def test_committee_opinions_keep_persona_specific_lenses(monkeypatch) -> None:
-    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
-    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
-    get_settings.cache_clear()
-    service = InvestmentResearchService()
-
-    try:
-        report = service.generate_report(("NVDA",), generated_at=AS_OF)
-        opinions = {
-            opinion.display_name: opinion for opinion in report.committee_opinions
-        }
-    finally:
-        get_settings.cache_clear()
-
-    assert opinions["Dongdong"].stance == "neutral"
-    assert "upside" in opinions["Dongdong"].reasoning_summary
-    assert "Missing growth evidence" in opinions["Dongdong"].reasoning_summary
-    assert "catalyst" in opinions["Dongdong"].suggested_action.lower()
-    assert "fundamentals" in opinions["Xixi"].reasoning_summary
-    assert "valuation" in opinions["Xixi"].reasoning_summary
-    assert "Missing fundamental evidence" in opinions["Xixi"].reasoning_summary
-    assert "valuation" in opinions["Xixi"].suggested_action
-    assert opinions["Youyou"].stance == "cautious"
-    assert "capital preservation" in opinions["Youyou"].reasoning_summary
-    assert "position sizing" in opinions["Youyou"].reasoning_summary
-    assert "Missing risk evidence" in opinions["Youyou"].reasoning_summary
-    assert "advisory only" in opinions["Youyou"].suggested_action
 
 
 def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
@@ -867,7 +778,7 @@ def test_report_facing_committee_text_can_be_chinese(monkeypatch) -> None:
     report = service.generate_report(("NVDA",), generated_at=AS_OF)
 
     assert report.tickers() == ("NVDA",)
-    assert "上行空间" in report.committee_opinions[0].reasoning_summary
+    assert "上行空间" in report.position_committee_reviews[0].dongdong_opinion
     assert "委员会" in report.committee_consensus.rationale
     assert "NVDA" in report.committee_consensus.todays_suggested_actions[0]
     get_settings.cache_clear()
@@ -889,7 +800,7 @@ def test_llm_persona_discussions_are_produced_from_prompts() -> None:
     assert review.xixi_opinion.startswith(
         "Xixi LLM action=hold"
     )
-    assert review.youyou_opinion.startswith(
+    assert review.yoyo_opinion.startswith(
         "Yoyo LLM action=reduce"
     )
     assert review.rationale == (
@@ -970,9 +881,9 @@ def test_invalid_llm_output_falls_back_to_deterministic_judgment() -> None:
 
     report = service.generate_report(("AAPL",), generated_at=AS_OF)
 
-    assert report.committee_opinions[0].display_name == "Dongdong"
-    assert "LLM action" not in report.committee_opinions[0].reasoning_summary
-    assert report.committee_opinions[0].evidence_considered
+    review = report.position_committee_reviews[0]
+    assert "LLM action" not in review.dongdong_opinion
+    assert review.evidence
     assert "Chairman LLM synthesizes" not in report.committee_consensus.rationale
     assert report.committee_consensus.final_action
 

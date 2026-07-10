@@ -34,11 +34,9 @@ class ReportLocalization:
 
     language: ReportLanguage
     report_title: str
-    action_required: str
     position_cards: str
     stable_holdings: str
     new_opportunities: str
-    market_overview: str
     raw_evidence: str
     recommendation: str
     confidence: str
@@ -48,27 +46,19 @@ class ReportLocalization:
     final_consensus: str
     dongdong: str
     xixi: str
-    youyou: str
+    yoyo: str
     factual_evidence: str
     show_stable_holdings: str
     show_raw_evidence: str
-    committee_opinions_and_factual_evidence: str
     human_review_required: str
     no_automatic_action_review_recommended: str
     not_available: str
     no_available_info: str
     human_review_notice: str
     positions_requiring_review: str
-    no_action_required_positions: str
     no_position_cards: str
     no_stable_holdings: str
     no_raw_evidence: str
-    portfolio_action_item: str
-    portfolio_context: str
-    portfolio_view: str
-    concentration_risk: str
-    sector_exposure: str
-    cash_allocation: str
     current_status: str
     suggested_action: str
     share_guidance: str
@@ -108,11 +98,9 @@ class ReportLocalization:
 EN_REPORT_LOCALIZATION = ReportLocalization(
     language=ReportLanguage.EN,
     report_title="Morning Investment Report",
-    action_required="Action Required",
     position_cards="Position Cards",
     stable_holdings="Stable Holdings",
     new_opportunities="New Opportunities",
-    market_overview="Market Overview",
     raw_evidence="Raw Evidence",
     recommendation="Recommendation",
     confidence="Confidence",
@@ -122,13 +110,10 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
     final_consensus="Final consensus",
     dongdong="Dongdong",
     xixi="Xixi",
-    youyou="Youyou",
+    yoyo="Yoyo",
     factual_evidence="Factual evidence",
     show_stable_holdings="Show stable holdings",
     show_raw_evidence="Show raw evidence",
-    committee_opinions_and_factual_evidence=(
-        "Committee opinions and factual evidence"
-    ),
     human_review_required="Human review required",
     no_automatic_action_review_recommended=(
         "No automatic action. User review recommended."
@@ -143,18 +128,9 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
         "Positions requiring user review or decision. This report is advisory "
         "guidance and does not take action for you."
     ),
-    no_action_required_positions=(
-        "No position decisions currently require user action."
-    ),
     no_position_cards="No action-required position cards available.",
     no_stable_holdings="No stable holdings available.",
     no_raw_evidence="No raw evidence available.",
-    portfolio_action_item="Portfolio action item",
-    portfolio_context="Portfolio context",
-    portfolio_view="Portfolio view",
-    concentration_risk="Concentration risk",
-    sector_exposure="Sector exposure",
-    cash_allocation="Cash allocation",
     current_status="Current status",
     suggested_action="Suggested action",
     share_guidance="Reference shares",
@@ -197,11 +173,9 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
 ZH_REPORT_LOCALIZATION = ReportLocalization(
     language=ReportLanguage.ZH,
     report_title="早间投资报告",
-    action_required="需要处理",
     position_cards="持仓决策卡片",
     stable_holdings="稳定持仓",
     new_opportunities="新机会",
-    market_overview="市场概览",
     raw_evidence="原始证据",
     recommendation="建议",
     confidence="信心",
@@ -211,11 +185,10 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     final_consensus="最终共识",
     dongdong="东东",
     xixi="西西",
-    youyou="悠悠",
+    yoyo="悠悠",
     factual_evidence="事实依据",
     show_stable_holdings="展开稳定持仓",
     show_raw_evidence="展开原始证据",
-    committee_opinions_and_factual_evidence="委员会观点与事实依据",
     human_review_required="需要人工复核",
     no_automatic_action_review_recommended=(
         "不会自动执行交易，建议你人工复核。"
@@ -228,16 +201,9 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     positions_requiring_review=(
         "以下持仓需要你复核或决策。本报告仅提供建议，不会替你执行操作。"
     ),
-    no_action_required_positions="当前没有需要处理的持仓决策。",
     no_position_cards="暂无需要处理的持仓决策卡片。",
     no_stable_holdings="暂无稳定持仓信息。",
     no_raw_evidence="暂无原始证据。",
-    portfolio_action_item="组合待办",
-    portfolio_context="组合背景",
-    portfolio_view="组合观点",
-    concentration_risk="集中度风险",
-    sector_exposure="行业暴露",
-    cash_allocation="现金安排",
     current_status="当前状态",
     suggested_action="建议动作",
     share_guidance="参考股数",

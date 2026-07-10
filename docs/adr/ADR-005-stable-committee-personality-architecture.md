@@ -9,7 +9,7 @@ The permanent committee members are:
 
 - Dongdong, Chief Growth Officer;
 - Xixi, Chief Investment Analyst;
-- Youyou, Chief Risk Officer.
+- Yoyo, Chief Risk Officer.
 
 These committee members are not temporary prompts. Each member has a stable
 identity, stable responsibilities, stable reasoning style, stable tone, and
@@ -27,7 +27,7 @@ Every investment report should include:
 3. Watchlist Review
 4. Dongdong's Opinion
 5. Xixi's Opinion
-6. Youyou's Opinion
+6. Yoyo's Opinion
 7. Committee Consensus
 8. Confidence
 9. Key Risks
@@ -62,7 +62,7 @@ Xixi is the Chief Investment Analyst. Xixi analyzes company fundamentals,
 evaluates earnings quality, studies valuation, compares competitors, balances
 opportunity and risk, and focuses on execution.
 
-Youyou is the Chief Risk Officer. Youyou challenges assumptions, focuses on
+Yoyo is the Chief Risk Officer. Yoyo challenges assumptions, focuses on
 downside risk, analyzes macro risks, evaluates liquidity, protects capital, and
 acts as the most conservative committee member.
 
@@ -93,7 +93,7 @@ analysis, and risk review.
 Future Epics should build on the permanent committee architecture. Work on
 agent profiles, prompt builders, memory retrieval, report composition,
 portfolio review, watchlist review, and recommendation quality should preserve
-Dongdong, Xixi, and Youyou as stable core participants.
+Dongdong, Xixi, and Yoyo as stable core participants.
 
 Committee identity changes require architecture-level review. Routine prompt
 improvements may refine phrasing, evidence requirements, and output quality,

@@ -195,7 +195,7 @@ class PositionDecision:
     final_rationale: str
     dongdong_opinion: str
     xixi_opinion: str
-    youyou_opinion: str
+    yoyo_opinion: str
     factual_evidence: tuple[str, ...]
     risks: tuple[str, ...]
     confidence: ConfidenceLevel | str
@@ -237,8 +237,8 @@ class PositionDecision:
         )
         object.__setattr__(
             self,
-            "youyou_opinion",
-            _required_text(self.youyou_opinion, "youyou_opinion"),
+            "yoyo_opinion",
+            _required_text(self.yoyo_opinion, "yoyo_opinion"),
         )
         object.__setattr__(
             self,

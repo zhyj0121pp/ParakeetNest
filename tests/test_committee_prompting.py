@@ -25,7 +25,7 @@ from parakeetnest.portfolio import PortfolioPositionContext, PortfolioSummary
 def test_all_committee_playbook_files_exist() -> None:
     playbook_dir = Path("src/parakeetnest/committee/playbooks")
 
-    for filename in ("system.md", "common.md", "dongdong.md", "xixi.md", "youyou.md"):
+    for filename in ("system.md", "common.md", "dongdong.md", "xixi.md", "yoyo.md"):
         assert (playbook_dir / filename).is_file()
 
 
@@ -39,7 +39,7 @@ def test_playbook_loader_loads_system_common_and_persona_playbooks() -> None:
     assert "Use only supplied facts" in loader.load_common_playbook()
     assert "growth durability" in loader.load_persona_playbook("dongdong")
     assert "forward PE" in loader.load_persona_playbook("xixi")
-    assert "position_size_bucket" in loader.load_persona_playbook("youyou")
+    assert "position_size_bucket" in loader.load_persona_playbook("yoyo")
 
 
 def test_missing_playbook_raises_clear_error(tmp_path: Path) -> None:
@@ -57,7 +57,7 @@ def test_prompt_builder_creates_three_prompts_in_daily_committee_order() -> None
     assert [prompt.persona_id for prompt in prompts] == [
         "dongdong",
         "xixi",
-        "youyou",
+        "yoyo",
     ]
 
 
@@ -141,9 +141,9 @@ def test_committee_prompts_include_reusable_playbook_checklists() -> None:
     assert "forward PE" in prompts["xixi"]
     assert "valuation relative to growth" in prompts["xixi"]
 
-    assert "position_size_bucket" in prompts["youyou"]
-    assert "trim_candidate" in prompts["youyou"]
-    assert "concentration_level" in prompts["youyou"]
+    assert "position_size_bucket" in prompts["yoyo"]
+    assert "trim_candidate" in prompts["yoyo"]
+    assert "concentration_level" in prompts["yoyo"]
 
 
 def test_generated_prompt_excludes_raw_robinhood_field_names() -> None:
@@ -249,10 +249,10 @@ def test_position_review_prompts_preserve_role_specific_perspectives() -> None:
     assert "valuation" in prompts["xixi"]
     assert "business quality" in prompts["xixi"]
 
-    assert "risk" in prompts["youyou"]
-    assert "downside" in prompts["youyou"]
-    assert "concentration" in prompts["youyou"]
-    assert "uncertainty" in prompts["youyou"]
+    assert "risk" in prompts["yoyo"]
+    assert "downside" in prompts["yoyo"]
+    assert "concentration" in prompts["yoyo"]
+    assert "uncertainty" in prompts["yoyo"]
 
 
 def test_position_review_prompt_output_schema_mentions_review_fields() -> None:

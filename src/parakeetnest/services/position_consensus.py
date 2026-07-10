@@ -78,7 +78,7 @@ class PositionConsensusBuilder:
             final_rationale=_final_rationale(context, recommendation, reviews),
             dongdong_opinion=_opinion_for("dongdong", reviews),
             xixi_opinion=_opinion_for("xixi", reviews),
-            youyou_opinion=_opinion_for("youyou", reviews),
+            yoyo_opinion=_opinion_for("yoyo", reviews),
             factual_evidence=_factual_evidence(context, reviews),
             risks=_risks(context, reviews),
             confidence=_confidence_for(reviews),
@@ -127,18 +127,18 @@ def _urgency_for(
     recommendation: PositionRecommendation,
     reviews: tuple[CommitteePositionReview, ...],
 ) -> DecisionUrgency:
-    youyou = _review_for("youyou", reviews)
-    youyou_risk_objection = (
-        youyou is not None and youyou.recommendation in _RISK_OBJECTION_RECOMMENDATIONS
+    yoyo = _review_for("yoyo", reviews)
+    yoyo_risk_objection = (
+        yoyo is not None and yoyo.recommendation in _RISK_OBJECTION_RECOMMENDATIONS
     )
     if recommendation is PositionRecommendation.SELL or (
-        recommendation is PositionRecommendation.TRIM and youyou_risk_objection
+        recommendation is PositionRecommendation.TRIM and yoyo_risk_objection
     ):
         return DecisionUrgency.HIGH
     if recommendation in _ACTION_RECOMMENDATIONS:
-        return DecisionUrgency.MEDIUM if youyou_risk_objection else DecisionUrgency.LOW
+        return DecisionUrgency.MEDIUM if yoyo_risk_objection else DecisionUrgency.LOW
     if recommendation is PositionRecommendation.WATCH:
-        return DecisionUrgency.MEDIUM if youyou_risk_objection else DecisionUrgency.LOW
+        return DecisionUrgency.MEDIUM if yoyo_risk_objection else DecisionUrgency.LOW
     return DecisionUrgency.LOW
 
 
@@ -189,10 +189,7 @@ def _review_for(
     reviews: tuple[CommitteePositionReview, ...],
 ) -> CommitteePositionReview | None:
     normalized_key = agent_key.lower()
-    aliases = {
-        "youyou": ("youyou", "yoyo"),
-        "yoyo": ("youyou", "yoyo"),
-    }.get(normalized_key, (normalized_key,))
+    aliases = (normalized_key,)
     for review in reviews:
         normalized_name = review.agent_name.strip().lower()
         if any(alias in normalized_name for alias in aliases):

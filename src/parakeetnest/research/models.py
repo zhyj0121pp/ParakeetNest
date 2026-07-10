@@ -407,7 +407,7 @@ class ResearchPositionDecision:
     ticker: str
     dongdong_opinion: str
     xixi_opinion: str
-    youyou_opinion: str
+    yoyo_opinion: str
     consensus: ResearchCommitteeConsensus
     recommendation: str
     confidence: str
@@ -428,8 +428,8 @@ class ResearchPositionDecision:
         )
         object.__setattr__(
             self,
-            "youyou_opinion",
-            _required_text(self.youyou_opinion, "youyou_opinion"),
+            "yoyo_opinion",
+            _required_text(self.yoyo_opinion, "yoyo_opinion"),
         )
         object.__setattr__(self, "consensus", self.consensus)
         recommendation = _required_text(self.recommendation, "recommendation").lower()
@@ -464,9 +464,6 @@ class InvestmentResearchReport:
     portfolio_review: str = "Portfolio review depends on connected portfolio context."
     watchlist_review: str = "Watchlist review depends on connected watchlist context."
     portfolio_context: PortfolioSnapshot | None = None
-    committee_opinions: tuple[ResearchCommitteeOpinion, ...] = field(
-        default_factory=tuple,
-    )
     committee_portfolio_views: tuple[ResearchCommitteePortfolioView, ...] = field(
         default_factory=tuple,
     )
@@ -519,7 +516,6 @@ class InvestmentResearchReport:
             "watchlist_review",
             _required_text(self.watchlist_review, "watchlist_review"),
         )
-        object.__setattr__(self, "committee_opinions", tuple(self.committee_opinions))
         object.__setattr__(
             self,
             "committee_portfolio_views",

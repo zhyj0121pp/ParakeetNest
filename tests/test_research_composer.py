@@ -152,15 +152,15 @@ def test_default_composer_can_generate_and_render_report_body() -> None:
 def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
     body = compose_daily_investment_report(("TSLA",), generated_at=GENERATED_AT)
 
-    assert ">1. Action Required</h2>" in body
-    assert ">2. Position Cards</h2>" in body
+    assert ">1. Action Required</h2>" not in body
+    assert ">1. Position Cards</h2>" in body
     assert ">3. Stable Holdings</h2>" not in body
-    assert ">3. New Opportunities</h2>" in body
-    assert ">4. Market Overview</h2>" in body
-    assert ">5. Raw Evidence</h2>" in body
+    assert ">2. New Opportunities</h2>" in body
+    assert "Market Overview</h2>" not in body
+    assert ">3. Raw Evidence</h2>" in body
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
-    assert "<strong>Youyou:</strong>" in body
+    assert "<strong>Yoyo:</strong>" in body
     assert "<strong>Final consensus:</strong>" in body
     assert "<strong>Confidence:</strong>" in body
 

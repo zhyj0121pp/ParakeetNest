@@ -63,8 +63,9 @@ def test_interactive_html_can_render_english(monkeypatch) -> None:
 
     body = render_investment_research_report_interactive_html(_sample_report())
 
-    assert ">1. Action Required</h2>" in body
-    assert ">2. Position Cards</h2>" in body
+    assert ">1. Action Required</h2>" not in body
+    assert ">1. Position Cards</h2>" in body
+    assert "Market Overview</h2>" not in body
     assert "<strong>Recommendation:</strong> Trim" in body
     assert "<strong>Confidence:</strong> High" in body
     assert "This report is advisory guidance only." in body
@@ -85,28 +86,24 @@ def test_interactive_html_position_cards_use_per_position_committee_reviews(
     body = render_investment_research_report_interactive_html(report)
     position_cards = _section(
         body,
-        f"{HTML_H2_STYLE}2. Position Cards</h2>",
-        f"{HTML_H2_STYLE}3. New Opportunities</h2>",
+        f"{HTML_H2_STYLE}1. Position Cards</h2>",
+        f"{HTML_H2_STYLE}2. New Opportunities</h2>",
     )
     aapl_card = _section(position_cards, ">AAPL</span>", ">MSFT</span>")
     msft_card = _section(position_cards, ">MSFT</span>", None)
 
     assert "<strong>Dongdong:</strong>" in aapl_card
     assert "<strong>Xixi:</strong>" in aapl_card
-    assert "<strong>Youyou:</strong>" in aapl_card
+    assert "<strong>Yoyo:</strong>" in aapl_card
     assert "AAPL:" in aapl_card
     assert "MSFT" not in aapl_card
     assert "across 2 ticker(s)" not in aapl_card
     assert "<strong>Dongdong:</strong>" in msft_card
     assert "<strong>Xixi:</strong>" in msft_card
-    assert "<strong>Youyou:</strong>" in msft_card
+    assert "<strong>Yoyo:</strong>" in msft_card
     assert "MSFT:" in msft_card
     assert "AAPL" not in msft_card
     assert "across 2 ticker(s)" not in msft_card
-    assert "across 2 ticker(s)" in body
-    assert body.index("across 2 ticker(s)") > body.index(
-        f"{HTML_H2_STYLE}4. Market Overview</h2>"
-    )
     get_settings.cache_clear()
 
 
@@ -116,7 +113,8 @@ def test_interactive_html_uses_env_language(monkeypatch) -> None:
 
     body = render_investment_research_report_interactive_html(_sample_report())
 
-    assert ">1. 需要处理</h2>" in body
+    assert ">1. 需要处理</h2>" not in body
+    assert ">1. 持仓决策卡片</h2>" in body
     assert "<strong>建议:</strong> 减仓复核" in body
     assert "本报告仅提供投资分析与复核建议" in body
     get_settings.cache_clear()
@@ -131,7 +129,7 @@ def test_interactive_html_explicit_language_overrides_env(monkeypatch) -> None:
         language="en",
     )
 
-    assert ">1. Action Required</h2>" in body
+    assert ">1. Action Required</h2>" not in body
     assert "<strong>Recommendation:</strong> Trim" in body
     assert ">1. 需要处理</h2>" not in body
     get_settings.cache_clear()
@@ -209,12 +207,12 @@ def test_interactive_html_uses_chinese_section_titles() -> None:
         language="zh",
     )
 
-    assert ">1. 需要处理</h2>" in body
-    assert ">2. 持仓决策卡片</h2>" in body
+    assert ">1. 需要处理</h2>" not in body
+    assert ">1. 持仓决策卡片</h2>" in body
     assert ">3. 稳定持仓</h2>" not in body
-    assert ">3. 新机会</h2>" in body
-    assert ">4. 市场概览</h2>" in body
-    assert ">5. 原始证据</h2>" in body
+    assert ">2. 新机会</h2>" in body
+    assert "市场概览</h2>" not in body
+    assert ">3. 原始证据</h2>" in body
 
 
 def test_interactive_html_uses_chinese_field_labels() -> None:
@@ -243,7 +241,7 @@ def test_interactive_html_localizes_recommendation_confidence_and_urgency() -> N
     assert "继续观察" in body
     assert "信心：高" in body
     assert "信心：中" in body
-    assert "紧急程度：高" in body
+    assert "<strong>紧急程度:</strong> 高" in body
 
 
 def test_interactive_html_contains_progressive_details_sections() -> None:
@@ -268,7 +266,7 @@ def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_con
     card = _section(
         body,
         '<details style="background: #ffffff;',
-        f"{HTML_H2_STYLE}3. New Opportunities</h2>",
+        f"{HTML_H2_STYLE}2. New Opportunities</h2>",
     )
 
     assert "Public facts" in card
@@ -313,7 +311,7 @@ def test_interactive_html_keeps_pre_committee_analysis_out_of_factual_evidence()
     card = _section(
         body,
         '<details style="background: #ffffff;',
-        f"{HTML_H2_STYLE}3. New Opportunities</h2>",
+        f"{HTML_H2_STYLE}2. New Opportunities</h2>",
     )
     evidence = _section(card, ">Factual evidence</summary>", "</details>")
 
@@ -424,9 +422,9 @@ def test_interactive_html_raw_evidence_is_bottom_details() -> None:
         _sample_report(),
         language="zh",
     )
-    raw_section = _section(body, ">5. 原始证据</h2>", None)
+    raw_section = _section(body, ">3. 原始证据</h2>", None)
 
-    assert body.rfind(">5. 原始证据</h2>") > body.rfind(">4. 市场概览</h2>")
+    assert body.rfind(">3. 原始证据</h2>") > body.rfind(">2. 新机会</h2>")
     assert "<details" in raw_section
     assert "<summary" in raw_section
     assert (
@@ -475,7 +473,7 @@ def test_chinese_interactive_html_raw_evidence_hides_sensitive_portfolio_terms()
         sensitive_report,
         language="zh",
     )
-    raw_section = _section(body, ">5. 原始证据</h2>", None)
+    raw_section = _section(body, ">3. 原始证据</h2>", None)
 
     assert "Services growth." in raw_section
     for sensitive_term in ("市值", "股", "现金余额"):
@@ -489,7 +487,7 @@ def test_interactive_html_escapes_dynamic_text() -> None:
         final_rationale='Review <trim> & "rebalance" with Xixi\'s notes.',
         dongdong_opinion='Upside < catalyst & "AI"',
         xixi_opinion="Margin > cost & valuation",
-        youyou_opinion='Risk "drawdown" < 10% & rising',
+        yoyo_opinion='Risk "drawdown" < 10% & rising',
         factual_evidence=('Evidence <tag> & "quoted" \'single\'',),
     )
     dangerous_report = replace(
@@ -617,23 +615,6 @@ def _sample_report(
                 ),
             ),
         ),
-        committee_opinions=(
-            ResearchCommitteeOpinion(
-                persona_id="dongdong",
-                display_name="Dongdong",
-                role_title="Chief Growth Officer",
-                stance="bullish",
-                reasoning_summary="Upside is supported by identifiable catalysts.",
-                evidence_considered=("Datacenter demand.",),
-                key_concern="Export controls.",
-                suggested_action="Keep HOLD as advisory guidance.",
-                responsibility="Identify durable growth.",
-                viewpoint="Look for upside.",
-                risk_posture="Optimistic but evidence-based.",
-                evidence_requirements=("Catalyst evidence.",),
-                writing_style="optimistic_evidence_based",
-            ),
-        ),
         committee_consensus=ResearchCommitteeConsensus(
             final_action="hold",
             confidence="medium",
@@ -712,7 +693,7 @@ def _position_decision(
         final_rationale="Committee recommends reviewing the position.",
         dongdong_opinion="Opportunity remains attractive.",
         xixi_opinion="Fundamentals remain strong.",
-        youyou_opinion="Sizing risk requires monitoring.",
+        yoyo_opinion="Sizing risk requires monitoring.",
         factual_evidence=("Committee reviewed supplied context.",),
         risks=("Monitor valuation risk.",),
         confidence=confidence,
@@ -730,7 +711,7 @@ def _first_position_card(body: str) -> str:
     return _section(
         body,
         '<details style="background: #ffffff;',
-        f"{HTML_H2_STYLE}3. 新机会</h2>",
+        f"{HTML_H2_STYLE}2. 新机会</h2>",
     )
 
 

@@ -43,7 +43,7 @@ from parakeetnest.committee.personas import (
     PermanentCommitteeService,
     UnknownCommitteePersonaError,
     XIXI_PERSONA,
-    YOUYOU_PERSONA,
+    YOYO_PERSONA,
     create_permanent_committee_service,
 )
 from parakeetnest.committee.prompting import (
@@ -123,7 +123,7 @@ __all__ = [
     "Xixi",
     "XixiAgent",
     "XIXI_PERSONA",
-    "YOUYOU_PERSONA",
+    "YOYO_PERSONA",
     "Yoyo",
     "YoyoAgent",
     "create_permanent_committee_service",

@@ -212,13 +212,6 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                         self._localized_level(decision.urgency.value),
                     ),
                     self._html_field(l10n.rationale, decision.final_rationale),
-                    self._html_field(
-                        l10n.final_consensus,
-                        (
-                            f"{decision.final_rationale} "
-                            f"{l10n.no_automatic_action_review_recommended}"
-                        ),
-                    ),
                     self._render_html_actionable_sizing(decision),
                     self._render_html_committee_discussion(
                         (
@@ -301,14 +294,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                         l10n.confidence,
                         self._localized_level(confidence_value),
                     ),
-                    self._html_field(l10n.rationale, ticker_report.summary),
-                    self._html_field(
-                        l10n.final_consensus,
-                        (
-                            f"{rationale} "
-                            f"{l10n.no_automatic_action_review_recommended}"
-                        ),
-                    ),
+                    self._html_field(l10n.rationale, rationale),
                     self._render_html_committee_discussion(
                         (
                             (l10n.dongdong, dongdong_opinion),
@@ -518,7 +504,8 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             )
         if not cards:
             cards.append(
-                f'<p style="margin: 0 0 18px;">{_html(report.watchlist_review)}</p>'
+                '<p style="margin: 0 0 18px;">'
+                f'{_html(l10n.no_new_opportunities)}</p>'
             )
         return "\n".join(
             [self._html_section_heading(f"2. {l10n.new_opportunities}"), *cards]

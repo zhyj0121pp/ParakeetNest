@@ -37,20 +37,19 @@ class ReportLocalization:
     position_cards: str
     stable_holdings: str
     new_opportunities: str
+    no_new_opportunities: str
     data_source_status: str
     recommendation: str
     confidence: str
     urgency: str
     rationale: str
     risks: str
-    final_consensus: str
     dongdong: str
     xixi: str
     yoyo: str
     factual_evidence: str
     show_stable_holdings: str
     human_review_required: str
-    no_automatic_action_review_recommended: str
     not_available: str
     no_available_info: str
     human_review_notice: str
@@ -99,22 +98,19 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
     position_cards="Position Cards",
     stable_holdings="Stable Holdings",
     new_opportunities="New Opportunities",
+    no_new_opportunities="No new opportunities available.",
     data_source_status="Data Source Status",
     recommendation="Recommendation",
     confidence="Confidence",
     urgency="Urgency",
     rationale="Rationale",
     risks="Risks",
-    final_consensus="Final consensus",
     dongdong="Dongdong",
     xixi="Xixi",
     yoyo="Yoyo",
     factual_evidence="Factual evidence",
     show_stable_holdings="Show stable holdings",
     human_review_required="Human review required",
-    no_automatic_action_review_recommended=(
-        "No automatic action. User review recommended."
-    ),
     not_available="Not available",
     no_available_info="No available information",
     human_review_notice=(
@@ -172,22 +168,19 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     position_cards="持仓决策卡片",
     stable_holdings="稳定持仓",
     new_opportunities="新机会",
+    no_new_opportunities="暂无新机会。",
     data_source_status="数据源状态",
     recommendation="建议",
     confidence="信心",
     urgency="紧急程度",
     rationale="理由",
     risks="风险",
-    final_consensus="最终共识",
     dongdong="东东",
     xixi="西西",
     yoyo="悠悠",
     factual_evidence="事实依据",
     show_stable_holdings="展开稳定持仓",
     human_review_required="需要人工复核",
-    no_automatic_action_review_recommended=(
-        "不会自动执行交易，建议你人工复核。"
-    ),
     not_available="暂无",
     no_available_info="暂无",
     human_review_notice=(

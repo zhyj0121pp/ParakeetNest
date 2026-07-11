@@ -201,7 +201,7 @@ def test_interactive_html_stock_cards_keep_critical_fields_visible() -> None:
 
 def test_interactive_html_uses_chinese_section_titles() -> None:
     body = render_investment_research_report_interactive_html(
-        _sample_report(),
+        replace(_sample_report(), new_opportunities=()),
         language="zh",
     )
 
@@ -209,6 +209,8 @@ def test_interactive_html_uses_chinese_section_titles() -> None:
     assert ">1. 持仓决策卡片</h2>" in body
     assert ">3. 稳定持仓</h2>" not in body
     assert ">2. 新机会</h2>" in body
+    assert "暂无新机会。" in body
+    assert "Watchlist review found" not in body
     assert "市场概览</h2>" not in body
     assert ">3. 数据源状态</h2>" in body
 
@@ -223,7 +225,7 @@ def test_interactive_html_uses_chinese_field_labels() -> None:
     assert "<strong>信心:</strong> 高" in body
     assert "<strong>紧急程度:</strong> 高" in body
     assert "<strong>理由:</strong> Committee recommends reviewing the position." in body
-    assert "<strong>最终共识:</strong>" in body
+    assert "<strong>最终共识:</strong>" not in body
     assert "<strong>东东:</strong> Opportunity remains attractive." in body
     assert "<strong>西西:</strong> Fundamentals remain strong." in body
     assert "<strong>悠悠:</strong> Sizing risk requires monitoring." in body

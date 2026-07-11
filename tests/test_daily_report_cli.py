@@ -909,7 +909,7 @@ def test_cli_runs_without_tickers_when_watchlist_seed_exists(tmp_path: Path) -> 
     assert "Factual evidence" in body
     assert "Track AI accelerator demand. Theme: AI infrastructure." in body
     assert "New Opportunities" in body
-    assert "Watchlist review found 1 covered watchlist item(s)." in body
+    assert "No new opportunities available." in body
     assert "No watchlist service connected." not in body
 
 
@@ -945,7 +945,7 @@ def test_cli_explicit_tickers_override_watchlist_seed(tmp_path: Path) -> None:
     assert exit_code == 0
     assert "Tickers: TSLA" in body
     assert "Tickers: NVDA" not in body
-    assert "TSLA is included for research" in body
+    assert ">TSLA</span>" in body
 
 
 def test_cli_uses_configured_robinhood_holdings_when_tickers_are_omitted(
@@ -1159,7 +1159,8 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
     assert "<strong>Yoyo:</strong>" in body
-    assert "<strong>Final consensus:</strong>" in body
+    assert "<strong>Rationale:</strong>" in body
+    assert "<strong>Final consensus:</strong>" not in body
     assert "<strong>Confidence:</strong>" in body
     assert "Factual evidence" in body
     assert "Recommendations" not in body

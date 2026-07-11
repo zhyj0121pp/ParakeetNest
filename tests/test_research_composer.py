@@ -146,7 +146,8 @@ def test_default_composer_can_generate_and_render_report_body() -> None:
     assert "Generated At: 2026-07-01T15:00:00+00:00" in body
     assert "Tickers: TSLA" in body
     assert "Recommendations" not in body
-    assert "<strong>Final consensus:</strong>" in body
+    assert "<strong>Rationale:</strong>" in body
+    assert "<strong>Final consensus:</strong>" not in body
 
 
 def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> None:
@@ -161,7 +162,8 @@ def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> 
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
     assert "<strong>Yoyo:</strong>" in body
-    assert "<strong>Final consensus:</strong>" in body
+    assert "<strong>Rationale:</strong>" in body
+    assert "<strong>Final consensus:</strong>" not in body
     assert "<strong>Confidence:</strong>" in body
 
 

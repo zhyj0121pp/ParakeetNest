@@ -518,7 +518,10 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 self._html_section_heading(
                     f"3. {self._localization.data_source_status}"
                 ),
-                self._html_list(statuses),
+                self._html_details(
+                    self._localization.show_data_source_status,
+                    [self._html_list(statuses)],
+                ),
             ]
         )
 

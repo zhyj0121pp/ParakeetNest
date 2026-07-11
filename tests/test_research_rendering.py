@@ -431,7 +431,8 @@ def test_interactive_html_data_source_status_is_short_bottom_section() -> None:
 
     assert body.rfind(">3. 数据源状态</h2>") > body.rfind(">2. 新机会</h2>")
     assert "隐私安全组合信息: 可用" in status_section
-    assert "<details" not in status_section
+    assert ">查看数据源状态</summary>" in status_section
+    assert "<details open" not in status_section
     assert "Report evidence:" not in status_section
 
 

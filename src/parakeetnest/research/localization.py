@@ -39,6 +39,7 @@ class ReportLocalization:
     new_opportunities: str
     no_new_opportunities: str
     data_source_status: str
+    show_data_source_status: str
     recommendation: str
     confidence: str
     urgency: str
@@ -100,6 +101,7 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
     new_opportunities="New Opportunities",
     no_new_opportunities="No new opportunities available.",
     data_source_status="Data Source Status",
+    show_data_source_status="Show data source status",
     recommendation="Recommendation",
     confidence="Confidence",
     urgency="Urgency",
@@ -170,6 +172,7 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     new_opportunities="新机会",
     no_new_opportunities="暂无新机会。",
     data_source_status="数据源状态",
+    show_data_source_status="查看数据源状态",
     recommendation="建议",
     confidence="信心",
     urgency="紧急程度",

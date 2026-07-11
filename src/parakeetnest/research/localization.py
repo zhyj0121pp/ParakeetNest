@@ -37,7 +37,7 @@ class ReportLocalization:
     position_cards: str
     stable_holdings: str
     new_opportunities: str
-    raw_evidence: str
+    data_source_status: str
     recommendation: str
     confidence: str
     urgency: str
@@ -49,7 +49,6 @@ class ReportLocalization:
     yoyo: str
     factual_evidence: str
     show_stable_holdings: str
-    show_raw_evidence: str
     human_review_required: str
     no_automatic_action_review_recommended: str
     not_available: str
@@ -58,7 +57,6 @@ class ReportLocalization:
     positions_requiring_review: str
     no_position_cards: str
     no_stable_holdings: str
-    no_raw_evidence: str
     current_status: str
     suggested_action: str
     share_guidance: str
@@ -101,7 +99,7 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
     position_cards="Position Cards",
     stable_holdings="Stable Holdings",
     new_opportunities="New Opportunities",
-    raw_evidence="Raw Evidence",
+    data_source_status="Data Source Status",
     recommendation="Recommendation",
     confidence="Confidence",
     urgency="Urgency",
@@ -113,7 +111,6 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
     yoyo="Yoyo",
     factual_evidence="Factual evidence",
     show_stable_holdings="Show stable holdings",
-    show_raw_evidence="Show raw evidence",
     human_review_required="Human review required",
     no_automatic_action_review_recommended=(
         "No automatic action. User review recommended."
@@ -130,7 +127,6 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
     ),
     no_position_cards="No action-required position cards available.",
     no_stable_holdings="No stable holdings available.",
-    no_raw_evidence="No raw evidence available.",
     current_status="Current status",
     suggested_action="Suggested action",
     share_guidance="Reference shares",
@@ -176,7 +172,7 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     position_cards="持仓决策卡片",
     stable_holdings="稳定持仓",
     new_opportunities="新机会",
-    raw_evidence="原始证据",
+    data_source_status="数据源状态",
     recommendation="建议",
     confidence="信心",
     urgency="紧急程度",
@@ -188,7 +184,6 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     yoyo="悠悠",
     factual_evidence="事实依据",
     show_stable_holdings="展开稳定持仓",
-    show_raw_evidence="展开原始证据",
     human_review_required="需要人工复核",
     no_automatic_action_review_recommended=(
         "不会自动执行交易，建议你人工复核。"
@@ -203,7 +198,6 @@ ZH_REPORT_LOCALIZATION = ReportLocalization(
     ),
     no_position_cards="暂无需要处理的持仓决策卡片。",
     no_stable_holdings="暂无稳定持仓信息。",
-    no_raw_evidence="暂无原始证据。",
     current_status="当前状态",
     suggested_action="建议动作",
     share_guidance="参考股数",

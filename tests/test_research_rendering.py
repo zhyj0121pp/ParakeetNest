@@ -210,7 +210,7 @@ def test_interactive_html_uses_chinese_section_titles() -> None:
     assert ">3. 稳定持仓</h2>" not in body
     assert ">2. 新机会</h2>" in body
     assert "市场概览</h2>" not in body
-    assert ">3. 原始证据</h2>" in body
+    assert ">3. 数据源状态</h2>" in body
 
 
 def test_interactive_html_uses_chinese_field_labels() -> None:
@@ -244,7 +244,7 @@ def test_interactive_html_localizes_recommendation_confidence_and_urgency() -> N
 
 def test_interactive_html_contains_progressive_details_sections() -> None:
     body = render_investment_research_report_interactive_html(
-        _sample_report(),
+        replace(_sample_report(), position_decisions=()),
         language="zh",
     )
 
@@ -252,7 +252,12 @@ def test_interactive_html_contains_progressive_details_sections() -> None:
     assert "<summary" in body
     assert "事实依据" in body
     assert "展开稳定持仓" not in body
-    assert "展开原始证据" in body
+    assert "展开原始证据" not in body
+    assert "数据源状态" in body
+    assert ">委员会前分析</summary>" in body
+    assert ">公开事实</summary>" in body
+    assert ">组合背景（隐私安全桶）</summary>" in body
+    assert "<details open" not in body
 
 
 def test_interactive_html_separates_public_facts_from_privacy_safe_portfolio_context() -> None:
@@ -415,23 +420,17 @@ def test_interactive_html_stable_holdings_section_is_absent() -> None:
     assert "MSFT: 继续持有" not in body
 
 
-def test_interactive_html_raw_evidence_is_bottom_details() -> None:
+def test_interactive_html_data_source_status_is_short_bottom_section() -> None:
     body = render_investment_research_report_interactive_html(
         _sample_report(),
         language="zh",
     )
-    raw_section = _section(body, ">3. 原始证据</h2>", None)
+    status_section = _section(body, ">3. 数据源状态</h2>", None)
 
-    assert body.rfind(">3. 原始证据</h2>") > body.rfind(">2. 新机会</h2>")
-    assert "<details" in raw_section
-    assert "<summary" in raw_section
-    assert (
-        "Report evidence: Research assembled from provider-neutral services."
-        in raw_section
-    )
-    assert raw_section.index("<details") < raw_section.index(
-        "Report evidence: Research assembled from provider-neutral services."
-    )
+    assert body.rfind(">3. 数据源状态</h2>") > body.rfind(">2. 新机会</h2>")
+    assert "隐私安全组合信息: 可用" in status_section
+    assert "<details" not in status_section
+    assert "Report evidence:" not in status_section
 
 
 def test_interactive_html_hides_sensitive_portfolio_values() -> None:
@@ -446,7 +445,7 @@ def test_interactive_html_hides_sensitive_portfolio_values() -> None:
     assert "10 股" not in body
 
 
-def test_chinese_interactive_html_raw_evidence_hides_sensitive_portfolio_terms() -> None:
+def test_chinese_data_source_status_hides_sensitive_portfolio_terms() -> None:
     report = _sample_report()
     sensitive_ticker = replace(
         report.ticker_reports[0],
@@ -471,11 +470,11 @@ def test_chinese_interactive_html_raw_evidence_hides_sensitive_portfolio_terms()
         sensitive_report,
         language="zh",
     )
-    raw_section = _section(body, ">3. 原始证据</h2>", None)
+    status_section = _section(body, ">3. 数据源状态</h2>", None)
 
-    assert "Services growth." in raw_section
+    assert "Services growth." not in status_section
     for sensitive_term in ("市值", "股", "现金余额"):
-        assert sensitive_term not in raw_section
+        assert sensitive_term not in status_section
 
 
 def test_interactive_html_escapes_dynamic_text() -> None:

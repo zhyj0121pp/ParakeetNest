@@ -157,7 +157,7 @@ def test_default_composer_uses_permanent_committee_persona_names_and_roles() -> 
     assert ">3. Stable Holdings</h2>" not in body
     assert ">2. New Opportunities</h2>" in body
     assert "Market Overview</h2>" not in body
-    assert ">3. Raw Evidence</h2>" in body
+    assert ">3. Data Source Status</h2>" in body
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
     assert "<strong>Yoyo:</strong>" in body

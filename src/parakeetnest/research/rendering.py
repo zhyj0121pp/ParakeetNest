@@ -27,68 +27,6 @@ from parakeetnest.research.localization import (
 class _InvestmentResearchReportFormattingHelpers:
     """Shared formatting helpers for investment research report renderers."""
 
-    def _raw_evidence_lines(self, report: InvestmentResearchReport) -> list[str]:
-        lines: list[str] = []
-        lines.extend(f"- Report evidence: {note}" for note in report.evidence_notes)
-        lines.extend(f"- Report source: {source}" for source in report.source_summaries)
-        for ticker_report in report.ticker_reports:
-            lines.append(f"- {ticker_report.ticker}: {ticker_report.summary}")
-            for finding in ticker_report.findings:
-                lines.append(
-                    f"  - Finding: {finding.summary} (source: {finding.source})"
-                )
-                lines.extend(
-                    f"    - Evidence note: {note}" for note in finding.evidence_notes
-                )
-            lines.extend(
-                f"  - Public market fact: {fact}"
-                for fact in ticker_report.public_market_facts
-            )
-            lines.extend(
-                f"  - Yahoo profile fact: {fact}"
-                for fact in ticker_report.profile_facts
-            )
-            lines.extend(
-                f"  - Yahoo valuation fact: {fact}"
-                for fact in ticker_report.valuation_facts
-            )
-            lines.extend(
-                f"  - Financial statement fact: {fact}"
-                for fact in ticker_report.financial_facts
-            )
-            lines.extend(
-                f"  - Public news fact: {fact}" for fact in ticker_report.news_facts
-            )
-            lines.extend(
-                f"  - Company fact: {fact}" for fact in ticker_report.company_facts
-            )
-            lines.extend(f"  - Macro fact: {fact}" for fact in ticker_report.macro_facts)
-            lines.extend(
-                f"  - Privacy-safe portfolio context: {line}"
-                for line in _portfolio_context_lines(ticker_report)
-            )
-            for risk in ticker_report.risks:
-                if risk.evidence_notes:
-                    lines.append(f"  - Risk: {risk.summary}")
-                    lines.extend(
-                        f"    - Evidence note: {note}"
-                        for note in risk.evidence_notes
-                    )
-            for catalyst in ticker_report.catalysts:
-                if catalyst.evidence_notes:
-                    lines.append(f"  - Catalyst: {catalyst.summary}")
-                    lines.extend(
-                        f"    - Evidence note: {note}"
-                        for note in catalyst.evidence_notes
-                    )
-            lines.extend(
-                f"  - Source: {source}" for source in ticker_report.source_summaries
-            )
-            lines.extend(
-                f"  - Evidence note: {note}" for note in ticker_report.evidence_notes
-            )
-        return lines
-
     def _position_committee_review_lookup(
         self,
         report: InvestmentResearchReport,
@@ -170,7 +108,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             self._render_html_human_review_notice(),
             self._render_html_position_cards(report),
             self._render_html_new_opportunities(report),
-            self._render_html_raw_evidence(report),
+            self._render_html_data_source_status(report),
             "</body>",
             "</html>",
         ]
@@ -412,16 +350,9 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
         news_title = "Yahoo / news"
         sec_title = "SEC EDGAR"
         fred_title = "FRED / macro"
-        return "\n".join(
+        return self._html_details(
+            title,
             [
-                (
-                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
-                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
-                ),
-                (
-                    '<p style="margin: 0 0 6px;"><strong>'
-                    f"{_html(title)}</strong></p>"
-                ),
                 self._html_section_label(yahoo_title),
                 self._html_list(ticker_report.public_market_facts),
                 self._html_section_label(profile_title),
@@ -436,8 +367,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                 self._html_list(ticker_report.company_facts),
                 self._html_section_label(fred_title),
                 self._html_list(ticker_report.macro_facts),
-                "</div>",
-            ]
+            ],
         )
 
     def _render_html_interpretation(
@@ -450,16 +380,9 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             else "Pre-committee analysis"
         )
         interpretation = ticker_report.fact_interpretation
-        return "\n".join(
+        return self._html_details(
+            title,
             [
-                (
-                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
-                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
-                ),
-                (
-                    '<p style="margin: 0 0 6px;"><strong>'
-                    f"{_html(title)}</strong></p>"
-                ),
                 self._html_list(
                     (
                         f"valuation_label={interpretation.valuation_label}",
@@ -468,9 +391,8 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
                         interpretation.risk_summary,
                         interpretation.catalyst_summary,
                     )
-                ),
-                "</div>",
-            ]
+                )
+            ],
         )
 
     def _render_html_portfolio_context(
@@ -483,20 +405,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             else "Portfolio context, privacy-safe"
         )
         values = list(_portfolio_context_lines(ticker_report))
-        return "\n".join(
-            [
-                (
-                    '<div style="background: #f8fafc; border: 1px solid #e2e8f0; '
-                    'border-radius: 8px; padding: 10px; margin: 10px 0;">'
-                ),
-                (
-                    '<p style="margin: 0 0 6px;"><strong>'
-                    f"{_html(title)}</strong></p>"
-                ),
-                self._html_list(values),
-                "</div>",
-            ]
-        )
+        return self._html_details(title, [self._html_list(values)])
 
     def _render_html_committee_discussion(
         self,
@@ -615,19 +524,48 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             [self._html_section_heading(f"2. {l10n.new_opportunities}"), *cards]
         )
 
-    def _render_html_raw_evidence(self, report: InvestmentResearchReport) -> str:
-        l10n = self._localization
-        raw_lines = tuple(
-            line.lstrip("- ").strip()
-            for line in self._raw_evidence_lines(report)
-        )
-        evidence = self._privacy_safe_values(raw_lines) or (l10n.no_raw_evidence,)
+    def _render_html_data_source_status(self, report: InvestmentResearchReport) -> str:
+        statuses = self._data_source_statuses(report)
         return "\n".join(
             [
-                self._html_section_heading(f"3. {l10n.raw_evidence}"),
-                self._html_details(l10n.show_raw_evidence, [self._html_list(evidence)]),
+                self._html_section_heading(
+                    f"3. {self._localization.data_source_status}"
+                ),
+                self._html_list(statuses),
             ]
         )
+
+    def _data_source_statuses(
+        self,
+        report: InvestmentResearchReport,
+    ) -> tuple[str, ...]:
+        sources = {
+            source.split(":", 1)[0].strip().lower()
+            for source in report.source_summaries
+        }
+        for ticker_report in report.ticker_reports:
+            sources.update(
+                source.split(":", 1)[0].strip().lower()
+                for source in ticker_report.source_summaries
+            )
+        is_zh = self._localization.language is ReportLanguage.ZH
+        available = "可用" if is_zh else "available"
+        labels = (
+            ("Yahoo 市场、财务与新闻" if is_zh else "Yahoo market, financials, and news", {"market_data", "profile", "valuation", "financials", "news"}),
+            ("SEC EDGAR" if is_zh else "SEC EDGAR", {"sec_filings"}),
+            ("FRED 宏观数据" if is_zh else "FRED macro", {"macro"}),
+            ("隐私安全组合信息" if is_zh else "Privacy-safe portfolio context", {"portfolio"}),
+            ("市场风险背景" if is_zh else "Market risk context", {"market_context"}),
+            ("自选股背景" if is_zh else "Watchlist context", {"watchlist"}),
+        )
+        statuses = tuple(
+            f"{label}: {available}"
+            for label, source_ids in labels
+            if sources.intersection(source_ids)
+        )
+        if statuses:
+            return statuses
+        return ("暂无可用数据源。" if is_zh else "No data sources available.",)
 
     def _render_html_actionable_sizing(self, decision: PositionDecision) -> str:
         l10n = self._localization

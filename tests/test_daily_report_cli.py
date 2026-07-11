@@ -1028,7 +1028,7 @@ def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
     assert "Evening Investment Review" in body
     assert "Report Mode: evening" in body
     assert "Position Cards" in body
-    assert "Raw Evidence" in body
+    assert "Data Source Status" in body
 
 
 def test_generation_failure_returns_nonzero_exit_code(
@@ -1155,7 +1155,7 @@ def test_report_includes_committee_opinion_sections(tmp_path: Path) -> None:
     assert "3. Stable Holdings" not in body
     assert "2. New Opportunities" in body
     assert "Market Overview</h2>" not in body
-    assert "3. Raw Evidence" in body
+    assert "3. Data Source Status" in body
     assert "<strong>Dongdong:</strong>" in body
     assert "<strong>Xixi:</strong>" in body
     assert "<strong>Yoyo:</strong>" in body

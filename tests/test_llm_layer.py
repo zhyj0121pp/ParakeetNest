@@ -257,6 +257,35 @@ def test_output_parser_parses_chairman_summary_with_required_recommendation_fiel
     assert summary.risks == ("Execution risk.",)
 
 
+def test_output_parser_ignores_non_iso_optional_evidence_timestamp() -> None:
+    response = MockLLMProvider(
+        responses=(
+            json.dumps(
+                {
+                    "member_name": "Xixi",
+                    "role": "Chief Fundamental Analyst",
+                    "symbol": "AAPL",
+                    "viewpoint": "Hold pending stronger valuation support.",
+                    "confidence": "medium",
+                    "evidence": [
+                        {
+                            "summary": "Valuation evidence was supplied.",
+                            "source": "Yahoo/valuation",
+                            "observed_at": "not supplied",
+                        }
+                    ],
+                    "risks": ["Multiple compression."],
+                    "catalysts": ["Earnings update."],
+                }
+            ),
+        )
+    ).complete(LLMRequest(prompt="x", model="mock"))
+
+    opinion = OutputParser().parse_committee_opinion(response)
+
+    assert opinion.evidence[0].observed_at is None
+
+
 def test_output_parser_parses_committee_position_review() -> None:
     """Position review JSON should become the Phase II review dataclass."""
     response = MockLLMProvider(

@@ -168,7 +168,12 @@ class OutputParser:
     def _parse_datetime(value: str | None) -> datetime | None:
         if value is None:
             return None
+        normalized = value.strip()
+        if not normalized:
+            return None
         try:
-            return datetime.fromisoformat(value)
-        except ValueError as exc:
-            raise OutputParserError("observed_at must be an ISO datetime") from exc
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            # Evidence timestamps are auxiliary metadata. A malformed model value
+            # must not discard an otherwise valid committee judgment.
+            return None

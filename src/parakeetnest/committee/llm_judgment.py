@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
+import logging
 from typing import TYPE_CHECKING
 
 from parakeetnest.committee.judgment import CommitteeJudgmentService
@@ -11,6 +13,9 @@ from parakeetnest.llm.models import LLMRequest
 from parakeetnest.llm.parser import OutputParser, OutputParserError
 from parakeetnest.llm.provider import LLMProvider
 from parakeetnest.llm.schemas import CHAIRMAN_SUMMARY_SCHEMA, COMMITTEE_OPINION_SCHEMA
+
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from parakeetnest.committee.models import ChairmanSummary, CommitteeOpinion
@@ -180,7 +185,30 @@ class LLMCommitteeJudgmentService:
                 "tickers": ",".join(report.ticker for report in ticker_reports),
             },
         )
-        return self._parser.parse_committee_opinion(self._llm_provider.complete(request))
+        for attempt in range(2):
+            response = self._llm_provider.complete(request)
+            _log_llm_response(
+                response,
+                task="persona",
+                ticker=request.metadata["tickers"],
+                agent=persona_name,
+            )
+            try:
+                return self._parser.parse_committee_opinion(response)
+            except OutputParserError as exc:
+                _log_parse_failure(
+                    response,
+                    task="persona",
+                    ticker=request.metadata["tickers"],
+                    agent=persona_name,
+                    error=exc,
+                    attempt=attempt + 1,
+                )
+                if attempt == 0:
+                    request = _expanded_completion_request(request)
+                    continue
+                raise
+        raise AssertionError("unreachable")
 
     def _run_chairman_prompt(
         self,
@@ -207,7 +235,30 @@ class LLMCommitteeJudgmentService:
                 "tickers": ",".join(report.ticker for report in ticker_reports),
             },
         )
-        return self._parser.parse_chairman_summary(self._llm_provider.complete(request))
+        for attempt in range(2):
+            response = self._llm_provider.complete(request)
+            _log_llm_response(
+                response,
+                task="ticker_chairman",
+                ticker=request.metadata["tickers"],
+                agent="Chairman",
+            )
+            try:
+                return self._parser.parse_chairman_summary(response)
+            except OutputParserError as exc:
+                _log_parse_failure(
+                    response,
+                    task="ticker_chairman",
+                    ticker=request.metadata["tickers"],
+                    agent="Chairman",
+                    error=exc,
+                    attempt=attempt + 1,
+                )
+                if attempt == 0:
+                    request = _expanded_completion_request(request)
+                    continue
+                raise
+        raise AssertionError("unreachable")
 
     @staticmethod
     def _to_research_opinion(
@@ -279,6 +330,7 @@ def _persona_prompt_text(
             "- Return only a JSON object matching CommitteeOpinion.",
             "- viewpoint must be 2-4 short sentences and include action, confidence, horizon, evidence, risks, and catalysts.",
             "- evidence, risks, and catalysts arrays must each contain at most 2 short items.",
+            "- Set evidence observed_at to null unless an exact ISO datetime is supplied.",
             f"- symbol must be {_symbol_for_reports(ticker_reports)}.",
         ]
     )
@@ -321,6 +373,7 @@ def _chairman_prompt_text(
             "- rationale must be 2-3 short sentences.",
             "- Include action, confidence, horizon, evidence, risks, and catalysts.",
             "- evidence, risks, and catalysts arrays must each contain at most 2 short items.",
+            "- Set evidence observed_at to null unless an exact ISO datetime is supplied.",
             f"- symbol must be {_symbol_for_reports(ticker_reports)}.",
         ]
     )
@@ -400,6 +453,77 @@ def _persona_display_name(prompt: CommitteePersonaPrompt) -> str:
     if prompt.persona_id == "yoyo":
         return "Yoyo"
     return prompt.display_name
+
+
+def _log_llm_response(
+    response: object,
+    *,
+    task: str,
+    ticker: str,
+    agent: str,
+) -> None:
+    error = getattr(response, "error", None)
+    error_code = getattr(error, "code", None)
+    finish_reason = getattr(response, "finish_reason", "unknown")
+    latency_ms = getattr(response, "latency_ms", None)
+    metadata = getattr(response, "metadata", {}) or {}
+    prompt_tokens = metadata.get("prompt_tokens", "unknown")
+    completion_tokens = metadata.get("completion_tokens", "unknown")
+    if error is not None or finish_reason in {"timeout", "error"}:
+        logger.warning(
+            "LLM call failed task=%s ticker=%s agent=%s finish_reason=%s "
+            "error_code=%s latency_ms=%s prompt_tokens=%s completion_tokens=%s",
+            task,
+            ticker,
+            agent,
+            finish_reason,
+            error_code or "unknown",
+            latency_ms,
+            prompt_tokens,
+            completion_tokens,
+        )
+        return
+    logger.info(
+        "LLM call succeeded task=%s ticker=%s agent=%s finish_reason=%s "
+        "latency_ms=%s prompt_tokens=%s completion_tokens=%s",
+        task,
+        ticker,
+        agent,
+        finish_reason,
+        latency_ms,
+        prompt_tokens,
+        completion_tokens,
+    )
+
+
+def _log_parse_failure(
+    response: object,
+    *,
+    task: str,
+    ticker: str,
+    agent: str,
+    error: OutputParserError,
+    attempt: int,
+) -> None:
+    content = getattr(response, "content", "") or ""
+    metadata = getattr(response, "metadata", {}) or {}
+    logger.warning(
+        "LLM parse failed task=%s ticker=%s agent=%s attempt=%s "
+        "finish_reason=%s content_chars=%s completion_tokens=%s error=%s",
+        task,
+        ticker,
+        agent,
+        attempt,
+        getattr(response, "finish_reason", "unknown"),
+        len(content),
+        metadata.get("completion_tokens", "unknown"),
+        error,
+    )
+
+
+def _expanded_completion_request(request: LLMRequest) -> LLMRequest:
+    current = request.max_completion_tokens or 350
+    return replace(request, max_completion_tokens=current * 2)
 
 
 def _symbol_for_reports(ticker_reports: tuple[ResearchTickerReport, ...]) -> str:

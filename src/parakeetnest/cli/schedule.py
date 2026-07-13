@@ -150,6 +150,12 @@ def _add_common_schedule_args(parser: argparse.ArgumentParser) -> None:
         help="Local minute to run daily, 0-59. Defaults to 30.",
     )
     parser.add_argument(
+        "--mode",
+        choices=("morning", "evening"),
+        default="morning",
+        help="Report mode to generate. Defaults to morning.",
+    )
+    parser.add_argument(
         "--repo-root",
         type=Path,
         default=Path.cwd(),
@@ -165,7 +171,11 @@ def _add_common_schedule_args(parser: argparse.ArgumentParser) -> None:
 
 def _render_plist(args: argparse.Namespace) -> str:
     schedule = LaunchdSchedule(hour=args.hour, minute=args.minute)
-    renderer = LaunchdPlistRenderer(label=args.label, schedule=schedule)
+    renderer = LaunchdPlistRenderer(
+        label=args.label,
+        schedule=schedule,
+        report_mode=args.mode,
+    )
     return renderer.render(repo_root=args.repo_root, script_path=args.script)
 
 

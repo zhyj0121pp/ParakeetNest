@@ -13,6 +13,8 @@ from typing import Protocol
 DEFAULT_LABEL = "com.parakeetnest.daily"
 DEFAULT_HOUR = 7
 DEFAULT_MINUTE = 30
+DEFAULT_REPORT_MODE = "morning"
+VALID_REPORT_MODES = ("morning", "evening")
 DEFAULT_SCRIPT_RELATIVE_PATH = Path("scripts/run_parakeetnest_daily.sh")
 
 
@@ -46,6 +48,7 @@ class LaunchdPlistRenderer:
 
     label: str = DEFAULT_LABEL
     schedule: LaunchdSchedule = LaunchdSchedule()
+    report_mode: str = DEFAULT_REPORT_MODE
 
     def render(
         self,
@@ -70,10 +73,19 @@ class LaunchdPlistRenderer:
             field_name="stderr_path",
         )
         self.schedule.validate()
+        report_mode = self.report_mode.strip().lower()
+        if report_mode not in VALID_REPORT_MODES:
+            raise ScheduleValidationError(
+                "report mode must be morning or evening"
+            )
 
         payload = {
             "Label": self.label,
-            "ProgramArguments": [str(resolved_script)],
+            "ProgramArguments": [
+                str(resolved_script),
+                "--mode",
+                report_mode,
+            ],
             "WorkingDirectory": str(repo_root),
             "StartCalendarInterval": self.schedule.to_start_calendar_interval(),
             "StandardOutPath": str(resolved_stdout),

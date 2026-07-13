@@ -30,7 +30,11 @@ def test_default_plist_renders_daily_730_schedule(tmp_path: Path) -> None:
     payload = plistlib.loads(plist.encode("utf-8"))
     assert payload["Label"] == "com.parakeetnest.daily"
     assert payload["StartCalendarInterval"] == {"Hour": 7, "Minute": 30}
-    assert payload["ProgramArguments"] == [str(script_path.resolve())]
+    assert payload["ProgramArguments"] == [
+        str(script_path.resolve()),
+        "--mode",
+        "morning",
+    ]
     assert payload["WorkingDirectory"] == str(tmp_path.resolve())
     assert payload["RunAtLoad"] is False
 
@@ -49,6 +53,41 @@ def test_schedule_validation_accepts_clock_bounds() -> None:
     """Boundary clock values are valid."""
     LaunchdSchedule(hour=0, minute=0).validate()
     LaunchdSchedule(hour=23, minute=59).validate()
+
+
+def test_plist_passes_evening_mode_to_runtime_script(tmp_path: Path) -> None:
+    """The selected report mode should reach the runtime wrapper."""
+    script_path = tmp_path / "scripts" / "run_parakeetnest_daily.sh"
+    script_path.parent.mkdir()
+    script_path.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+    plist = LaunchdPlistRenderer(report_mode="evening").render(
+        repo_root=tmp_path,
+        script_path=script_path,
+    )
+
+    payload = plistlib.loads(plist.encode("utf-8"))
+    assert payload["ProgramArguments"] == [
+        str(script_path.resolve()),
+        "--mode",
+        "evening",
+    ]
+
+
+def test_plist_rejects_invalid_report_mode(tmp_path: Path) -> None:
+    """Only daily-report modes should be accepted by the scheduler."""
+    script_path = tmp_path / "scripts" / "run_parakeetnest_daily.sh"
+    script_path.parent.mkdir()
+    script_path.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+    with pytest.raises(
+        ScheduleValidationError,
+        match="report mode must be morning or evening",
+    ):
+        LaunchdPlistRenderer(report_mode="overnight").render(
+            repo_root=tmp_path,
+            script_path=script_path,
+        )
 
 
 def test_install_command_construction_and_plist_write(tmp_path: Path) -> None:

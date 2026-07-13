@@ -16,10 +16,11 @@ scripts/run_parakeetnest_daily.sh
 ```
 
 The script loads `.env` from the repository root if present, then invokes the
-existing daily report CLI:
+existing daily report CLI. The scheduler passes the selected report mode to the
+script explicitly:
 
 ```sh
-python -m parakeetnest.cli.daily_report --mode morning --archive
+scripts/run_parakeetnest_daily.sh --mode morning
 ```
 
 Secrets are not written into the LaunchAgent plist.
@@ -86,6 +87,19 @@ parakeetnest schedule install --hour 8 --minute 15
 ```
 
 The schedule uses local macOS time.
+
+Use `--mode morning` or `--mode evening` to select the report type. For example,
+install an evening report at 6:30 PM local time with:
+
+```sh
+parakeetnest schedule install --mode evening --hour 18 --minute 30
+```
+
+The runtime script also accepts the mode directly for manual validation:
+
+```sh
+scripts/run_parakeetnest_daily.sh --mode evening
+```
 
 `schedule install` must run from a macOS GUI login session where `launchctl`
 can bootstrap a user LaunchAgent. If `launchctl bootstrap` fails, fix the local

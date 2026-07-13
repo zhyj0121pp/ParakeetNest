@@ -7,6 +7,7 @@ from typing import Any, Literal
 
 
 JSONSchema = dict[str, Any]
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class LLMRequest:
     response_schema: JSONSchema | None = None
     timeout_seconds: float | None = None
     max_completion_tokens: int | None = None
+    reasoning_effort: ReasoningEffort | None = None
     max_retries: int = 0
     metadata: dict[str, str] = field(default_factory=dict)
 

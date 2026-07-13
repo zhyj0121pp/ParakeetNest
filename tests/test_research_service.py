@@ -817,8 +817,10 @@ def test_llm_persona_discussions_are_produced_from_prompts() -> None:
     )
     assert "viewpoint must be 2-4 short sentences" in dongdong_request.prompt
     assert dongdong_request.max_completion_tokens == 350
+    assert dongdong_request.reasoning_effort == "low"
     chairman_request = llm.requests[-1]
     assert chairman_request.metadata["task"] == "daily_report_chairman_synthesis"
+    assert chairman_request.reasoning_effort == "medium"
     assert "Persona Opinions" in chairman_request.prompt
     assert "Dongdong" in chairman_request.prompt
     assert "Xixi" in chairman_request.prompt

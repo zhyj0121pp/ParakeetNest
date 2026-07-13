@@ -73,6 +73,8 @@ class OpenAIProvider(LLMProvider):
             kwargs["timeout"] = request.timeout_seconds
         if request.max_completion_tokens is not None:
             kwargs["max_completion_tokens"] = request.max_completion_tokens
+        if request.reasoning_effort is not None:
+            kwargs["reasoning_effort"] = request.reasoning_effort
         if request.response_schema is not None:
             kwargs["response_format"] = {
                 "type": "json_schema",

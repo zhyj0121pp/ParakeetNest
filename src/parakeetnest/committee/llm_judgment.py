@@ -176,6 +176,7 @@ class LLMCommitteeJudgmentService:
             temperature=self._temperature,
             timeout_seconds=self._timeout_seconds,
             max_completion_tokens=self._max_completion_tokens,
+            reasoning_effort="low",
             response_schema=COMMITTEE_OPINION_SCHEMA,
             metadata={
                 "task": "daily_report_persona_opinion",
@@ -227,6 +228,7 @@ class LLMCommitteeJudgmentService:
             temperature=self._temperature,
             timeout_seconds=self._timeout_seconds,
             max_completion_tokens=self._max_completion_tokens,
+            reasoning_effort="medium",
             response_schema=CHAIRMAN_SUMMARY_SCHEMA,
             metadata={
                 "task": "daily_report_chairman_synthesis",

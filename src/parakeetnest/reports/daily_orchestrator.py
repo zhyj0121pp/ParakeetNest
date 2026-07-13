@@ -116,6 +116,7 @@ class DailyReportOrchestrator:
                 recipient_email=request.email_recipient,
                 html_report=body,
                 as_of_date=request.as_of_date,
+                mode=request.mode,
             )
             email_sent = delivery_result.status is ReportDeliveryStatus.DELIVERED
 
@@ -181,16 +182,19 @@ def deliver_daily_report_attachment(
     recipient_email: str,
     html_report: str,
     as_of_date: date | None = None,
+    mode: ReportMode | str = ReportMode.MORNING,
 ) -> ReportDeliveryResult:
     """Deliver a generated daily report as a text email plus HTML attachment."""
     report_date = as_of_date or date.today()
+    report_mode = ReportMode.from_value(mode)
     localization = get_report_localization()
-    filename = f"morning-report-{report_date.isoformat()}.html"
+    title = localization.report_title_for(report_mode)
+    filename = f"{report_mode.value}-report-{report_date.isoformat()}.html"
     return delivery_service.deliver_report(
         recipient_email=recipient_email,
-        subject=f"{localization.report_title} - {report_date.isoformat()}",
+        subject=f"{title} - {report_date.isoformat()}",
         body=_minimal_attachment_body(
-            title=localization.report_title,
+            title=title,
             report_date=report_date,
             attachment_filename=filename,
             language=localization.language,

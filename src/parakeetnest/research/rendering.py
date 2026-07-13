@@ -116,6 +116,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
 
     def _render_html_header(self, report: InvestmentResearchReport) -> str:
         l10n = self._localization
+        localized_title = l10n.report_title_for(report.mode)
         tickers = ", ".join(report.tickers()) or l10n.not_available
         metadata = (
             f"{report.title} | Report Mode: {report.mode.value} "
@@ -132,7 +133,7 @@ class InteractiveHtmlInvestmentResearchReportRenderer(
             [
                 (
                     '<h1 style="font-size: 28px; line-height: 1.2; margin: 0 0 '
-                    f'8px;">{_html(l10n.report_title)}</h1>'
+                    f'8px;">{_html(localized_title)}</h1>'
                 ),
                 (
                     '<p style="margin: 0 0 18px; color: #4b5563;">'

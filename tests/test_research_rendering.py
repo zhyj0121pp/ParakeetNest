@@ -70,6 +70,36 @@ def test_interactive_html_can_render_english(monkeypatch) -> None:
     get_settings.cache_clear()
 
 
+def test_interactive_html_evening_header_uses_evening_title(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+
+    body = render_investment_research_report_interactive_html(
+        _sample_report(ReportMode.EVENING)
+    )
+
+    assert ">Evening Investment Review</h1>" in body
+    assert ">Morning Investment Report</h1>" not in body
+    assert "Report Mode: evening" in body
+    get_settings.cache_clear()
+
+
+def test_interactive_html_chinese_evening_header_is_localized(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "zh")
+    get_settings.cache_clear()
+
+    body = render_investment_research_report_interactive_html(
+        _sample_report(ReportMode.EVENING)
+    )
+
+    assert ">晚间投资复盘</h1>" in body
+    assert ">早间投资报告</h1>" not in body
+    assert "报告模式: evening" in body
+    get_settings.cache_clear()
+
+
 def test_interactive_html_position_cards_use_per_position_committee_reviews(
     monkeypatch,
 ) -> None:

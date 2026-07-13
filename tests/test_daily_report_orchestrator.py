@@ -216,15 +216,15 @@ def test_orchestrator_sends_email_when_recipient_exists(monkeypatch) -> None:
     assert len(delivery_service.calls) == 1
     call = delivery_service.calls[0]
     assert call["recipient_email"] == "investor@example.com"
-    assert call["subject"] == "Morning Investment Report - 2026-07-01"
+    assert call["subject"] == "Evening Investment Review - 2026-07-01"
     assert call["body"] == (
-        "Morning Investment Report\n"
+        "Evening Investment Review\n"
         "Date: 2026-07-01\n"
-        "Full report is attached: morning-report-2026-07-01.html\n"
+        "Full report is attached: evening-report-2026-07-01.html\n"
     )
     assert call["content_type"] == "text/plain"
     attachment = call["attachments"][0]
-    assert attachment.filename == "morning-report-2026-07-01.html"
+    assert attachment.filename == "evening-report-2026-07-01.html"
     assert attachment.content == "<!doctype html>\n<html><body>Market Summary</body></html>"
     assert attachment.content_type == "text/html"
 

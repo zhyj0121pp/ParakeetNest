@@ -34,6 +34,7 @@ class ReportLocalization:
 
     language: ReportLanguage
     report_title: str
+    evening_report_title: str
     position_cards: str
     stable_holdings: str
     new_opportunities: str
@@ -76,6 +77,13 @@ class ReportLocalization:
     recommendation_labels: dict[str, str]
     level_labels: dict[str, str]
 
+    def report_title_for(self, mode: object) -> str:
+        """Return the localized title for a morning or evening report."""
+        raw_mode = getattr(mode, "value", mode)
+        if str(raw_mode).strip().lower() == "evening":
+            return self.evening_report_title
+        return self.report_title
+
     def recommendation_label(self, value: object) -> str:
         """Return a localized recommendation label when known."""
         raw_value = getattr(value, "value", value)
@@ -96,6 +104,7 @@ class ReportLocalization:
 EN_REPORT_LOCALIZATION = ReportLocalization(
     language=ReportLanguage.EN,
     report_title="Morning Investment Report",
+    evening_report_title="Evening Investment Review",
     position_cards="Position Cards",
     stable_holdings="Stable Holdings",
     new_opportunities="New Opportunities",
@@ -167,6 +176,7 @@ EN_REPORT_LOCALIZATION = ReportLocalization(
 ZH_REPORT_LOCALIZATION = ReportLocalization(
     language=ReportLanguage.ZH,
     report_title="早间投资报告",
+    evening_report_title="晚间投资复盘",
     position_cards="持仓决策卡片",
     stable_holdings="稳定持仓",
     new_opportunities="新机会",

@@ -14,6 +14,7 @@ from parakeetnest.research import (
     ReportDeliveryResult,
     ReportDeliveryService,
     ReportDeliveryStatus,
+    ReportMode,
 )
 
 
@@ -33,6 +34,7 @@ class FakeComposer:
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
+        mode: ReportMode | str = ReportMode.MORNING,
         body_format: ReportBodyFormat | str = (
             ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT
         ),
@@ -43,6 +45,7 @@ class FakeComposer:
                 "account_id": account_id,
                 "as_of_date": as_of_date,
                 "generated_at": generated_at,
+                "mode": mode,
                 "body_format": body_format,
             }
         )
@@ -150,9 +153,44 @@ def test_daily_delivery_passes_research_inputs_to_composer() -> None:
             "account_id": "main",
             "as_of_date": AS_OF_DATE,
             "generated_at": GENERATED_AT,
+            "mode": ReportMode.MORNING,
             "body_format": ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         }
     ]
+
+
+def test_daily_delivery_uses_evening_mode_for_composer_and_email(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "en")
+    get_settings.cache_clear()
+    composer = FakeComposer(body="rendered evening body")
+    delivery_service = FakeDeliveryService()
+    service = DailyReportDeliveryService(
+        composer=composer,
+        delivery_service=delivery_service,
+    )
+
+    try:
+        service.deliver(
+            DailyReportDeliveryRequest(
+                tickers=("NVDA",),
+                recipient_email="investor@example.com",
+                as_of_date=AS_OF_DATE,
+                mode=ReportMode.EVENING,
+            )
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert composer.calls[0]["mode"] is ReportMode.EVENING
+    call = delivery_service.calls[0]
+    assert call["subject"] == "Evening Investment Review - 2026-07-01"
+    assert call["body"] == (
+        "Evening Investment Review\n"
+        "Date: 2026-07-01\n"
+        "Full report is attached: evening-report-2026-07-01.html\n"
+    )
+    assert call["attachments"][0].filename == "evening-report-2026-07-01.html"
 
 
 def test_daily_delivery_passes_delivery_inputs_to_delivery_service(monkeypatch) -> None:
@@ -282,6 +320,38 @@ def test_daily_delivery_attachment_only_localizes_chinese_body(
         "日期：2026-07-01\n"
         "完整报告请查看附件：morning-report-2026-07-01.html\n"
     )
+
+
+def test_daily_delivery_localizes_chinese_evening_email(monkeypatch) -> None:
+    monkeypatch.delenv("PARAKEET_REPORT_LANGUAGE", raising=False)
+    monkeypatch.setenv("PARAKEETNEST_REPORT_LANGUAGE", "zh")
+    get_settings.cache_clear()
+    delivery_service = FakeDeliveryService()
+    service = DailyReportDeliveryService(
+        composer=FakeComposer(body="晚间报告"),
+        delivery_service=delivery_service,
+    )
+
+    try:
+        service.deliver(
+            DailyReportDeliveryRequest(
+                tickers=("NVDA",),
+                recipient_email="investor@example.com",
+                as_of_date=AS_OF_DATE,
+                mode=ReportMode.EVENING,
+            )
+        )
+    finally:
+        get_settings.cache_clear()
+
+    call = delivery_service.calls[0]
+    assert call["subject"] == "晚间投资复盘 - 2026-07-01"
+    assert call["body"] == (
+        "晚间投资复盘\n"
+        "日期：2026-07-01\n"
+        "完整报告请查看附件：evening-report-2026-07-01.html\n"
+    )
+    assert call["attachments"][0].filename == "evening-report-2026-07-01.html"
 
 
 def test_daily_delivery_builds_default_attachment_subject_from_as_of_date(

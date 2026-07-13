@@ -15,6 +15,7 @@ from parakeetnest.research.delivery import (
     ReportDeliveryResult,
 )
 from parakeetnest.research.localization import ReportLanguage, get_report_localization
+from parakeetnest.research.models import ReportMode
 
 
 class _DailyReportComposer(Protocol):
@@ -25,6 +26,7 @@ class _DailyReportComposer(Protocol):
         account_id: str | None = None,
         as_of_date: date | None = None,
         generated_at: datetime | None = None,
+        mode: ReportMode | str = ReportMode.MORNING,
     ) -> str:
         """Compose a daily investment report body."""
 
@@ -52,8 +54,12 @@ class DailyReportDeliveryRequest:
     account_id: str | None = None
     as_of_date: date | None = None
     generated_at: datetime | None = None
+    mode: ReportMode | str = ReportMode.MORNING
     subject: str | None = None
     metadata: Mapping[str, str] | None = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "mode", ReportMode.from_value(self.mode))
 
 
 class DailyReportDeliveryService:
@@ -75,6 +81,7 @@ class DailyReportDeliveryService:
             account_id=request.account_id,
             as_of_date=request.as_of_date,
             generated_at=request.generated_at,
+            mode=request.mode,
             body_format=ReportBodyFormat.INTERACTIVE_HTML_ATTACHMENT,
         )
         report_date = _report_date(
@@ -82,16 +89,17 @@ class DailyReportDeliveryService:
             generated_at=request.generated_at,
         )
         localization = get_report_localization()
-        filename = f"morning-report-{report_date.isoformat()}.html"
+        title = localization.report_title_for(request.mode)
+        filename = f"{request.mode.value}-report-{report_date.isoformat()}.html"
         body = _minimal_attachment_body(
-            title=localization.report_title,
+            title=title,
             report_date=report_date,
             attachment_filename=filename,
             language=localization.language,
         )
         subject = (
             request.subject
-            or f"{localization.report_title} - {report_date.isoformat()}"
+            or f"{title} - {report_date.isoformat()}"
         )
         attachments = (
             ReportDeliveryAttachment(

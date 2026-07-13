@@ -195,15 +195,23 @@ def _assert_html_attachment_delivery(
     recipient: str,
     report_date: str,
     html_report: str,
+    mode: ReportMode = ReportMode.MORNING,
 ) -> None:
+    title = (
+        "Evening Investment Review"
+        if mode is ReportMode.EVENING
+        else "Morning Investment Report"
+    )
     assert request.recipient.email == recipient
     assert request.body == (
-        "Morning Investment Report\n"
+        f"{title}\n"
         f"Date: {report_date}\n"
-        f"Full report is attached: morning-report-{report_date}.html"
+        f"Full report is attached: {mode.value}-report-{report_date}.html"
     )
     assert request.content_type == "text/plain"
-    assert request.attachments[0].filename == f"morning-report-{report_date}.html"
+    assert request.attachments[0].filename == (
+        f"{mode.value}-report-{report_date}.html"
+    )
     assert request.attachments[0].content == html_report.strip()
     assert request.attachments[0].content_type == "text/html"
 
@@ -480,6 +488,7 @@ def test_cli_sends_report_through_app_email_provider(
         recipient="investor@example.com",
         report_date="2026-07-01",
         html_report=html_report,
+        mode=ReportMode.EVENING,
     )
 
 
@@ -1026,6 +1035,7 @@ def test_cli_evening_mode_renders_evening_report(tmp_path: Path) -> None:
     assert exit_code == 0
     assert "<!doctype html>" in body
     assert "Evening Investment Review" in body
+    assert "Morning Investment Report" not in body
     assert "Report Mode: evening" in body
     assert "Position Cards" in body
     assert "Data Source Status" in body
